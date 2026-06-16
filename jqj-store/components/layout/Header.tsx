@@ -1,0 +1,124 @@
+"use client";
+
+import Link from "next/link";
+import Image from "next/image";
+import { useState } from "react";
+import { Menu, Search, ShoppingBag, User, X } from "lucide-react";
+import { useCart } from "@/context/CartContext";
+
+const navLinks = [
+  { label: "New", href: "/new" },
+  { label: "Limited Edition", href: "/bracelets?tag=limited" },
+  { label: "Bracelets", href: "/bracelets" },
+  { label: "Necklaces", href: "/necklaces" },
+];
+
+export default function Header() {
+  const { itemCount, setOpen } = useCart();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  return (
+    <header className="sticky top-0 z-40 border-b border-brand-border bg-black/85 backdrop-blur">
+      <div className="container-site flex h-16 items-center justify-between">
+        {/* Left: mobile menu + nav */}
+        <div className="flex flex-1 items-center">
+          <button
+            type="button"
+            aria-label="Open menu"
+            className="mr-2 lg:hidden"
+            onClick={() => setMobileOpen(true)}
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <nav className="hidden items-center gap-7 lg:flex">
+            {navLinks.map((l) => (
+              <Link key={l.href} href={l.href} className="nav-link">
+                {l.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+
+        {/* Center: logo */}
+        <Link href="/" aria-label="JQJ Group home" className="shrink-0">
+          <Image
+            src="/JQJ-logo.png"
+            alt="JQJ Group"
+            width={48}
+            height={48}
+            className="h-11 w-11 rounded-full object-cover"
+            priority
+          />
+        </Link>
+
+        {/* Right: icons */}
+        <div className="flex flex-1 items-center justify-end gap-5">
+          <Link href="/account" aria-label="Account" className="hidden sm:block">
+            <User className="h-5 w-5 text-white/80 transition-colors hover:text-white" />
+          </Link>
+          <button type="button" aria-label="Search" className="hidden sm:block">
+            <Search className="h-5 w-5 text-white/80 transition-colors hover:text-white" />
+          </button>
+          <button
+            type="button"
+            aria-label="Cart"
+            className="relative"
+            onClick={() => setOpen(true)}
+          >
+            <ShoppingBag className="h-5 w-5 text-white/80 transition-colors hover:text-white" />
+            <span
+              className={`absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-gold px-1 text-[10px] font-semibold text-black transition-opacity ${
+                itemCount > 0 ? "opacity-100" : "opacity-0"
+              }`}
+            >
+              {itemCount}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile drawer */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div
+            className="absolute inset-0 bg-black/70"
+            onClick={() => setMobileOpen(false)}
+          />
+          <div className="absolute left-0 top-0 h-full w-72 bg-brand-surface p-6">
+            <div className="mb-8 flex items-center justify-between">
+              <span className="font-heading text-sm uppercase tracking-wider2">
+                Menu
+              </span>
+              <button
+                type="button"
+                aria-label="Close menu"
+                onClick={() => setMobileOpen(false)}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <nav className="flex flex-col gap-5">
+              {navLinks.map((l) => (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  className="nav-link text-sm"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  {l.label}
+                </Link>
+              ))}
+              <Link
+                href="/account"
+                className="nav-link text-sm"
+                onClick={() => setMobileOpen(false)}
+              >
+                Account
+              </Link>
+            </nav>
+          </div>
+        </div>
+      )}
+    </header>
+  );
+}

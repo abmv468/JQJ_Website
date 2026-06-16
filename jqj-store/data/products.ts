@@ -1,0 +1,285 @@
+export type CategorySlug = "bracelets" | "necklaces";
+
+export type ProductTag = "new" | "limited" | "top-rated" | "restocked" | "sale";
+
+export interface Product {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  price: number;
+  compareAtPrice?: number | null;
+  category: CategorySlug;
+  images: string[];
+  inStock: boolean;
+  stockCount: number;
+  rating: number;
+  reviewCount: number;
+  tags: ProductTag[];
+  stone: string;
+  features: string[];
+  specs: Record<string, string>;
+}
+
+// Stone filters used on listing pages and the home "Shop by Stone" section.
+export const stones = [
+  "Sodalite",
+  "Tiger Eye",
+  "Carnelian",
+  "Tourmaline",
+  "Aquamarine",
+  "Amethyst",
+  "Lapis Lazuli",
+] as const;
+
+export const categories: { slug: CategorySlug; name: string }[] = [
+  { slug: "bracelets", name: "Bracelets" },
+  { slug: "necklaces", name: "Necklaces" },
+];
+
+const baseFeatures = [
+  "Hand-made for your wrist size",
+  "Premium natural stones & materials",
+  "Free resizing for new customers",
+  "Made in our atelier since 2015",
+];
+
+export const products: Product[] = [
+  {
+    id: "red-leopard-jasper-iii",
+    name: "Red Leopard Skin Jasper Bracelet III (6mm)",
+    slug: "red-leopard-skin-jasper-bracelet-iii",
+    description:
+      "Earthy and grounding, the Red Leopard Skin Jasper Bracelet pairs warm spotted stone with a hand-finished silver clasp. A timeless design, individually crafted for a custom fit.",
+    price: 599.99,
+    compareAtPrice: 699.99,
+    category: "bracelets",
+    images: [
+      "/products/red-leopard-jasper-bracelet.webp",
+      "/products/lifestyle.webp",
+    ],
+    inStock: true,
+    stockCount: 12,
+    rating: 4.8,
+    reviewCount: 28,
+    tags: ["top-rated", "sale"],
+    stone: "Carnelian",
+    features: baseFeatures,
+    specs: {
+      "Bead Size": "6mm",
+      Stone: "Red Leopard Skin Jasper",
+      Clasp: "Sterling Silver",
+      Origin: "Hand-made",
+    },
+  },
+  {
+    id: "brown-tourmaline-i",
+    name: "Raw Brown Tourmaline Bracelet I (8-10mm)",
+    slug: "raw-brown-tourmaline-bracelet-i",
+    description:
+      "Raw, untreated brown tourmaline nuggets in their most natural form. Every bead is unique, just like the person who wears it.",
+    price: 368.99,
+    compareAtPrice: null,
+    category: "bracelets",
+    images: ["/products/brown-tourmaline-bracelet.webp"],
+    inStock: true,
+    stockCount: 8,
+    rating: 4.7,
+    reviewCount: 19,
+    tags: ["new"],
+    stone: "Tourmaline",
+    features: baseFeatures,
+    specs: {
+      "Bead Size": "8-10mm",
+      Stone: "Raw Brown Tourmaline",
+      Clasp: "Sterling Silver",
+      Origin: "Hand-made",
+    },
+  },
+  {
+    id: "sodalite-viii",
+    name: "Sodalite Bracelet VIII (4mm)",
+    slug: "sodalite-bracelet-viii",
+    description:
+      "Deep blue sodalite with subtle white veining, finished with precision-cut silver accents for a refined, understated look.",
+    price: 549.99,
+    compareAtPrice: null,
+    category: "bracelets",
+    images: ["/products/sodalite-bracelet.webp"],
+    inStock: true,
+    stockCount: 15,
+    rating: 4.9,
+    reviewCount: 41,
+    tags: ["top-rated"],
+    stone: "Sodalite",
+    features: baseFeatures,
+    specs: {
+      "Bead Size": "4mm",
+      Stone: "Sodalite",
+      Clasp: "Sterling Silver",
+      Origin: "Hand-made",
+    },
+  },
+  {
+    id: "amethyst-xv",
+    name: "Amethyst Bracelet XV (5mm)",
+    slug: "amethyst-bracelet-xv",
+    description:
+      "Faceted amethyst beads in a graduated violet tone. A versatile piece that transitions effortlessly from day to evening.",
+    price: 330.99,
+    compareAtPrice: null,
+    category: "bracelets",
+    images: ["/products/amethyst-bracelet.webp"],
+    inStock: true,
+    stockCount: 20,
+    rating: 4.6,
+    reviewCount: 33,
+    tags: ["new", "limited"],
+    stone: "Amethyst",
+    features: baseFeatures,
+    specs: {
+      "Bead Size": "5mm",
+      Stone: "Amethyst",
+      Clasp: "Sterling Silver",
+      Origin: "Hand-made",
+    },
+  },
+  {
+    id: "silver-iv",
+    name: "Silver Bracelet IV (4mm)",
+    slug: "silver-bracelet-iv",
+    description:
+      "A modern essential. Polished silver-tone beads with a clean, minimal profile that complements any wardrobe.",
+    price: 449.99,
+    compareAtPrice: 499.99,
+    category: "bracelets",
+    images: ["/products/silver-bracelet.webp"],
+    inStock: true,
+    stockCount: 9,
+    rating: 4.8,
+    reviewCount: 26,
+    tags: ["restocked", "sale"],
+    stone: "Tiger Eye",
+    features: baseFeatures,
+    specs: {
+      "Bead Size": "4mm",
+      Stone: "Hematite Silver",
+      Clasp: "Sterling Silver",
+      Origin: "Hand-made",
+    },
+  },
+  {
+    id: "labradorite-v",
+    name: "Labradorite Bracelet V (8mm)",
+    slug: "labradorite-bracelet-v",
+    description:
+      "Iridescent labradorite flashes blue and gold as it catches the light. A statement of quiet luxury.",
+    price: 519.99,
+    compareAtPrice: null,
+    category: "bracelets",
+    images: ["/products/labradorite-bracelet.webp"],
+    inStock: true,
+    stockCount: 6,
+    rating: 4.9,
+    reviewCount: 22,
+    tags: ["limited"],
+    stone: "Lapis Lazuli",
+    features: baseFeatures,
+    specs: {
+      "Bead Size": "8mm",
+      Stone: "Labradorite",
+      Clasp: "Sterling Silver",
+      Origin: "Hand-made",
+    },
+  },
+  {
+    id: "blue-lace-agate-pendant",
+    name: "Blue Lace Agate Silver Pendant",
+    slug: "blue-lace-agate-silver-pendant",
+    description:
+      "A single polished blue lace agate point set in silver, suspended on a fine box chain. Calm, elegant, essential.",
+    price: 249.99,
+    compareAtPrice: null,
+    category: "necklaces",
+    images: ["/products/blue-lace-agate-pendant.webp"],
+    inStock: true,
+    stockCount: 18,
+    rating: 4.7,
+    reviewCount: 14,
+    tags: ["new"],
+    stone: "Aquamarine",
+    features: baseFeatures,
+    specs: {
+      "Chain Length": "55cm",
+      Stone: "Blue Lace Agate",
+      Metal: "Sterling Silver",
+      Origin: "Hand-made",
+    },
+  },
+  {
+    id: "labradorite-pendant",
+    name: "Labradorite Silver Pendant",
+    slug: "labradorite-silver-pendant",
+    description:
+      "A faceted labradorite baton framed in silver. Its shifting blue fire makes every angle different.",
+    price: 279.99,
+    compareAtPrice: null,
+    category: "necklaces",
+    images: ["/products/labradorite-pendant.webp"],
+    inStock: true,
+    stockCount: 11,
+    rating: 4.8,
+    reviewCount: 17,
+    tags: ["restocked"],
+    stone: "Lapis Lazuli",
+    features: baseFeatures,
+    specs: {
+      "Chain Length": "55cm",
+      Stone: "Labradorite",
+      Metal: "Sterling Silver",
+      Origin: "Hand-made",
+    },
+  },
+  {
+    id: "pearl-silver-v",
+    name: "Pearl - Silver Necklace V (7mm)",
+    slug: "pearl-silver-necklace-v",
+    description:
+      "Freshwater pearls interspersed with silver-tone hematite for a contemporary take on a classic strand.",
+    price: 980.0,
+    compareAtPrice: null,
+    category: "necklaces",
+    images: ["/products/pearl-silver-necklace.webp"],
+    inStock: true,
+    stockCount: 5,
+    rating: 4.9,
+    reviewCount: 9,
+    tags: ["limited", "top-rated"],
+    stone: "Tiger Eye",
+    features: baseFeatures,
+    specs: {
+      "Bead Size": "7mm",
+      Stone: "Freshwater Pearl",
+      Metal: "Sterling Silver",
+      Origin: "Hand-made",
+    },
+  },
+];
+
+export function getProductBySlug(slug: string): Product | undefined {
+  return products.find((p) => p.slug === slug);
+}
+
+export function getProductsByCategory(category: CategorySlug): Product[] {
+  return products.filter((p) => p.category === category);
+}
+
+export function getProductsByTag(tag: ProductTag): Product[] {
+  return products.filter((p) => p.tags.includes(tag));
+}
+
+export function getRelatedProducts(product: Product, limit = 4): Product[] {
+  return products
+    .filter((p) => p.id !== product.id && p.category === product.category)
+    .slice(0, limit);
+}

@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-heading: "Instrument Sans", sans-serif;
+  --font-body: "Manrope", sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #010101;
+  color: #f3f0ea;
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .container-site {
+    @apply mx-auto w-full max-w-site px-4 sm:px-6 lg:px-10;
+  }
+
+  .section-title {
+    @apply text-center font-heading text-2xl font-light uppercase tracking-wider2 text-white;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center border border-brand-gold bg-transparent px-8 py-3 font-heading text-xs uppercase tracking-wider2 text-white transition-colors hover:bg-brand-gold hover:text-black;
+  }
+
+  .btn-gold {
+    @apply inline-flex items-center justify-center bg-brand-gold px-8 py-3 font-heading text-xs uppercase tracking-wider2 text-black transition-colors hover:bg-brand-gold-light;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center border border-brand-border bg-transparent px-8 py-3 font-heading text-xs uppercase tracking-wider2 text-white transition-colors hover:border-white;
+  }
+
+  .input-field {
+    @apply w-full border border-brand-border bg-transparent px-4 py-3 text-sm text-white placeholder-brand-muted outline-none transition-colors focus:border-brand-gold;
+  }
+
+  .nav-link {
+    @apply font-heading text-xs uppercase tracking-wider2 text-white/80 transition-colors hover:text-white;
+  }
+}
+
+/* hide number input spinners */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #050505;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #BB9D7B;
+}
