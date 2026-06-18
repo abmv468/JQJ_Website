@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Menu, Search, ShoppingBag, User, X } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import { createClient } from "@/lib/supabase/client";
 
 const navLinks = [
   { label: "New", href: "/new" },
@@ -16,6 +17,37 @@ const navLinks = [
 export default function Header() {
   const { itemCount, setOpen } = useCart();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    supabase.auth.getSession().then(({ data }) => {
+      setSignedIn(Boolean(data.session));
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSignedIn(Boolean(session));
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  async function signOut() {
+    const supabase = createClient();
+    setSignOutError(null);
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      setSignOutError(error.message);
+      return;
+    }
+    setSignedIn(false);
+    setMobileOpen(false);
+    window.location.href = "/";
+  }
 
   return (
     <header className="sticky top-0 z-40 border-b border-brand-border bg-black/85 backdrop-blur">
@@ -53,9 +85,15 @@ export default function Header() {
 
         {/* Right: icons */}
         <div className="flex flex-1 items-center justify-end gap-5">
-          <Link href="/account" aria-label="Account" className="hidden sm:block">
-            <User className="h-5 w-5 text-white/80 transition-colors hover:text-white" />
-          </Link>
+          {signedIn ? (
+            <Link href="/account" aria-label="Account" className="hidden sm:block">
+              <User className="h-5 w-5 text-white/80 transition-colors hover:text-white" />
+            </Link>
+          ) : (
+            <Link href="/auth/login" className="hidden text-xs uppercase tracking-wider2 text-white/80 hover:text-white sm:block">
+              Sign In
+            </Link>
+          )}
           <button type="button" aria-label="Search" className="hidden sm:block">
             <Search className="h-5 w-5 text-white/80 transition-colors hover:text-white" />
           </button>
@@ -109,12 +147,18 @@ export default function Header() {
                 </Link>
               ))}
               <Link
-                href="/account"
+                href={signedIn ? "/account" : "/auth/login"}
                 className="nav-link text-sm"
                 onClick={() => setMobileOpen(false)}
               >
-                Account
+                {signedIn ? "Account" : "Sign In"}
               </Link>
+              {signedIn && (
+                <button type="button" className="text-left text-sm uppercase tracking-wider2 text-white/80 hover:text-white" onClick={signOut}>
+                  Sign Out
+                </button>
+              )}
+              {signOutError && <p className="text-xs text-red-400">{signOutError}</p>}
             </nav>
           </div>
         </div>

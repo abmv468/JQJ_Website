@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { sanitizeNextPath } from "@/lib/auth/sanitize-next-path";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
@@ -9,12 +11,42 @@ export default function LoginPage() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [nextPath, setNextPath] = useState("/account");
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get("status");
+    setNextPath(sanitizeNextPath(params.get("next")));
+    setStatusMessage(
+      status === "password-updated"
+        ? "Password updated. Sign in with your new password."
+        : status === "email-verified"
+          ? "Email verified. You can now sign in."
+          : null
+    );
+  }, []);
+
+  function getRedirectUrl(path: string) {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+    const base = siteUrl && siteUrl.length > 0 ? siteUrl : window.location.origin;
+    return new URL(path, base).toString();
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setMessage(null);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    if (mode === "signup" && password !== confirmPassword) {
+      setErrorMessage("Passwords do not match.");
+      return;
+    }
+
     setLoading(true);
     const supabase = createClient();
 
@@ -22,15 +54,31 @@ export default function LoginPage() {
       if (mode === "signin") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        router.push("/account");
+        router.push(nextPath);
         router.refresh();
       } else {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: getRedirectUrl("/auth/confirm"),
+          },
+        });
         if (error) throw error;
-        setMessage("Check your email to confirm your account.");
+
+        if (data.user && data.session) {
+          setSuccessMessage("Account created and signed in.");
+          router.push(nextPath);
+          router.refresh();
+          return;
+        }
+
+        setSuccessMessage(
+          "Account created. Check your email to verify your address before signing in."
+        );
       }
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Authentication failed");
+      setErrorMessage(err instanceof Error ? err.message : "Authentication failed.");
     } finally {
       setLoading(false);
     }
@@ -78,12 +126,33 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             className="input-field"
           />
+          {mode === "signup" && (
+            <input
+              type="password"
+              required
+              minLength={6}
+              placeholder="Confirm password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="input-field"
+            />
+          )}
           <button type="submit" disabled={loading} className="btn-gold w-full disabled:opacity-60">
             {loading ? "Please wait…" : mode === "signin" ? "Sign In" : "Create Account"}
           </button>
         </form>
 
-        {message && <p className="mt-4 text-center text-sm text-brand-gold">{message}</p>}
+        {mode === "signin" && (
+          <div className="mt-4 text-right">
+            <Link href="/auth/forgot-password" className="text-xs text-brand-muted hover:text-white">
+              Forgot password?
+            </Link>
+          </div>
+        )}
+
+        {statusMessage && <p className="mt-4 text-center text-sm text-brand-gold">{statusMessage}</p>}
+        {successMessage && <p className="mt-4 text-center text-sm text-brand-gold">{successMessage}</p>}
+        {errorMessage && <p className="mt-4 text-center text-sm text-red-400">{errorMessage}</p>}
       </div>
     </div>
   );
