@@ -38,10 +38,10 @@ export const categories: { slug: CategorySlug; name: string }[] = [
 ];
 
 const baseFeatures = [
-  "Hand-made for your wrist size",
-  "Premium natural stones & materials",
-  "Free resizing for new customers",
-  "Made in our atelier since 2015",
+  "Tailored for your preferred fit",
+  "Natural gemstones selected for color and character",
+  "Complimentary first resize for new customers",
+  "Crafted in our atelier with museum-inspired design values",
 ];
 
 export const products: Product[] = [
@@ -50,7 +50,7 @@ export const products: Product[] = [
     name: "Red Leopard Skin Jasper Bracelet III (6mm)",
     slug: "red-leopard-skin-jasper-bracelet-iii",
     description:
-      "Earthy and grounding, the Red Leopard Skin Jasper Bracelet pairs warm spotted stone with a hand-finished silver clasp. A timeless design, individually crafted for a custom fit.",
+      "Grounded and expressive, this Red Leopard Skin Jasper bracelet pairs warm, naturally patterned stone with a hand-finished silver clasp. A timeless profile, crafted one piece at a time.",
     price: 599.99,
     compareAtPrice: 699.99,
     category: "bracelets",
@@ -77,7 +77,7 @@ export const products: Product[] = [
     name: "Raw Brown Tourmaline Bracelet I (8-10mm)",
     slug: "raw-brown-tourmaline-bracelet-i",
     description:
-      "Raw, untreated brown tourmaline nuggets in their most natural form. Every bead is unique, just like the person who wears it.",
+      "Raw brown tourmaline nuggets are left close to their natural form, highlighting each stone's individual texture. Designed for everyday wear with artisanal character.",
     price: 368.99,
     compareAtPrice: null,
     category: "bracelets",
@@ -101,7 +101,7 @@ export const products: Product[] = [
     name: "Sodalite Bracelet VIII (4mm)",
     slug: "sodalite-bracelet-viii",
     description:
-      "Deep blue sodalite with subtle white veining, finished with precision-cut silver accents for a refined, understated look.",
+      "Deep blue sodalite with subtle white veining is finished with precision silver accents for a clean, understated look rooted in quiet confidence.",
     price: 549.99,
     compareAtPrice: null,
     category: "bracelets",
@@ -125,7 +125,7 @@ export const products: Product[] = [
     name: "Amethyst Bracelet XV (5mm)",
     slug: "amethyst-bracelet-xv",
     description:
-      "Faceted amethyst beads in a graduated violet tone. A versatile piece that transitions effortlessly from day to evening.",
+      "Faceted amethyst beads in graduated violet tones create an elegant rhythm. A versatile piece that moves effortlessly from daytime polish to evening refinement.",
     price: 330.99,
     compareAtPrice: null,
     category: "bracelets",
@@ -149,7 +149,7 @@ export const products: Product[] = [
     name: "Silver Bracelet IV (4mm)",
     slug: "silver-bracelet-iv",
     description:
-      "A modern essential. Polished silver-tone beads with a clean, minimal profile that complements any wardrobe.",
+      "A modern essential with polished silver-tone beads and a minimalist silhouette. Designed to layer well and complement a wide range of looks.",
     price: 449.99,
     compareAtPrice: 499.99,
     category: "bracelets",
@@ -173,7 +173,7 @@ export const products: Product[] = [
     name: "Labradorite Bracelet V (8mm)",
     slug: "labradorite-bracelet-v",
     description:
-      "Iridescent labradorite flashes blue and gold as it catches the light. A statement of quiet luxury.",
+      "Iridescent labradorite reveals blue-gold flashes as it catches the light. A quiet statement piece with depth, movement, and refined presence.",
     price: 519.99,
     compareAtPrice: null,
     category: "bracelets",
@@ -197,7 +197,7 @@ export const products: Product[] = [
     name: "Blue Lace Agate Silver Pendant",
     slug: "blue-lace-agate-silver-pendant",
     description:
-      "A single polished blue lace agate point set in silver, suspended on a fine box chain. Calm, elegant, essential.",
+      "A polished blue lace agate point set in silver and suspended on a fine box chain. Calm, elegant, and designed for effortless daily styling.",
     price: 249.99,
     compareAtPrice: null,
     category: "necklaces",
@@ -221,7 +221,7 @@ export const products: Product[] = [
     name: "Labradorite Silver Pendant",
     slug: "labradorite-silver-pendant",
     description:
-      "A faceted labradorite baton framed in silver. Its shifting blue fire makes every angle different.",
+      "A faceted labradorite baton framed in silver with a shifting inner glow. Each angle reveals a different tone for a subtle statement.",
     price: 279.99,
     compareAtPrice: null,
     category: "necklaces",
@@ -245,7 +245,7 @@ export const products: Product[] = [
     name: "Pearl - Silver Necklace V (7mm)",
     slug: "pearl-silver-necklace-v",
     description:
-      "Freshwater pearls interspersed with silver-tone hematite for a contemporary take on a classic strand.",
+      "Freshwater pearls are paired with silver-tone hematite for a contemporary interpretation of a classic strand, balancing softness with modern structure.",
     price: 980.0,
     compareAtPrice: null,
     category: "necklaces",

@@ -14,7 +14,7 @@ export default function HomePage() {
       <LatestCollections />
 
       <section className="container-site pb-16">
-        <h2 className="section-title mb-10">Top Products</h2>
+        <h2 className="section-title mb-10">Signature Pieces</h2>
         <div className="grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-4">
           {topProducts.map((p) => (
             <ProductCard key={p.id} product={p} />

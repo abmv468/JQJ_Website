@@ -15,7 +15,7 @@ export default function NecklacesPage({
   return (
     <CollectionView
       title="Necklaces"
-      subtitle="Pendants and beaded strands crafted with premium natural stones and pearls."
+      subtitle="Pendants and strands that blend gemstone symbolism, refined metalwork, and modern elegance."
       products={items}
       initialStone={searchParams.stone}
     />

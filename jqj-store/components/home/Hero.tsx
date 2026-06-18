@@ -4,9 +4,9 @@ import { Check } from "lucide-react";
 import StarRating from "@/components/ui/StarRating";
 
 const guarantees = [
-  "Hand-made for your wrist size",
+  "Tailored to your preferred fit",
   "30-day Satisfaction Guarantee",
-  "Family-Crafted Quality Since 2015",
+  "Museum-inspired craftsmanship since 2015",
 ];
 
 export default function Hero() {
@@ -29,10 +29,10 @@ export default function Hero() {
           </span>
         </div>
         <h1 className="font-heading text-3xl font-light text-white sm:text-4xl md:text-5xl">
-          Raw Elements. Refined Design.
+          Natural Stones. Cultured Design.
         </h1>
         <p className="mt-3 font-heading text-xs uppercase tracking-wider2 text-brand-gold-light">
-          Premium Natural Stones &amp; Materials
+          Inspired by Eastern heritage and modern craftsmanship
         </p>
         <ul className="mt-6 space-y-2">
           {guarantees.map((g) => (

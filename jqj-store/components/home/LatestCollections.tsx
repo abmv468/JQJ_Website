@@ -4,13 +4,13 @@ import { products } from "@/data/products";
 
 // Build "collection" cards from available product imagery.
 const collections = [
-  { name: "Hexagon Stone Collection", image: products[2].images[0], href: "/bracelets" },
-  { name: "Turquoise Collection", image: products[1].images[0], href: "/bracelets" },
-  { name: "Untamed Collection", image: products[0].images[0], href: "/bracelets" },
-  { name: "Labradorite Collection", image: products[5].images[0], href: "/bracelets" },
-  { name: "Amethyst Collection", image: products[3].images[0], href: "/bracelets" },
-  { name: "Silver Collection", image: products[4].images[0], href: "/bracelets" },
-  { name: "Pearl Collection", image: products[8].images[0], href: "/necklaces" },
+  { name: "Sodalite Signature", image: products[2].images[0], href: "/bracelets" },
+  { name: "Raw Tourmaline", image: products[1].images[0], href: "/bracelets" },
+  { name: "Jasper Heritage", image: products[0].images[0], href: "/bracelets" },
+  { name: "Labradorite Light", image: products[5].images[0], href: "/bracelets" },
+  { name: "Amethyst Studio", image: products[3].images[0], href: "/bracelets" },
+  { name: "Silver Minimal", image: products[4].images[0], href: "/bracelets" },
+  { name: "Pearl Atelier", image: products[8].images[0], href: "/necklaces" },
 ];
 
 export default function LatestCollections() {

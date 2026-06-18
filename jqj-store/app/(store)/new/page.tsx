@@ -20,7 +20,7 @@ export default function NewPage({
   return (
     <CollectionView
       title="New Arrivals"
-      subtitle="Featuring our latest releases and restocks. Find unique stones and shapes from all over the world."
+      subtitle="Our latest releases and restocks, shaped by gemstone energy, cultural motifs, and contemporary design."
       products={ordered}
       initialStone={searchParams.stone}
     />
