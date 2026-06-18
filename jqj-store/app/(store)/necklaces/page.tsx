@@ -8,7 +8,7 @@ export const metadata = {
 export default function NecklacesPage({
   searchParams,
 }: {
-  searchParams: { stone?: string };
+  searchParams: { stone?: string; tag?: string };
 }) {
   const items = getProductsByCategory("necklaces");
 
@@ -18,6 +18,7 @@ export default function NecklacesPage({
       subtitle="Pendants and beaded strands crafted with premium natural stones and pearls."
       products={items}
       initialStone={searchParams.stone}
+      initialTag={searchParams.tag}
     />
   );
 }

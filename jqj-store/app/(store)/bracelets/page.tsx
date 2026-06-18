@@ -10,17 +10,16 @@ export default function BraceletsPage({
 }: {
   searchParams: { stone?: string; tag?: string };
 }) {
-  let items = getProductsByCategory("bracelets");
-  if (searchParams.tag) {
-    items = items.filter((p) => p.tags.includes(searchParams.tag as never));
-  }
+  const items = getProductsByCategory("bracelets");
 
   return (
     <CollectionView
-      title={searchParams.tag === "limited" ? "Limited Edition Bracelets" : "Bracelets"}
+      title="Bracelets"
+      limitedTitle="Limited Edition Bracelets"
       subtitle="Featuring unique stones and shapes from all over the world, hand-finished in our atelier."
       products={items}
       initialStone={searchParams.stone}
+      initialTag={searchParams.tag}
     />
   );
 }

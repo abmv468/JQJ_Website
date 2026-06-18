@@ -8,7 +8,7 @@ export const metadata = {
 export default function NewPage({
   searchParams,
 }: {
-  searchParams: { stone?: string };
+  searchParams: { stone?: string; tag?: string };
 }) {
   // Surface newest + limited pieces first, then everything else.
   const featured = products.filter(
@@ -23,6 +23,7 @@ export default function NewPage({
       subtitle="Featuring our latest releases and restocks. Find unique stones and shapes from all over the world."
       products={ordered}
       initialStone={searchParams.stone}
+      initialTag={searchParams.tag}
     />
   );
 }
