@@ -1,14 +1,57 @@
 import { NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 import { getStripe } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
 interface CheckoutItem {
   id: string;
+  slug?: string;
   name: string;
   price: number;
   quantity: number;
   size?: string;
+  image?: string;
+}
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function asUuid(value: string | undefined) {
+  if (!value) return null;
+  return UUID_REGEX.test(value) ? value : null;
+}
+
+async function getAuthenticatedUserId() {
+  const cookieStore = cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(
+          cookiesToSet: {
+            name: string;
+            value: string;
+            options?: Record<string, unknown>;
+          }[]
+        ) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          } catch {
+            // No-op in route handlers when cookies cannot be set.
+          }
+        },
+      },
+    }
+  );
+  const { data } = await supabase.auth.getUser();
+  return data.user?.id ?? null;
 }
 
 export async function POST(req: Request) {
@@ -25,6 +68,7 @@ export async function POST(req: Request) {
 
     const stripe = getStripe();
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const userId = await getAuthenticatedUserId();
 
     const line_items = items.map((item) => ({
       price_data: {
@@ -61,9 +105,20 @@ export async function POST(req: Request) {
         city: customer.city,
         region: customer.region,
         country: customer.country,
+        phone: customer.phone || "",
+        userId: userId ?? "",
         shipping: String(shipping),
         items: JSON.stringify(
-          items.map((i) => ({ id: i.id, n: i.name, p: i.price, q: i.quantity }))
+          items.map((i) => ({
+            id: i.id,
+            pid: asUuid(i.id) ?? "",
+            slug: i.slug || "",
+            img: i.image || "",
+            s: i.size || "",
+            n: i.name,
+            p: i.price,
+            q: i.quantity,
+          }))
         ).slice(0, 4900),
       },
     });

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, CreditCard, Truck } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import { createClient } from "@/lib/supabase/client";
 import { formatPrice } from "@/lib/utils";
 
 const SHIPPING_FLAT = 15;
@@ -23,6 +24,7 @@ const countries = [
 
 export default function CheckoutPage() {
   const { items, subtotal, clearCart } = useCart();
+  const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
   const [method, setMethod] = useState<"stripe" | "cod">("stripe");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +39,56 @@ export default function CheckoutPage() {
     country: "United States",
     phone: "",
   });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function prefillFromAccount() {
+      const supabase = createClient();
+      const { data } = await supabase.auth.getUser();
+      if (!isMounted || !data.user) return;
+
+      setSignedInEmail(data.user.email ?? null);
+
+      const [profileRes, addressRes] = await Promise.all([
+        supabase
+          .from("customer_profiles")
+          .select("first_name, last_name, phone")
+          .eq("user_id", data.user.id)
+          .maybeSingle(),
+        supabase
+          .from("customer_addresses")
+          .select("first_name, last_name, address_line1, address_line2, city, region, country, phone")
+          .eq("user_id", data.user.id)
+          .order("is_default", { ascending: false })
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+
+      if (!isMounted) return;
+
+      const profile = profileRes.data;
+      const address = addressRes.data;
+      setForm((prev) => ({
+        ...prev,
+        email: prev.email || data.user?.email || "",
+        firstName: prev.firstName || profile?.first_name || address?.first_name || "",
+        lastName: prev.lastName || profile?.last_name || address?.last_name || "",
+        address: prev.address || address?.address_line1 || "",
+        apartment: prev.apartment || address?.address_line2 || "",
+        city: prev.city || address?.city || "",
+        region: prev.region || address?.region || "",
+        country: prev.country || address?.country || "United States",
+        phone: prev.phone || profile?.phone || address?.phone || "",
+      }));
+    }
+
+    void prefillFromAccount();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const codFee = method === "cod" ? COD_FEE : 0;
   const shipping = items.length ? SHIPPING_FLAT : 0;
@@ -59,10 +111,12 @@ export default function CheckoutPage() {
     const payload = {
       items: items.map((i) => ({
         id: i.id,
+        slug: i.slug,
         name: i.name,
         price: i.price,
         quantity: i.quantity,
         size: i.size,
+        image: i.image,
       })),
       customer: form,
       shipping,
@@ -119,10 +173,21 @@ export default function CheckoutPage() {
           <section className="mb-8">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="font-heading text-sm uppercase tracking-wider2">Contact</h2>
-              <Link href="/auth/login" className="text-xs text-brand-gold underline">
-                Sign in
-              </Link>
+              {signedInEmail ? (
+                <Link href="/account" className="text-xs text-brand-gold underline">
+                  Account
+                </Link>
+              ) : (
+                <Link href="/auth/login" className="text-xs text-brand-gold underline">
+                  Sign in
+                </Link>
+              )}
             </div>
+            {signedInEmail && (
+              <p className="mb-3 text-xs text-brand-muted">
+                Signed in as <span className="text-white">{signedInEmail}</span>
+              </p>
+            )}
             <input
               type="email"
               required

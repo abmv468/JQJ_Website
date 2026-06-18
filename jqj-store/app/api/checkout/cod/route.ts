@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendOrderEmails } from "@/lib/email";
 
@@ -8,10 +10,51 @@ const COD_FEE = 20;
 
 interface CheckoutItem {
   id: string;
+  slug?: string;
   name: string;
   price: number;
   quantity: number;
   size?: string;
+  image?: string;
+}
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function asUuid(value: string | undefined) {
+  if (!value) return null;
+  return UUID_REGEX.test(value) ? value : null;
+}
+
+async function getAuthenticatedUserId() {
+  const cookieStore = cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(
+          cookiesToSet: {
+            name: string;
+            value: string;
+            options?: Record<string, unknown>;
+          }[]
+        ) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          } catch {
+            // No-op in route handlers when cookies cannot be set.
+          }
+        },
+      },
+    }
+  );
+  const { data } = await supabase.auth.getUser();
+  return data.user?.id ?? null;
 }
 
 export async function POST(req: Request) {
@@ -29,6 +72,7 @@ export async function POST(req: Request) {
     const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
     const total = subtotal + (shipping || 0) + COD_FEE;
     const customerName = `${customer.firstName} ${customer.lastName}`.trim();
+    const userId = await getAuthenticatedUserId();
 
     const shippingAddress = {
       address: customer.address,
@@ -49,6 +93,7 @@ export async function POST(req: Request) {
       const { data: order, error } = await supabase
         .from("orders")
         .insert({
+          user_id: userId,
           status: "pending",
           total_amount: total,
           shipping_amount: shipping || 0,
@@ -66,9 +111,16 @@ export async function POST(req: Request) {
       await supabase.from("order_items").insert(
         items.map((i) => ({
           order_id: orderId,
+          product_id: asUuid(i.id),
           product_name: i.name,
           quantity: i.quantity,
           price_at_purchase: i.price,
+          line_item_meta: {
+            cart_item_id: i.id,
+            product_slug: i.slug || "",
+            image: i.image || "",
+            size: i.size || "",
+          },
         }))
       );
     } catch (dbErr) {
