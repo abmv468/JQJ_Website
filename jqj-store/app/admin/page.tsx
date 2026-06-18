@@ -12,6 +12,12 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { formatPrice } from "@/lib/utils";
+import {
+  formatOrderStatusLabel,
+  getOrderStatusOptions,
+  hasPartialRefund,
+  isFullyRefunded,
+} from "@/lib/order-lifecycle";
 
 type Tab = "dashboard" | "products" | "orders" | "customers" | "settings";
 
@@ -28,13 +34,13 @@ interface AdminOrder {
   id: string;
   status: string;
   total_amount: number;
+  refunded_amount: number | null;
   customer_email: string | null;
   customer_name: string | null;
   created_at: string;
   shipping_address?: { payment_method?: string } | null;
+  order_refunds?: { id: string; amount: number; reason: string | null; created_at: string }[];
 }
-
-const statuses = ["pending", "processing", "shipped", "delivered", "cancelled"];
 
 const navItems: { key: Tab; label: string; icon: typeof LayoutDashboard }[] = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -51,6 +57,7 @@ export default function AdminPage() {
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refundDrafts, setRefundDrafts] = useState<Record<string, { amount: string; reason: string }>>({});
 
   const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
 
@@ -62,12 +69,29 @@ export default function AdminPage() {
     });
   }, []);
 
+  const getAdminAuthHeaders = useCallback(async (withJsonContentType = false) => {
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return null;
+
+    return {
+      Authorization: `Bearer ${token}`,
+      ...(withJsonContentType ? { "Content-Type": "application/json" } : {}),
+    };
+  }, []);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
+      const orderHeaders = await getAdminAuthHeaders();
       const [p, o] = await Promise.all([
         fetch("/api/admin/products").then((r) => r.json()),
-        fetch("/api/admin/orders").then((r) => r.json()),
+        fetch("/api/admin/orders", {
+          headers: orderHeaders ?? undefined,
+        }).then((r) => r.json()),
       ]);
       setProducts(p.products ?? []);
       setOrders(o.orders ?? []);
@@ -76,7 +100,7 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [getAdminAuthHeaders]);
 
   const isAdmin = user?.email && adminEmail && user.email === adminEmail;
 
@@ -85,12 +109,38 @@ export default function AdminPage() {
   }, [isAdmin, loadData]);
 
   async function updateOrderStatus(id: string, status: string) {
-    await fetch("/api/admin/orders", {
+    const headers = await getAdminAuthHeaders(true);
+    if (!headers) return;
+
+    const response = await fetch("/api/admin/orders", {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ id, status }),
     });
-    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
+    if (!response.ok) return;
+    const payload = await response.json();
+    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, ...payload.order } : o)));
+  }
+
+  async function createPartialRefund(order: AdminOrder) {
+    const draft = refundDrafts[order.id];
+    const amount = Number(draft?.amount);
+    if (!Number.isFinite(amount) || amount <= 0) return;
+
+    const headers = await getAdminAuthHeaders(true);
+    if (!headers) return;
+
+    const response = await fetch("/api/admin/orders", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ id: order.id, amount, reason: draft?.reason ?? "" }),
+    });
+
+    if (!response.ok) return;
+
+    const payload = await response.json();
+    setOrders((prev) => prev.map((o) => (o.id === order.id ? payload.order : o)));
+    setRefundDrafts((prev) => ({ ...prev, [order.id]: { amount: "", reason: "" } }));
   }
 
   if (!authChecked) {
@@ -193,17 +243,34 @@ export default function AdminPage() {
                   <th className="p-3">Customer</th>
                   <th className="p-3">Method</th>
                   <th className="p-3">Total</th>
+                  <th className="p-3">Refunded</th>
                   <th className="p-3">Status</th>
+                  <th className="p-3">Refund Action</th>
                 </tr>
               </thead>
               <tbody>
                 {orders.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="p-6 text-center text-brand-muted">No orders yet.</td>
+                    <td colSpan={7} className="p-6 text-center text-brand-muted">No orders yet.</td>
                   </tr>
                 ) : (
                   orders.map((o) => (
                     <tr key={o.id} className="border-b border-brand-border/60">
+                      {(() => {
+                        const totalAmount = Number(o.total_amount || 0);
+                        const refundedAmount = Number(o.refunded_amount || 0);
+                        const partialRefund = hasPartialRefund(totalAmount, refundedAmount);
+                        const fullyRefunded = isFullyRefunded(totalAmount, refundedAmount);
+                        const statusLabel = formatOrderStatusLabel(o.status);
+                        const statusOptions = getOrderStatusOptions(o.status);
+                        const currentSelectValue =
+                          statusOptions.find((statusOption) => statusOption === o.status) ??
+                          statusOptions[0];
+                        const canRefund = !fullyRefunded;
+                        const remainingToRefund = Math.max(totalAmount - refundedAmount, 0);
+
+                        return (
+                          <>
                       <td className="p-3 font-mono text-xs">{o.id.slice(0, 8)}</td>
                       <td className="p-3">{o.customer_name || o.customer_email || "Guest"}</td>
                       <td className="p-3 uppercase text-brand-muted">
@@ -211,18 +278,101 @@ export default function AdminPage() {
                       </td>
                       <td className="p-3 text-brand-gold">{formatPrice(Number(o.total_amount))}</td>
                       <td className="p-3">
+                        {refundedAmount <= 0 ? (
+                          <span className="text-brand-muted">—</span>
+                        ) : (
+                          <div className="space-y-1">
+                            <p className="text-xs text-brand-gold">
+                              {formatPrice(refundedAmount)}
+                              {partialRefund && (
+                                <span className="ml-1 text-brand-muted">
+                                  / {formatPrice(totalAmount)} (partial)
+                                </span>
+                              )}
+                            </p>
+                            {!!o.order_refunds?.length && (
+                              <ul className="space-y-1 text-[11px] text-brand-muted">
+                                {[...o.order_refunds]
+                                  .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+                                  .slice(0, 3)
+                                  .map((refund) => (
+                                    <li key={refund.id}>
+                                      {formatPrice(Number(refund.amount))}
+                                      {refund.reason ? ` · ${refund.reason}` : ""}
+                                    </li>
+                                  ))}
+                              </ul>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="p-3">
                         <select
-                          value={o.status}
+                          value={currentSelectValue}
                           onChange={(e) => updateOrderStatus(o.id, e.target.value)}
                           className="border border-brand-border bg-transparent px-2 py-1 text-xs"
+                          disabled={fullyRefunded}
                         >
-                          {statuses.map((s) => (
+                          {statusOptions.map((s) => (
                             <option key={s} value={s} className="bg-brand-surface capitalize">
-                              {s}
+                              {formatOrderStatusLabel(s)}
                             </option>
                           ))}
                         </select>
+                        {partialRefund && (
+                          <p className="mt-1 text-[11px] text-brand-muted">
+                            {statusLabel} (partial refund)
+                          </p>
+                        )}
                       </td>
+                      <td className="p-3">
+                        {canRefund ? (
+                          <div className="space-y-2">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              max={remainingToRefund}
+                              placeholder="Amount"
+                              value={refundDrafts[o.id]?.amount ?? ""}
+                              onChange={(e) =>
+                                setRefundDrafts((prev) => ({
+                                  ...prev,
+                                  [o.id]: { amount: e.target.value, reason: prev[o.id]?.reason ?? "" },
+                                }))
+                              }
+                              className="w-24 border border-brand-border bg-transparent px-2 py-1 text-xs"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Reason (optional)"
+                              value={refundDrafts[o.id]?.reason ?? ""}
+                              onChange={(e) =>
+                                setRefundDrafts((prev) => ({
+                                  ...prev,
+                                  [o.id]: { amount: prev[o.id]?.amount ?? "", reason: e.target.value },
+                                }))
+                              }
+                              className="w-full min-w-28 border border-brand-border bg-transparent px-2 py-1 text-xs"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => createPartialRefund(o)}
+                              className="btn-secondary px-2 py-1 text-[11px]"
+                            >
+                              Refund
+                            </button>
+                            <p className="text-[11px] text-brand-muted">
+                              Remaining: {formatPrice(remainingToRefund)}
+                            </p>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-brand-muted">Fully refunded</span>
+                        )}
+                      </td>
+                          </>
+                        );
+                      })()}
                     </tr>
                   ))
                 )}

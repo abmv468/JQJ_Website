@@ -35,8 +35,9 @@ create table if not exists products (
 create table if not exists orders (
   id uuid primary key default uuid_generate_v4(),
   user_id uuid references auth.users(id) on delete set null,
-  status text default 'pending',
+  status text default 'paid',
   total_amount decimal(10,2) not null,
+  refunded_amount decimal(10,2) not null default 0,
   shipping_amount decimal(10,2) default 0,
   shipping_address jsonb,
   customer_email text,
@@ -44,6 +45,14 @@ create table if not exists orders (
   stripe_session_id text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
+);
+
+create table if not exists order_refunds (
+  id uuid primary key default uuid_generate_v4(),
+  order_id uuid not null references orders(id) on delete cascade,
+  amount decimal(10,2) not null check (amount > 0),
+  reason text,
+  created_at timestamptz default now()
 );
 
 create table if not exists order_items (
@@ -56,11 +65,84 @@ create table if not exists order_items (
   created_at timestamptz default now()
 );
 
+alter table orders add column if not exists refunded_amount decimal(10,2) not null default 0;
+
+update orders
+set refunded_amount = total_amount
+where lower(status) in ('cancelled', 'refunded') and coalesce(refunded_amount, 0) = 0;
+
+update orders
+set status = case
+  when lower(status) in ('pending', 'processing') then 'paid'
+  when lower(status) = 'cancelled' then 'refunded'
+  when lower(status) in ('paid', 'packed', 'shipped', 'delivered', 'refunded') then lower(status)
+  else 'paid'
+end
+where status is not null;
+
+alter table orders drop constraint if exists orders_status_check;
+alter table orders
+  add constraint orders_status_check
+  check (status in ('paid', 'packed', 'shipped', 'delivered', 'refunded'));
+
+alter table orders drop constraint if exists orders_refunded_amount_check;
+alter table orders
+  add constraint orders_refunded_amount_check
+  check (refunded_amount >= 0 and refunded_amount <= total_amount);
+
+create index if not exists idx_order_refunds_order_id_created_at on order_refunds(order_id, created_at desc);
+
+create or replace function apply_order_refund(
+  p_order_id uuid,
+  p_amount decimal(10,2),
+  p_reason text default null
+) returns void
+language plpgsql
+as $$
+declare
+  v_order orders%rowtype;
+  v_next_refunded decimal(10,2);
+begin
+  if p_amount is null or p_amount <= 0 then
+    raise exception 'Refund amount must be greater than zero';
+  end if;
+
+  select *
+    into v_order
+    from orders
+   where id = p_order_id
+   for update;
+
+  if not found then
+    raise exception 'Order not found';
+  end if;
+
+  if v_order.status = 'refunded' then
+    raise exception 'Order is already fully refunded';
+  end if;
+
+  v_next_refunded := coalesce(v_order.refunded_amount, 0) + p_amount;
+  if v_next_refunded > v_order.total_amount then
+    raise exception 'Refund amount exceeds remaining refundable balance';
+  end if;
+
+  insert into order_refunds (order_id, amount, reason)
+  values (p_order_id, p_amount, nullif(trim(coalesce(p_reason, '')), ''));
+
+  update orders
+     set refunded_amount = v_next_refunded,
+         status = case when v_next_refunded = total_amount then 'refunded' else status end,
+         updated_at = now()
+   where id = p_order_id;
+end;
+$$;
+
 -- ============ RLS ============
 alter table categories enable row level security;
 alter table products enable row level security;
 alter table orders enable row level security;
 alter table order_items enable row level security;
+alter table order_refunds enable row level security;
 
 drop policy if exists "public read categories" on categories;
 create policy "public read categories" on categories for select using (true);
@@ -76,6 +158,11 @@ create policy "users insert own orders" on orders for insert with check (auth.ui
 
 drop policy if exists "users read own order items" on order_items;
 create policy "users read own order items" on order_items for select using (
+  exists (select 1 from orders o where o.id = order_id and o.user_id = auth.uid())
+);
+
+drop policy if exists "users read own refunds" on order_refunds;
+create policy "users read own refunds" on order_refunds for select using (
   exists (select 1 from orders o where o.id = order_id and o.user_id = auth.uid())
 );
 

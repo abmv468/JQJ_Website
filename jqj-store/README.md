@@ -50,6 +50,13 @@ npm run dev                        # http://localhost:3000
 The storefront runs with **static product data** (`data/products.ts`) even
 without backend keys. Checkout, orders, auth and admin require the keys above.
 
+## Order lifecycle & refunds
+
+- Order status pipeline: `paid -> packed -> shipped -> delivered` (+ terminal `refunded`).
+- Admin status updates are validated to prevent backward/invalid transitions.
+- Partial refunds are supported via `orders.refunded_amount` and `order_refunds` history.
+- Multiple partial refunds are allowed; orders auto-transition to `refunded` only when fully refunded.
+
 ## Branding
 
 - Background `#010101`, gold accents `#BB9D7B` / `#E1C19D`

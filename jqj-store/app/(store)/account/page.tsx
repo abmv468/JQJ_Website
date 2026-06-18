@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { formatPrice } from "@/lib/utils";
+import { formatOrderStatusLabel, hasPartialRefund, isFullyRefunded } from "@/lib/order-lifecycle";
 
 interface OrderRow {
   id: string;
   status: string;
   total_amount: number;
+  refunded_amount: number | null;
   created_at: string;
 }
 
@@ -29,7 +31,7 @@ export default function AccountPage() {
       setUser(data.user);
       const { data: orderData } = await supabase
         .from("orders")
-        .select("id, status, total_amount, created_at")
+        .select("id, status, total_amount, refunded_amount, created_at")
         .order("created_at", { ascending: false });
       setOrders(orderData ?? []);
       setLoading(false);
@@ -81,7 +83,15 @@ export default function AccountPage() {
                 <tr key={o.id} className="border-b border-brand-border/60">
                   <td className="p-4 font-mono text-xs">{o.id.slice(0, 8)}</td>
                   <td className="p-4 text-brand-muted">{new Date(o.created_at).toLocaleDateString()}</td>
-                  <td className="p-4 capitalize">{o.status}</td>
+                  <td className="p-4">
+                    {formatOrderStatusLabel(o.status)}
+                    {hasPartialRefund(Number(o.total_amount), Number(o.refunded_amount || 0)) && (
+                      <span className="ml-2 text-xs text-brand-muted">(partial refund)</span>
+                    )}
+                    {isFullyRefunded(Number(o.total_amount), Number(o.refunded_amount || 0)) && (
+                      <span className="ml-2 text-xs text-brand-muted">(fully refunded)</span>
+                    )}
+                  </td>
                   <td className="p-4 text-right text-brand-gold">{formatPrice(o.total_amount)}</td>
                 </tr>
               ))}
