@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, CreditCard, Truck } from "lucide-react";
@@ -26,6 +26,8 @@ export default function CheckoutPage() {
   const [method, setMethod] = useState<"stripe" | "cod">("stripe");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stockErrors, setStockErrors] = useState<string[]>([]);
+  const [checkingStock, setCheckingStock] = useState(false);
   const [form, setForm] = useState({
     email: "",
     firstName: "",
@@ -42,6 +44,35 @@ export default function CheckoutPage() {
   const shipping = items.length ? SHIPPING_FLAT : 0;
   const total = subtotal + shipping + codFee;
 
+  const payloadItems = useMemo(
+    () =>
+      items.map((item) => ({
+        id: item.id,
+        slug: item.slug,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        size: item.size,
+        material: item.material,
+        sku: item.sku,
+      })),
+    [items]
+  );
+
+  useEffect(() => {
+    if (!payloadItems.length) return;
+    setCheckingStock(true);
+    fetch("/api/products/availability", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items: payloadItems }),
+    })
+      .then((response) => response.json())
+      .then((data) => setStockErrors(data.errors ?? []))
+      .catch(() => setStockErrors([]))
+      .finally(() => setCheckingStock(false));
+  }, [payloadItems]);
+
   function update(field: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
   }
@@ -54,18 +85,18 @@ export default function CheckoutPage() {
       setError("Please complete the required fields.");
       return;
     }
+    if (stockErrors.length > 0) {
+      setError(stockErrors[0]);
+      return;
+    }
 
     setLoading(true);
+    const idempotencyKey = crypto.randomUUID();
     const payload = {
-      items: items.map((i) => ({
-        id: i.id,
-        name: i.name,
-        price: i.price,
-        quantity: i.quantity,
-        size: i.size,
-      })),
+      items: payloadItems,
       customer: form,
       shipping,
+      idempotencyKey,
     };
 
     try {
@@ -178,12 +209,19 @@ export default function CheckoutPage() {
           </section>
 
           {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
+          {!error && stockErrors.length > 0 && (
+            <p className="mb-4 text-sm text-red-400">{stockErrors[0]}</p>
+          )}
 
           <div className="flex items-center justify-between">
             <Link href="/cart" className="flex items-center gap-1 text-xs text-brand-muted hover:text-white">
               <ChevronLeft className="h-4 w-4" /> Return to cart
             </Link>
-            <button type="submit" disabled={loading} className="btn-gold disabled:opacity-60">
+            <button
+              type="submit"
+              disabled={loading || checkingStock || stockErrors.length > 0}
+              className="btn-gold disabled:opacity-60"
+            >
               {loading ? "Processing…" : method === "cod" ? "Place Order" : "Continue to Payment"}
             </button>
           </div>
@@ -193,7 +231,7 @@ export default function CheckoutPage() {
         <aside className="order-1 h-fit border border-brand-border p-6 lg:order-2">
           <ul className="space-y-4">
             {items.map((item) => (
-              <li key={`${item.id}-${item.size ?? ""}`} className="flex items-center gap-4">
+              <li key={`${item.id}-${item.sku ?? ""}-${item.size ?? ""}-${item.material ?? ""}`} className="flex items-center gap-4">
                 <div className="relative h-16 w-16 shrink-0 overflow-hidden bg-brand-card">
                   <Image src={item.image} alt={item.name} fill sizes="64px" className="object-cover" />
                   <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-brand-gold text-[10px] font-semibold text-black">
@@ -202,7 +240,8 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex-1">
                   <p className="text-xs leading-snug">{item.name}</p>
-                  {item.size && <p className="text-[11px] text-brand-muted">{item.size}</p>}
+                  {item.size && <p className="text-[11px] text-brand-muted">Size: {item.size}</p>}
+                  {item.material && <p className="text-[11px] text-brand-muted">Material: {item.material}</p>}
                 </div>
                 <span className="text-sm">{formatPrice(item.price * item.quantity)}</span>
               </li>

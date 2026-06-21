@@ -9,10 +9,18 @@ export interface Product {
   description: string;
   price: number;
   compareAtPrice?: number | null;
+  sku?: string;
   category: CategorySlug;
   images: string[];
   inStock: boolean;
   stockCount: number;
+  lowStockThreshold?: number;
+  variants?: Array<{
+    size?: string;
+    material?: string;
+    sku: string;
+    stockCount: number;
+  }>;
   rating: number;
   reviewCount: number;
   tags: ProductTag[];
@@ -53,6 +61,7 @@ export const products: Product[] = [
       "Earthy and grounding, the Red Leopard Skin Jasper Bracelet pairs warm spotted stone with a hand-finished silver clasp. A timeless design, individually crafted for a custom fit.",
     price: 599.99,
     compareAtPrice: 699.99,
+    sku: "JQJ-RLSJ-III",
     category: "bracelets",
     images: [
       "/products/red-leopard-jasper-bracelet.webp",
@@ -60,6 +69,12 @@ export const products: Product[] = [
     ],
     inStock: true,
     stockCount: 12,
+    lowStockThreshold: 5,
+    variants: [
+      { size: "Small", material: "Sterling Silver", sku: "JQJ-RLSJ-III-S-SS", stockCount: 4 },
+      { size: "Medium", material: "Sterling Silver", sku: "JQJ-RLSJ-III-M-SS", stockCount: 5 },
+      { size: "Large", material: "Sterling Silver", sku: "JQJ-RLSJ-III-L-SS", stockCount: 3 },
+    ],
     rating: 4.8,
     reviewCount: 28,
     tags: ["top-rated", "sale"],
@@ -80,10 +95,12 @@ export const products: Product[] = [
       "Raw, untreated brown tourmaline nuggets in their most natural form. Every bead is unique, just like the person who wears it.",
     price: 368.99,
     compareAtPrice: null,
+    sku: "JQJ-TOURM-I",
     category: "bracelets",
     images: ["/products/brown-tourmaline-bracelet.webp"],
     inStock: true,
     stockCount: 8,
+    lowStockThreshold: 5,
     rating: 4.7,
     reviewCount: 19,
     tags: ["new"],
@@ -104,10 +121,12 @@ export const products: Product[] = [
       "Deep blue sodalite with subtle white veining, finished with precision-cut silver accents for a refined, understated look.",
     price: 549.99,
     compareAtPrice: null,
+    sku: "JQJ-SOD-VIII",
     category: "bracelets",
     images: ["/products/sodalite-bracelet.webp"],
     inStock: true,
     stockCount: 15,
+    lowStockThreshold: 5,
     rating: 4.9,
     reviewCount: 41,
     tags: ["top-rated"],
@@ -128,10 +147,12 @@ export const products: Product[] = [
       "Faceted amethyst beads in a graduated violet tone. A versatile piece that transitions effortlessly from day to evening.",
     price: 330.99,
     compareAtPrice: null,
+    sku: "JQJ-AMETH-XV",
     category: "bracelets",
     images: ["/products/amethyst-bracelet.webp"],
     inStock: true,
     stockCount: 20,
+    lowStockThreshold: 5,
     rating: 4.6,
     reviewCount: 33,
     tags: ["new", "limited"],
@@ -152,10 +173,12 @@ export const products: Product[] = [
       "A modern essential. Polished silver-tone beads with a clean, minimal profile that complements any wardrobe.",
     price: 449.99,
     compareAtPrice: 499.99,
+    sku: "JQJ-SIL-IV",
     category: "bracelets",
     images: ["/products/silver-bracelet.webp"],
     inStock: true,
     stockCount: 9,
+    lowStockThreshold: 5,
     rating: 4.8,
     reviewCount: 26,
     tags: ["restocked", "sale"],
@@ -176,10 +199,12 @@ export const products: Product[] = [
       "Iridescent labradorite flashes blue and gold as it catches the light. A statement of quiet luxury.",
     price: 519.99,
     compareAtPrice: null,
+    sku: "JQJ-LABR-V",
     category: "bracelets",
     images: ["/products/labradorite-bracelet.webp"],
     inStock: true,
     stockCount: 6,
+    lowStockThreshold: 5,
     rating: 4.9,
     reviewCount: 22,
     tags: ["limited"],
@@ -200,10 +225,17 @@ export const products: Product[] = [
       "A single polished blue lace agate point set in silver, suspended on a fine box chain. Calm, elegant, essential.",
     price: 249.99,
     compareAtPrice: null,
+    sku: "JQJ-BLAPEN",
     category: "necklaces",
     images: ["/products/blue-lace-agate-pendant.webp"],
     inStock: true,
     stockCount: 18,
+    lowStockThreshold: 5,
+    variants: [
+      { size: "45cm", material: "Sterling Silver", sku: "JQJ-BLAPEN-45-SS", stockCount: 7 },
+      { size: "55cm", material: "Sterling Silver", sku: "JQJ-BLAPEN-55-SS", stockCount: 8 },
+      { size: "55cm", material: "Gold Vermeil", sku: "JQJ-BLAPEN-55-GV", stockCount: 3 },
+    ],
     rating: 4.7,
     reviewCount: 14,
     tags: ["new"],
@@ -224,10 +256,12 @@ export const products: Product[] = [
       "A faceted labradorite baton framed in silver. Its shifting blue fire makes every angle different.",
     price: 279.99,
     compareAtPrice: null,
+    sku: "JQJ-LABPEN",
     category: "necklaces",
     images: ["/products/labradorite-pendant.webp"],
     inStock: true,
     stockCount: 11,
+    lowStockThreshold: 5,
     rating: 4.8,
     reviewCount: 17,
     tags: ["restocked"],
@@ -248,10 +282,12 @@ export const products: Product[] = [
       "Freshwater pearls interspersed with silver-tone hematite for a contemporary take on a classic strand.",
     price: 980.0,
     compareAtPrice: null,
+    sku: "JQJ-PEARL-V",
     category: "necklaces",
     images: ["/products/pearl-silver-necklace.webp"],
     inStock: true,
     stockCount: 5,
+    lowStockThreshold: 5,
     rating: 4.9,
     reviewCount: 9,
     tags: ["limited", "top-rated"],

@@ -15,15 +15,23 @@ export interface CartItem {
   name: string;
   price: number;
   image: string;
+  sku?: string;
   size?: string;
+  material?: string;
   quantity: number;
 }
 
 interface CartContextValue {
   items: CartItem[];
   addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
-  removeItem: (id: string, size?: string) => void;
-  updateQuantity: (id: string, size: string | undefined, quantity: number) => void;
+  removeItem: (id: string, sku?: string, size?: string, material?: string) => void;
+  updateQuantity: (
+    id: string,
+    sku: string | undefined,
+    size: string | undefined,
+    material: string | undefined,
+    quantity: number
+  ) => void;
   clearCart: () => void;
   itemCount: number;
   subtotal: number;
@@ -35,8 +43,8 @@ const CartContext = createContext<CartContextValue | undefined>(undefined);
 
 const STORAGE_KEY = "JQJ-cart";
 
-function lineKey(id: string, size?: string) {
-  return `${id}__${size ?? ""}`;
+function lineKey(id: string, sku?: string, size?: string, material?: string) {
+  return `${id}__${sku ?? ""}__${size ?? ""}__${material ?? ""}`;
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
@@ -62,11 +70,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   function addItem(item: Omit<CartItem, "quantity">, quantity = 1) {
     setItems((prev) => {
-      const key = lineKey(item.id, item.size);
-      const existing = prev.find((p) => lineKey(p.id, p.size) === key);
+      const key = lineKey(item.id, item.sku, item.size, item.material);
+      const existing = prev.find((p) => lineKey(p.id, p.sku, p.size, p.material) === key);
       if (existing) {
         return prev.map((p) =>
-          lineKey(p.id, p.size) === key
+          lineKey(p.id, p.sku, p.size, p.material) === key
             ? { ...p, quantity: p.quantity + quantity }
             : p
         );
@@ -76,21 +84,23 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setOpen(true);
   }
 
-  function removeItem(id: string, size?: string) {
-    const key = lineKey(id, size);
-    setItems((prev) => prev.filter((p) => lineKey(p.id, p.size) !== key));
+  function removeItem(id: string, sku?: string, size?: string, material?: string) {
+    const key = lineKey(id, sku, size, material);
+    setItems((prev) => prev.filter((p) => lineKey(p.id, p.sku, p.size, p.material) !== key));
   }
 
   function updateQuantity(
     id: string,
+    sku: string | undefined,
     size: string | undefined,
+    material: string | undefined,
     quantity: number
   ) {
-    const key = lineKey(id, size);
+    const key = lineKey(id, sku, size, material);
     setItems((prev) =>
       prev
         .map((p) =>
-          lineKey(p.id, p.size) === key
+          lineKey(p.id, p.sku, p.size, p.material) === key
             ? { ...p, quantity: Math.max(0, quantity) }
             : p
         )

@@ -50,7 +50,7 @@ export default function CartDrawer() {
           ) : (
             <ul className="space-y-5">
               {items.map((item) => (
-                <li key={`${item.id}-${item.size ?? ""}`} className="flex gap-4">
+                <li key={`${item.id}-${item.sku ?? ""}-${item.size ?? ""}-${item.material ?? ""}`} className="flex gap-4">
                   <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-brand bg-brand-card">
                     <Image
                       src={item.image}
@@ -66,13 +66,16 @@ export default function CartDrawer() {
                       <button
                         type="button"
                         aria-label="Remove"
-                        onClick={() => removeItem(item.id, item.size)}
+                        onClick={() => removeItem(item.id, item.sku, item.size, item.material)}
                       >
                         <X className="h-4 w-4 text-brand-muted hover:text-white" />
                       </button>
                     </div>
                     {item.size && (
                       <p className="text-xs text-brand-muted">Size: {item.size}</p>
+                    )}
+                    {item.material && (
+                      <p className="text-xs text-brand-muted">Material: {item.material}</p>
                     )}
                     <div className="mt-auto flex items-center justify-between">
                       <div className="flex items-center border border-brand-border">
@@ -81,7 +84,7 @@ export default function CartDrawer() {
                           aria-label="Decrease"
                           className="px-2 py-1"
                           onClick={() =>
-                            updateQuantity(item.id, item.size, item.quantity - 1)
+                            updateQuantity(item.id, item.sku, item.size, item.material, item.quantity - 1)
                           }
                         >
                           <Minus className="h-3 w-3" />
@@ -94,7 +97,7 @@ export default function CartDrawer() {
                           aria-label="Increase"
                           className="px-2 py-1"
                           onClick={() =>
-                            updateQuantity(item.id, item.size, item.quantity + 1)
+                            updateQuantity(item.id, item.sku, item.size, item.material, item.quantity + 1)
                           }
                         >
                           <Plus className="h-3 w-3" />
