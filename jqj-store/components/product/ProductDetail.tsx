@@ -13,7 +13,7 @@ import ProductCard from "./ProductCard";
 const accordionData = (product: Product) => [
   { title: "Description", content: product.description },
   {
-    title: "Specification",
+    title: "Specifications",
     content: Object.entries(product.specs)
       .map(([k, v]) => `${k}: ${v}`)
       .join("  •  "),
@@ -21,7 +21,7 @@ const accordionData = (product: Product) => [
   {
     title: "Shipping & Return",
     content:
-      "Free UPS shipping & returns. 30-day satisfaction guarantee. Free resizing for new customers.",
+      "Complimentary UPS shipping and returns. 30-day satisfaction guarantee, plus a complimentary first resize for new customers.",
   },
 ];
 

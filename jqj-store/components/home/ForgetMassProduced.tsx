@@ -6,14 +6,16 @@ export default function ForgetMassProduced() {
       <div className="flex items-center bg-brand-surface px-8 py-16 md:px-16">
         <div className="max-w-md">
           <h2 className="font-heading text-3xl font-light text-white">
-            Forget mass-produced
+            Beyond mass production
           </h2>
           <p className="mt-6 text-sm leading-relaxed text-brand-muted">
-            From our hands to yours. Our family-owned atelier crafts each piece
-            with meticulous care, using only the finest natural gemstones.
+            We design from the idea that jewelry can carry meaning. In our
+            family atelier, each piece is hand-finished with natural gemstones
+            selected for energy, tone, and character.
           </p>
           <p className="mt-4 text-sm leading-relaxed text-brand-muted">
-            A timeless design, a custom fit — a piece as unique as you are.
+            Rooted in cultural symbolism and made for modern wear, every design
+            is crafted to feel personal, balanced, and enduring.
           </p>
         </div>
       </div>

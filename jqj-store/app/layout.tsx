@@ -15,9 +15,9 @@ const body = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "JQJ Group — Premium Natural Stone Jewelry",
+  title: "JQJ Group — Natural Stone Jewelry with Cultural Craft",
   description:
-    "Hand-crafted bracelets and necklaces made with premium natural stones and materials. JQJ Group.",
+    "Handcrafted bracelets and necklaces inspired by Eastern cultural heritage, museum collaborations, and natural gemstone artistry.",
   icons: { icon: "/JQJ-logo.png" },
 };
 

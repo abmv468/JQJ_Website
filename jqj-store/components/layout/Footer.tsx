@@ -63,7 +63,8 @@ export default function Footer() {
             Stay in the Loop
           </h4>
           <p className="mb-4 text-xs leading-relaxed text-brand-muted">
-            New designs with limited stock every week and exclusive promotions.
+            Discover new gemstone releases, cultural collaborations, and limited
+            drops.
           </p>
           <form className="space-y-3">
             <input

@@ -1,6 +1,6 @@
 const messages = [
   "Free worldwide shipping on orders over $250",
-  "Hand-made with premium natural stones",
+  "Handcrafted with premium natural gemstones",
   "Free resizing for new customers",
 ];
 
