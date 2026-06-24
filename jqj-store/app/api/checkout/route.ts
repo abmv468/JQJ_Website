@@ -1,51 +1,83 @@
 import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
+import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  fetchInventoryBySlugs,
+  validateCheckoutItems,
+  type CheckoutItemInput,
+} from "@/lib/inventory";
 
 export const dynamic = "force-dynamic";
-
-interface CheckoutItem {
-  id: string;
-  name: string;
-  price: number;
-  quantity: number;
-  size?: string;
-}
+const SHIPPING_FLAT = 15;
 
 export async function POST(req: Request) {
   try {
-    const { items, customer, shipping } = (await req.json()) as {
-      items: CheckoutItem[];
+    const { items, customer } = (await req.json()) as {
+      items: CheckoutItemInput[];
       customer: Record<string, string>;
-      shipping: number;
     };
 
     if (!items?.length) {
       return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
     }
 
+    const shippingAmount = items.length ? SHIPPING_FLAT : 0;
+
+    const supabase = createAdminClient();
+    const slugs = Array.from(new Set(items.map((item) => item.slug).filter(Boolean) as string[]));
+    const inventoryBySlug = await fetchInventoryBySlugs(supabase, slugs);
+    const validation = validateCheckoutItems(items, inventoryBySlug);
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.errors[0] || "Insufficient stock" }, { status: 409 });
+    }
+
     const stripe = getStripe();
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
-    const line_items = items.map((item) => ({
+    const line_items = validation.resolved.map((line) => ({
       price_data: {
         currency: "usd",
         product_data: {
-          name: item.name + (item.size ? ` (${item.size})` : ""),
+          name:
+            line.product.name +
+            ((line.variant?.size || line.variant?.material)
+              ? ` (${[line.variant?.size, line.variant?.material].filter(Boolean).join(" / ")})`
+              : ""),
         },
-        unit_amount: Math.round(item.price * 100),
+        unit_amount: Math.round(line.product.price * 100),
       },
-      quantity: item.quantity,
+      quantity: line.requestedQuantity,
     }));
 
-    if (shipping > 0) {
+    if (shippingAmount > 0) {
       line_items.push({
         price_data: {
           currency: "usd",
           product_data: { name: "Shipping (UPS Express)" },
-          unit_amount: Math.round(shipping * 100),
+          unit_amount: Math.round(shippingAmount * 100),
         },
         quantity: 1,
       });
+    }
+
+    const serializedItems = JSON.stringify(
+      validation.resolved.map((line) => ({
+        id: line.item.id,
+        s: line.product.slug,
+        n: line.product.name,
+        p: line.product.price,
+        q: line.requestedQuantity,
+        sz: line.variant?.size ?? line.item.size,
+        m: line.variant?.material ?? line.item.material,
+        sku: line.variant?.sku ?? line.item.sku,
+      }))
+    );
+
+    if (serializedItems.length > 4900) {
+      return NextResponse.json(
+        { error: "Cart payload is too large for checkout. Please reduce item count and retry." },
+        { status: 400 }
+      );
     }
 
     const session = await stripe.checkout.sessions.create({
@@ -61,10 +93,8 @@ export async function POST(req: Request) {
         city: customer.city,
         region: customer.region,
         country: customer.country,
-        shipping: String(shipping),
-        items: JSON.stringify(
-          items.map((i) => ({ id: i.id, n: i.name, p: i.price, q: i.quantity }))
-        ).slice(0, 4900),
+        shipping: String(shippingAmount),
+        items: serializedItems,
       },
     });
 

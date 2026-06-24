@@ -24,9 +24,19 @@ type Tab = "dashboard" | "products" | "orders" | "customers" | "settings";
 interface AdminProduct {
   id: string;
   name: string;
+  slug: string;
   price: number;
+  sku: string | null;
+  low_stock_threshold: number;
   stock_count: number;
   in_stock: boolean;
+  product_variants?: Array<{
+    id: string;
+    size: string | null;
+    material: string | null;
+    sku: string;
+    stock_count: number;
+  }>;
   categories?: { name: string } | null;
 }
 
@@ -57,6 +67,15 @@ export default function AdminPage() {
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(false);
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [stockForm, setStockForm] = useState({
+    sku: "",
+    stock_count: "0",
+    low_stock_threshold: "5",
+    in_stock: true,
+    variantsJson: "[]",
+  });
+  const [productError, setProductError] = useState<string | null>(null);
   const [refundDrafts, setRefundDrafts] = useState<Record<string, { amount: string; reason: string }>>({});
 
   const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
@@ -143,6 +162,68 @@ export default function AdminPage() {
     setRefundDrafts((prev) => ({ ...prev, [order.id]: { amount: "", reason: "" } }));
   }
 
+  function startEditingProduct(product: AdminProduct) {
+    setEditingProductId(product.id);
+    setProductError(null);
+    setStockForm({
+      sku: product.sku ?? "",
+      stock_count: String(product.stock_count ?? 0),
+      low_stock_threshold: String(product.low_stock_threshold ?? 5),
+      in_stock: product.in_stock,
+      variantsJson: JSON.stringify(
+        (product.product_variants ?? []).map((variant) => ({
+          size: variant.size ?? "",
+          material: variant.material ?? "",
+          sku: variant.sku,
+          stock_count: variant.stock_count,
+        })),
+        null,
+        2
+      ),
+    });
+  }
+
+  async function saveProductInventory() {
+    if (!editingProductId) return;
+    setProductError(null);
+    try {
+      const parsedVariants = JSON.parse(stockForm.variantsJson);
+      if (!Array.isArray(parsedVariants)) {
+        throw new Error("Variants must be a JSON array.");
+      }
+      const cleanedVariants = parsedVariants
+        .map((variant) => ({
+          size: variant.size || null,
+          material: variant.material || null,
+          sku: String(variant.sku || "").trim(),
+          stock_count: Number(variant.stock_count || 0),
+        }))
+        .filter((variant) => variant.sku);
+
+      const res = await fetch("/api/admin/products", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingProductId,
+          sku: stockForm.sku || null,
+          stock_count: Number(stockForm.stock_count || 0),
+          low_stock_threshold: Number(stockForm.low_stock_threshold || 5),
+          in_stock: stockForm.in_stock,
+          variants: cleanedVariants,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save product");
+
+      setProducts((prev) =>
+        prev.map((product) => (product.id === editingProductId ? data.product : product))
+      );
+      setEditingProductId(null);
+    } catch (err) {
+      setProductError(err instanceof Error ? err.message : "Failed to save");
+    }
+  }
+
   if (!authChecked) {
     return <div className="flex h-screen items-center justify-center text-brand-muted">Loading…</div>;
   }
@@ -222,16 +303,141 @@ export default function AdminPage() {
         )}
 
         {tab === "products" && (
-          <Table
-            head={["Name", "Category", "Price", "Stock"]}
-            rows={products.map((p) => [
-              p.name,
-              p.categories?.name ?? "—",
-              formatPrice(Number(p.price)),
-              String(p.stock_count),
-            ])}
-            empty="No products. Add the seed data in Supabase to populate this table."
-          />
+          <div className="space-y-5">
+            <div className="overflow-x-auto border border-brand-border">
+              <table className="w-full text-left text-sm">
+                <thead className="border-b border-brand-border text-xs uppercase tracking-wider2 text-brand-muted">
+                  <tr>
+                    <th className="p-3">Name</th>
+                    <th className="p-3">SKU</th>
+                    <th className="p-3">Category</th>
+                    <th className="p-3">Price</th>
+                    <th className="p-3">Stock</th>
+                    <th className="p-3">Variants</th>
+                    <th className="p-3">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-6 text-center text-brand-muted">
+                        No products. Add the seed data in Supabase to populate this table.
+                      </td>
+                    </tr>
+                  ) : (
+                    products.map((product) => (
+                      <tr key={product.id} className="border-b border-brand-border/60">
+                        <td className="p-3">{product.name}</td>
+                        <td className="p-3 font-mono text-xs">{product.sku || "—"}</td>
+                        <td className="p-3">{product.categories?.name ?? "—"}</td>
+                        <td className="p-3">{formatPrice(Number(product.price))}</td>
+                        <td className="p-3">
+                          {!product.in_stock ? (
+                            <span className="text-red-400">Out ({product.stock_count})</span>
+                          ) : product.stock_count <= (product.low_stock_threshold ?? 5) ? (
+                            <span className="text-brand-gold">Low ({product.stock_count})</span>
+                          ) : (
+                            <span>{product.stock_count}</span>
+                          )}
+                        </td>
+                        <td className="p-3">{product.product_variants?.length ?? 0}</td>
+                        <td className="p-3">
+                          <button
+                            type="button"
+                            className="btn-secondary px-3 py-1 text-xs"
+                            onClick={() => startEditingProduct(product)}
+                          >
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {editingProductId && (
+              <div className="space-y-4 border border-brand-border p-5">
+                <h3 className="font-heading text-sm uppercase tracking-wider2">
+                  Edit Inventory & Variants
+                </h3>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="space-y-1 text-xs text-brand-muted">
+                    Product SKU
+                    <input
+                      value={stockForm.sku}
+                      onChange={(e) =>
+                        setStockForm((prev) => ({ ...prev, sku: e.target.value }))
+                      }
+                      className="input-field"
+                    />
+                  </label>
+                  <label className="space-y-1 text-xs text-brand-muted">
+                    Base stock count
+                    <input
+                      type="number"
+                      min={0}
+                      value={stockForm.stock_count}
+                      onChange={(e) =>
+                        setStockForm((prev) => ({ ...prev, stock_count: e.target.value }))
+                      }
+                      className="input-field"
+                    />
+                  </label>
+                  <label className="space-y-1 text-xs text-brand-muted">
+                    Low stock threshold
+                    <input
+                      type="number"
+                      min={1}
+                      value={stockForm.low_stock_threshold}
+                      onChange={(e) =>
+                        setStockForm((prev) => ({
+                          ...prev,
+                          low_stock_threshold: e.target.value,
+                        }))
+                      }
+                      className="input-field"
+                    />
+                  </label>
+                  <label className="flex items-center gap-2 text-xs text-brand-muted">
+                    <input
+                      type="checkbox"
+                      checked={stockForm.in_stock}
+                      onChange={(e) =>
+                        setStockForm((prev) => ({ ...prev, in_stock: e.target.checked }))
+                      }
+                    />
+                    In stock
+                  </label>
+                </div>
+                <label className="space-y-1 text-xs text-brand-muted">
+                  Variants JSON (size/material/sku/stock_count)
+                  <textarea
+                    rows={8}
+                    value={stockForm.variantsJson}
+                    onChange={(e) =>
+                      setStockForm((prev) => ({ ...prev, variantsJson: e.target.value }))
+                    }
+                    className="input-field font-mono text-xs"
+                  />
+                </label>
+                {productError && <p className="text-xs text-red-400">{productError}</p>}
+                <div className="flex gap-3">
+                  <button type="button" className="btn-gold" onClick={saveProductInventory}>
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setEditingProductId(null)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         {tab === "orders" && (

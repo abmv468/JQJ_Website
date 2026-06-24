@@ -50,6 +50,13 @@ npm run dev                        # http://localhost:3000
 The storefront runs with **static product data** (`data/products.ts`) even
 without backend keys. Checkout, orders, auth and admin require the keys above.
 
+## Inventory model
+
+- `products` now supports base `sku`, `stock_count`, `low_stock_threshold`, and `in_stock`.
+- `product_variants` stores sellable combinations (size/material) with per-variant SKU and stock.
+- Checkout (Stripe + COD) validates inventory before order creation and reserves stock during order persistence.
+- Storefront and admin show low-stock/out-of-stock states and block purchases when unavailable.
+
 ## Order lifecycle & refunds
 
 - Order status pipeline: `paid -> packed -> shipped -> delivered` (+ terminal `refunded`).

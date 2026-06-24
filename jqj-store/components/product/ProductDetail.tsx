@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronDown, Minus, Plus } from "lucide-react";
@@ -9,6 +9,7 @@ import { formatPrice } from "@/lib/utils";
 import { useCart } from "@/context/CartContext";
 import StarRating from "@/components/ui/StarRating";
 import ProductCard from "./ProductCard";
+import { getStockState, getVariantLabel } from "@/lib/product-stock";
 
 const accordionData = (product: Product) => [
   { title: "Description", content: product.description },
@@ -35,10 +36,87 @@ export default function ProductDetail({
   const { addItem } = useCart();
   const [activeImage, setActiveImage] = useState(0);
   const [size, setSize] = useState("");
+  const [variantSku, setVariantSku] = useState("");
   const [qty, setQty] = useState(1);
   const [openAccordion, setOpenAccordion] = useState<string | null>("Description");
+  const [liveStock, setLiveStock] = useState<{
+    inStock: boolean;
+    stockCount: number;
+    lowStockThreshold: number;
+    variants: Array<{
+      id?: string;
+      size?: string | null;
+      material?: string | null;
+      sku: string;
+      stockCount: number;
+      inStock: boolean;
+    }>;
+  } | null>(null);
+
+  const fallbackStock = getStockState({
+    stockCount: product.stockCount,
+    inStock: product.inStock,
+    lowStockThreshold: product.lowStockThreshold,
+    variants:
+      product.variants?.map((variant) => ({
+        ...variant,
+        stockCount: variant.stockCount,
+      })) ?? [],
+  });
+
+  const variants = useMemo(
+    () =>
+      (liveStock?.variants ??
+        product.variants?.map((variant) => ({
+          ...variant,
+          inStock: variant.stockCount > 0,
+        })) ??
+        []),
+    [liveStock?.variants, product.variants]
+  );
+
+  const hasVariants = variants.length > 0;
+  const selectedVariant = variants.find((variant) => variant.sku === variantSku) ?? null;
+  const effectiveStock = selectedVariant
+    ? selectedVariant.stockCount
+    : (liveStock?.stockCount ?? fallbackStock.availableStock);
+  const inStock = selectedVariant
+    ? selectedVariant.inStock
+    : (liveStock?.inStock ?? fallbackStock.inStock);
+  const lowStockThreshold = liveStock?.lowStockThreshold ?? fallbackStock.lowStockThreshold;
+  const isLowStock = inStock && effectiveStock <= lowStockThreshold;
+
+  useEffect(() => {
+    fetch(`/api/products/availability?slug=${encodeURIComponent(product.slug)}`)
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.product) {
+          setLiveStock({
+            inStock: data.product.inStock,
+            stockCount: data.product.stockCount,
+            lowStockThreshold: data.product.lowStockThreshold,
+            variants: data.product.variants ?? [],
+          });
+        }
+      })
+      .catch(() => {});
+  }, [product.slug]);
+
+  useEffect(() => {
+    if (!hasVariants) return;
+    if (selectedVariant) return;
+    const firstAvailable = variants.find((variant) => variant.inStock) ?? variants[0];
+    if (firstAvailable) setVariantSku(firstAvailable.sku);
+  }, [hasVariants, selectedVariant, variants]);
+
+  useEffect(() => {
+    if (effectiveStock < qty) {
+      setQty(Math.max(1, effectiveStock || 1));
+    }
+  }, [effectiveStock, qty]);
 
   function handleAdd() {
+    if (!inStock || (hasVariants && !selectedVariant)) return;
     addItem(
       {
         id: product.id,
@@ -46,7 +124,9 @@ export default function ProductDetail({
         name: product.name,
         price: product.price,
         image: product.images[0],
-        size: size || undefined,
+        sku: selectedVariant?.sku ?? product.sku,
+        size: selectedVariant?.size ?? (size || undefined),
+        material: selectedVariant?.material ?? undefined,
       },
       qty
     );
@@ -117,24 +197,54 @@ export default function ProductDetail({
             </p>
           )}
 
-          {/* Wrist size */}
-          <div className="mt-8">
-            <div className="mb-2 flex items-center justify-between">
-              <label htmlFor="wrist" className="text-xs uppercase tracking-wider2 text-white/80">
-                Enter wrist size (cm/in)
+          {hasVariants ? (
+            <div className="mt-8 space-y-3">
+              <label htmlFor="variant" className="text-xs uppercase tracking-wider2 text-white/80">
+                Size / Material
               </label>
-              <Link href="/measure" className="text-xs text-brand-gold underline">
-                Measure &amp; Sizing
-              </Link>
+              <select
+                id="variant"
+                value={variantSku}
+                onChange={(e) => setVariantSku(e.target.value)}
+                className="input-field"
+              >
+                {variants.map((variant) => (
+                  <option
+                    key={variant.sku}
+                    value={variant.sku}
+                    className="bg-brand-surface"
+                    disabled={!variant.inStock}
+                  >
+                    {getVariantLabel(variant)} {!variant.inStock ? "— Out of stock" : ""}
+                  </option>
+                ))}
+              </select>
             </div>
-            <input
-              id="wrist"
-              value={size}
-              onChange={(e) => setSize(e.target.value)}
-              placeholder="For example: 7.5 inches, loose fit"
-              className="input-field"
-            />
-          </div>
+          ) : (
+            <div className="mt-8">
+              <div className="mb-2 flex items-center justify-between">
+                <label htmlFor="wrist" className="text-xs uppercase tracking-wider2 text-white/80">
+                  Enter wrist size (cm/in)
+                </label>
+                <Link href="/measure" className="text-xs text-brand-gold underline">
+                  Measure &amp; Sizing
+                </Link>
+              </div>
+              <input
+                id="wrist"
+                value={size}
+                onChange={(e) => setSize(e.target.value)}
+                placeholder="For example: 7.5 inches, loose fit"
+                className="input-field"
+              />
+            </div>
+          )}
+
+          {!inStock ? (
+            <p className="mt-4 text-sm text-red-400">Out of stock</p>
+          ) : isLowStock ? (
+            <p className="mt-4 text-sm text-brand-gold">Low stock — only {effectiveStock} left</p>
+          ) : null}
 
           {/* Quantity + Add */}
           <div className="mt-6 flex items-center gap-4">
@@ -152,13 +262,19 @@ export default function ProductDetail({
                 type="button"
                 aria-label="Increase"
                 className="px-3 py-3"
-                onClick={() => setQty((q) => q + 1)}
+                onClick={() => setQty((q) => Math.min(effectiveStock, q + 1))}
+                disabled={!inStock || qty >= effectiveStock}
               >
                 <Plus className="h-4 w-4" />
               </button>
             </div>
-            <button type="button" onClick={handleAdd} className="btn-gold flex-1">
-              Add to Cart
+            <button
+              type="button"
+              onClick={handleAdd}
+              className="btn-gold flex-1 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={!inStock || effectiveStock < 1 || (hasVariants && !selectedVariant)}
+            >
+              {inStock ? "Add to Cart" : "Unavailable"}
             </button>
           </div>
 

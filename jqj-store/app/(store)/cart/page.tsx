@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Minus, Plus, X } from "lucide-react";
@@ -8,6 +9,37 @@ import { formatPrice } from "@/lib/utils";
 
 export default function CartPage() {
   const { items, updateQuantity, removeItem, subtotal } = useCart();
+  const [stockErrors, setStockErrors] = useState<string[]>([]);
+  const [stockLoading, setStockLoading] = useState(false);
+
+  const payloadItems = useMemo(
+    () =>
+      items.map((item) => ({
+        id: item.id,
+        slug: item.slug,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        size: item.size,
+        material: item.material,
+        sku: item.sku,
+      })),
+    [items]
+  );
+
+  useEffect(() => {
+    if (!payloadItems.length) return;
+    setStockLoading(true);
+    fetch("/api/products/availability", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items: payloadItems }),
+    })
+      .then((response) => response.json())
+      .then((data) => setStockErrors(data.errors ?? []))
+      .catch(() => setStockErrors([]))
+      .finally(() => setStockLoading(false));
+  }, [payloadItems]);
 
   if (items.length === 0) {
     return (
@@ -29,7 +61,7 @@ export default function CartPage() {
       <div className="grid grid-cols-1 gap-12 lg:grid-cols-[1fr_360px]">
         <ul className="divide-y divide-brand-border border-y border-brand-border">
           {items.map((item) => (
-            <li key={`${item.id}-${item.size ?? ""}`} className="flex gap-5 py-6">
+            <li key={`${item.id}-${item.sku ?? ""}-${item.size ?? ""}-${item.material ?? ""}`} className="flex gap-5 py-6">
               <div className="relative h-28 w-28 shrink-0 overflow-hidden bg-brand-card">
                 <Image src={item.image} alt={item.name} fill sizes="112px" className="object-cover" />
               </div>
@@ -38,18 +70,19 @@ export default function CartPage() {
                   <Link href={`/products/${item.slug}`} className="text-sm hover:text-brand-gold">
                     {item.name}
                   </Link>
-                  <button type="button" aria-label="Remove" onClick={() => removeItem(item.id, item.size)}>
+                  <button type="button" aria-label="Remove" onClick={() => removeItem(item.id, item.sku, item.size, item.material)}>
                     <X className="h-4 w-4 text-brand-muted hover:text-white" />
                   </button>
                 </div>
                 {item.size && <p className="mt-1 text-xs text-brand-muted">Size: {item.size}</p>}
+                {item.material && <p className="mt-1 text-xs text-brand-muted">Material: {item.material}</p>}
                 <div className="mt-auto flex items-center justify-between">
                   <div className="flex items-center border border-brand-border">
-                    <button type="button" aria-label="Decrease" className="px-3 py-2" onClick={() => updateQuantity(item.id, item.size, item.quantity - 1)}>
+                    <button type="button" aria-label="Decrease" className="px-3 py-2" onClick={() => updateQuantity(item.id, item.sku, item.size, item.material, item.quantity - 1)}>
                       <Minus className="h-3 w-3" />
                     </button>
                     <span className="w-10 text-center text-sm">{item.quantity}</span>
-                    <button type="button" aria-label="Increase" className="px-3 py-2" onClick={() => updateQuantity(item.id, item.size, item.quantity + 1)}>
+                    <button type="button" aria-label="Increase" className="px-3 py-2" onClick={() => updateQuantity(item.id, item.sku, item.size, item.material, item.quantity + 1)}>
                       <Plus className="h-3 w-3" />
                     </button>
                   </div>
@@ -76,9 +109,20 @@ export default function CartPage() {
             <span className="font-heading uppercase tracking-wider2">Total</span>
             <span className="font-heading text-lg text-brand-gold">{formatPrice(subtotal)}</span>
           </div>
-          <Link href="/checkout" className="btn-gold mt-6 w-full">
+          {stockErrors.length > 0 && (
+            <p className="mt-4 text-xs text-red-400">{stockErrors[0]}</p>
+          )}
+          <Link
+            href="/checkout"
+            className="btn-gold mt-6 w-full disabled:cursor-not-allowed disabled:opacity-60"
+            aria-disabled={stockErrors.length > 0}
+            onClick={(e) => {
+              if (stockErrors.length > 0) e.preventDefault();
+            }}
+          >
             Checkout
           </Link>
+          {stockLoading && <p className="mt-2 text-[11px] text-brand-muted">Checking stock…</p>}
         </aside>
       </div>
     </div>
