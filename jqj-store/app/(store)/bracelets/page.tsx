@@ -14,7 +14,8 @@ export default function BraceletsPage({
 
   return (
     <CollectionView
-      title={searchParams.tag === "limited" ? "Limited Edition Bracelets" : "Bracelets"}
+      title="Bracelets"
+      limitedTitle="Limited Edition Bracelets"
       subtitle="Museum-inspired bracelet designs, hand-finished in our atelier with carefully selected natural stones."
       products={items}
       initialStone={searchParams.stone}
