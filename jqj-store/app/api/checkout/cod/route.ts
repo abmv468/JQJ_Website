@@ -136,13 +136,6 @@ export async function POST(req: Request) {
           verification_completed: true,
           verification_claimed_at: new Date().toISOString(),
           status: "pending",
-        .insert({
-          status: "paid",
-          total_amount: total,
-          shipping_amount: shippingAmount,
-          shipping_address: shippingAddress,
-          customer_email: customer.email,
-          customer_name: customerName,
         })
         .eq("id", targetOrderId)
         .eq("verification_completed", false)
