@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendOrderEmails } from "@/lib/email";
@@ -12,6 +14,45 @@ import {
 
 export const dynamic = "force-dynamic";
 const CLAIM_TIMEOUT_MS = 5 * 60 * 1000;
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function asUuid(value: string | undefined) {
+  if (!value) return null;
+  return UUID_REGEX.test(value) ? value : null;
+}
+
+async function getAuthenticatedUserId() {
+  const cookieStore = cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(
+          cookiesToSet: {
+            name: string;
+            value: string;
+            options?: Record<string, unknown>;
+          }[]
+        ) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          } catch {
+            // No-op in route handlers when cookies cannot be set.
+          }
+        },
+      },
+    }
+  );
+  const { data } = await supabase.auth.getUser();
+  return data.user?.id ?? null;
+}
 
 export async function POST(req: Request) {
   try {
@@ -35,6 +76,7 @@ export async function POST(req: Request) {
     const subtotal = total - shipping;
     const customerEmail = session.customer_details?.email || "";
     const customerName = meta.customerName || session.customer_details?.name || "";
+    const userId = asUuid(meta.userId) ?? (await getAuthenticatedUserId());
 
     let items: CheckoutItemInput[] = [];
     try {
@@ -71,6 +113,7 @@ export async function POST(req: Request) {
       city: meta.city || "",
       region: meta.region || "",
       country: meta.country || "",
+      phone: meta.phone || "",
       payment_method: "stripe" as const,
     };
 
@@ -79,7 +122,7 @@ export async function POST(req: Request) {
     // Idempotency: don't double-create on repeated verify calls.
     const { data: existing } = await supabase
       .from("orders")
-      .select("id")
+      .select("id, user_id")
       .eq("stripe_session_id", session.id)
       .maybeSingle();
 
@@ -87,6 +130,9 @@ export async function POST(req: Request) {
     let reusedIncompleteOrder = false;
 
     if (existing) {
+      if (!existing.user_id && userId) {
+        await supabase.from("orders").update({ user_id: userId }).eq("id", existing.id);
+      }
       const { count, error: itemCountError } = await supabase
         .from("order_items")
         .select("id", { count: "exact", head: true })
@@ -107,15 +153,19 @@ export async function POST(req: Request) {
     if (!validation.ok) {
       const { data: existingException } = await supabase
         .from("orders")
-        .select("id")
+        .select("id, user_id")
         .eq("stripe_session_id", session.id)
         .maybeSingle();
 
       let exceptionOrderId = existingException?.id ?? null;
+      if (existingException && !existingException.user_id && userId) {
+        await supabase.from("orders").update({ user_id: userId }).eq("id", existingException.id);
+      }
       if (!exceptionOrderId) {
         const { data: exceptionOrder, error: exceptionInsertError } = await supabase
           .from("orders")
           .insert({
+            user_id: userId,
             status: "inventory_exception",
             verification_completed: true,
             verification_claimed_at: new Date().toISOString(),
@@ -236,7 +286,7 @@ export async function POST(req: Request) {
       const { data: order, error: orderInsertError } = await supabase
         .from("orders")
         .insert({
-          status: "processing",
+          user_id: userId,
           verification_completed: false,
           inventory_reserved: false,
           status: "paid",

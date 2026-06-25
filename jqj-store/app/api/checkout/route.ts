@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -9,6 +11,38 @@ import {
 
 export const dynamic = "force-dynamic";
 const SHIPPING_FLAT = 15;
+
+async function getAuthenticatedUserId() {
+  const cookieStore = cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(
+          cookiesToSet: {
+            name: string;
+            value: string;
+            options?: Record<string, unknown>;
+          }[]
+        ) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          } catch {
+            // No-op in route handlers when cookies cannot be set.
+          }
+        },
+      },
+    }
+  );
+  const { data } = await supabase.auth.getUser();
+  return data.user?.id ?? null;
+}
 
 export async function POST(req: Request) {
   try {
@@ -33,6 +67,7 @@ export async function POST(req: Request) {
 
     const stripe = getStripe();
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const userId = await getAuthenticatedUserId();
 
     const line_items = validation.resolved.map((line) => ({
       price_data: {
@@ -93,6 +128,8 @@ export async function POST(req: Request) {
         city: customer.city,
         region: customer.region,
         country: customer.country,
+        phone: customer.phone || "",
+        userId: userId ?? "",
         shipping: String(shippingAmount),
         items: serializedItems,
       },
