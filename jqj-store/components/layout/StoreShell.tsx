@@ -6,7 +6,7 @@ import InteractiveBackground from "./InteractiveBackground";
 
 export default function StoreShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative flex min-h-screen flex-col bg-brand-bg">
+    <div className="relative isolate flex min-h-screen flex-col overflow-x-clip bg-brand-bg">
       <InteractiveBackground />
       <div className="relative z-10 flex min-h-screen flex-col">
         <AnnouncementBar />

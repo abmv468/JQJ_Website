@@ -93,6 +93,7 @@ create table if not exists order_items (
   variant_material text,
   quantity integer not null,
   price_at_purchase decimal(10,2) not null,
+  line_item_meta jsonb default '{}'::jsonb,
   created_at timestamptz default now()
 );
 
@@ -100,6 +101,7 @@ alter table order_items add column if not exists variant_id uuid references prod
 alter table order_items add column if not exists sku text;
 alter table order_items add column if not exists variant_size text;
 alter table order_items add column if not exists variant_material text;
+alter table order_items add column if not exists line_item_meta jsonb default '{}'::jsonb;
 
 alter table orders add column if not exists refunded_amount decimal(10,2) not null default 0;
 
@@ -173,6 +175,37 @@ begin
 end;
 $$;
 
+create table if not exists customer_profiles (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  first_name text,
+  last_name text,
+  phone text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create table if not exists customer_addresses (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  label text default 'Shipping',
+  first_name text,
+  last_name text,
+  address_line1 text not null,
+  address_line2 text,
+  city text not null,
+  region text,
+  postal_code text,
+  country text not null,
+  phone text,
+  is_default boolean default false,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create unique index if not exists customer_addresses_one_default_idx
+  on customer_addresses(user_id)
+  where is_default = true;
+
 -- ============ RLS ============
 alter table categories enable row level security;
 alter table products enable row level security;
@@ -180,6 +213,8 @@ alter table product_variants enable row level security;
 alter table orders enable row level security;
 alter table order_items enable row level security;
 alter table order_refunds enable row level security;
+alter table customer_profiles enable row level security;
+alter table customer_addresses enable row level security;
 
 drop policy if exists "public read categories" on categories;
 create policy "public read categories" on categories for select using (true);
@@ -205,6 +240,26 @@ drop policy if exists "users read own refunds" on order_refunds;
 create policy "users read own refunds" on order_refunds for select using (
   exists (select 1 from orders o where o.id = order_id and o.user_id = auth.uid())
 );
+drop policy if exists "users read own profiles" on customer_profiles;
+create policy "users read own profiles" on customer_profiles for select using (auth.uid() = user_id);
+
+drop policy if exists "users insert own profiles" on customer_profiles;
+create policy "users insert own profiles" on customer_profiles for insert with check (auth.uid() = user_id);
+
+drop policy if exists "users update own profiles" on customer_profiles;
+create policy "users update own profiles" on customer_profiles for update using (auth.uid() = user_id);
+
+drop policy if exists "users read own addresses" on customer_addresses;
+create policy "users read own addresses" on customer_addresses for select using (auth.uid() = user_id);
+
+drop policy if exists "users insert own addresses" on customer_addresses;
+create policy "users insert own addresses" on customer_addresses for insert with check (auth.uid() = user_id);
+
+drop policy if exists "users update own addresses" on customer_addresses;
+create policy "users update own addresses" on customer_addresses for update using (auth.uid() = user_id);
+drop policy if exists "users delete own addresses" on customer_addresses;
+create policy "users delete own addresses" on customer_addresses for delete using (auth.uid() = user_id);
+create policy "users delete own addresses" on customer_addresses for delete using (auth.uid() = user_id);
 
 -- ============ SEED ============
 insert into categories (name, slug) values

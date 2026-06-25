@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 import { createHash } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendOrderEmails } from "@/lib/email";
@@ -16,6 +18,38 @@ const COD_FEE = 20;
 const SHIPPING_FLAT = 15;
 const CLAIM_TIMEOUT_MS = 5 * 60 * 1000;
 
+async function getAuthenticatedUserId() {
+  const cookieStore = cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(
+          cookiesToSet: {
+            name: string;
+            value: string;
+            options?: Record<string, unknown>;
+          }[]
+        ) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          } catch {
+            // No-op in route handlers when cookies cannot be set.
+          }
+        },
+      },
+    }
+  );
+  const { data } = await supabase.auth.getUser();
+  return data.user?.id ?? null;
+}
+
 export async function POST(req: Request) {
   try {
     const { items, customer, idempotencyKey } = (await req.json()) as {
@@ -30,6 +64,7 @@ export async function POST(req: Request) {
 
     const shippingAmount = items.length ? SHIPPING_FLAT : 0;
     const customerName = `${customer.firstName} ${customer.lastName}`.trim();
+    const userId = await getAuthenticatedUserId();
 
     const shippingAddress = {
       address: customer.address,
@@ -136,8 +171,7 @@ export async function POST(req: Request) {
           verification_completed: true,
           verification_claimed_at: new Date().toISOString(),
           status: "pending",
-        .insert({
-          status: "paid",
+          user_id: userId,
           total_amount: total,
           shipping_amount: shippingAmount,
           shipping_address: shippingAddress,
@@ -173,6 +207,7 @@ export async function POST(req: Request) {
         const { data: order, error } = await supabase
           .from("orders")
           .insert({
+            user_id: userId,
             status: "pending",
             verification_completed: false,
             inventory_reserved: false,
