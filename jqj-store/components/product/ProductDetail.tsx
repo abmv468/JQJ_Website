@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronDown, Minus, Plus } from "lucide-react";
+import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import type { Product } from "@/data/products";
 import { formatPrice } from "@/lib/utils";
 import { useCart } from "@/context/CartContext";
@@ -38,7 +39,9 @@ export default function ProductDetail({
   const [size, setSize] = useState("");
   const [variantSku, setVariantSku] = useState("");
   const [qty, setQty] = useState(1);
+  const [addState, setAddState] = useState<"idle" | "loading" | "success">("idle");
   const [openAccordion, setOpenAccordion] = useState<string | null>("Description");
+  const resetAddStateTimerRef = useRef<number | null>(null);
   const [liveStock, setLiveStock] = useState<{
     inStock: boolean;
     stockCount: number;
@@ -115,8 +118,24 @@ export default function ProductDetail({
     }
   }, [effectiveStock, qty]);
 
-  function handleAdd() {
+  useEffect(() => {
+    return () => {
+      if (resetAddStateTimerRef.current) {
+        window.clearTimeout(resetAddStateTimerRef.current);
+      }
+    };
+  }, []);
+
+  async function handleAdd() {
     if (!inStock || (hasVariants && !selectedVariant)) return;
+    if (addState !== "idle") return;
+
+    setAddState("loading");
+    await new Promise((resolve) => window.setTimeout(resolve, 450));
+
+    setAddState("success");
+    await new Promise((resolve) => window.setTimeout(resolve, 380));
+
     addItem(
       {
         id: product.id,
@@ -130,6 +149,14 @@ export default function ProductDetail({
       },
       qty
     );
+
+    if (resetAddStateTimerRef.current) {
+      window.clearTimeout(resetAddStateTimerRef.current);
+    }
+    resetAddStateTimerRef.current = window.setTimeout(() => {
+      setAddState("idle");
+      resetAddStateTimerRef.current = null;
+    }, 1100);
   }
 
   return (
@@ -268,14 +295,86 @@ export default function ProductDetail({
                 <Plus className="h-4 w-4" />
               </button>
             </div>
-            <button
+            <motion.button
+              layout
               type="button"
               onClick={handleAdd}
-              className="btn-gold flex-1 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={!inStock || effectiveStock < 1 || (hasVariants && !selectedVariant)}
+              className={`btn-gold disabled:cursor-not-allowed disabled:opacity-60 ${
+                addState === "idle" ? "flex-1" : "w-12 px-0"
+              }`}
+              disabled={
+                addState !== "idle" || !inStock || effectiveStock < 1 || (hasVariants && !selectedVariant)
+              }
             >
-              {inStock ? "Add to Cart" : "Unavailable"}
-            </button>
+              <LayoutGroup id={`add-to-cart-${product.id}`}>
+                <AnimatePresence mode="wait" initial={false}>
+                  {addState === "idle" && (
+                    <motion.span
+                      key="add-label"
+                      layoutId={`add-to-cart-content-${product.id}`}
+                      className="inline-flex items-center justify-center"
+                    >
+                      {inStock ? "Add to Cart" : "Unavailable"}
+                    </motion.span>
+                  )}
+
+                  {addState === "loading" && (
+                    <motion.span
+                      key="loading"
+                      layoutId={`add-to-cart-content-${product.id}`}
+                      className="inline-flex items-center justify-center"
+                    >
+                      <motion.span
+                        aria-hidden="true"
+                        className="h-4 w-4 rounded-full border-2 border-black/20 border-t-black"
+                        animate={{ rotate: 360 }}
+                        transition={{ ease: "linear", duration: 0.6, repeat: Infinity }}
+                      />
+                    </motion.span>
+                  )}
+
+                  {addState === "success" && (
+                    <motion.span
+                      key="success"
+                      layoutId={`add-to-cart-content-${product.id}`}
+                      className="inline-flex items-center justify-center"
+                    >
+                      <motion.svg
+                        viewBox="0 0 24 24"
+                        className="h-5 w-5"
+                        aria-label="Added to cart"
+                        role="img"
+                        initial={{
+                          scale: 0.9,
+                          filter: "drop-shadow(0 0 0px rgba(255, 245, 214, 0))",
+                        }}
+                        animate={{
+                          scale: [0.95, 1.08, 1],
+                          filter: [
+                            "drop-shadow(0 0 0px rgba(255, 245, 214, 0))",
+                            "drop-shadow(0 0 8px rgba(255, 245, 214, 0.95))",
+                            "drop-shadow(0 0 6px rgba(255, 245, 214, 0.75))",
+                          ],
+                        }}
+                        transition={{ duration: 0.45, ease: "easeOut" }}
+                      >
+                        <motion.path
+                          d="M5 13l4 4L19 7"
+                          fill="none"
+                          stroke="#fff5d6"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          initial={{ pathLength: 0 }}
+                          animate={{ pathLength: 1 }}
+                          transition={{ duration: 0.35, ease: "easeInOut" }}
+                        />
+                      </motion.svg>
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </LayoutGroup>
+            </motion.button>
           </div>
 
           {/* Trust list */}
