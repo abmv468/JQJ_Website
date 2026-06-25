@@ -20,6 +20,7 @@ export default function AccountPage() {
   const [user, setUser] = useState<User | null>(null);
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -40,7 +41,12 @@ export default function AccountPage() {
 
   async function signOut() {
     const supabase = createClient();
-    await supabase.auth.signOut();
+    setSignOutError(null);
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      setSignOutError(error.message);
+      return;
+    }
     router.push("/");
     router.refresh();
   }
@@ -63,6 +69,7 @@ export default function AccountPage() {
       <p className="mb-10 text-sm text-brand-muted">
         Signed in as <span className="text-white">{user?.email}</span>
       </p>
+      {signOutError && <p className="mb-6 text-sm text-red-400">{signOutError}</p>}
 
       <h2 className="mb-4 font-heading text-sm uppercase tracking-wider2">Order History</h2>
       {orders.length === 0 ? (
