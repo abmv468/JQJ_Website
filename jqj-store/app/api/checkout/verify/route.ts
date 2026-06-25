@@ -289,7 +289,6 @@ export async function POST(req: Request) {
           user_id: userId,
           verification_completed: false,
           inventory_reserved: false,
-          status: "paid",
           total_amount: total,
           shipping_amount: shipping,
           shipping_address: shippingAddress,
