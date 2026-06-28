@@ -5,46 +5,222 @@
 :root {
   --font-heading: "Instrument Sans", sans-serif;
   --font-body: "Manrope", sans-serif;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
 html {
   scroll-behavior: smooth;
+  background: #010101;
 }
 
 body {
+  min-height: 100vh;
   background-color: #010101;
+  background-image:
+    radial-gradient(circle at top, rgba(24, 76, 82, 0.2), transparent 34%),
+    radial-gradient(circle at 85% 18%, rgba(187, 157, 123, 0.12), transparent 24%),
+    linear-gradient(180deg, #010101 0%, #050606 38%, #010101 100%);
   color: #f3f0ea;
   font-family: var(--font-body);
+  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(187, 157, 123, 0.28);
+  color: #ffffff;
+}
+
+a,
+button,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
 }
 
 @layer components {
   .container-site {
-    @apply mx-auto w-full max-w-site px-4 sm:px-6 lg:px-10;
+    @apply mx-auto w-full max-w-site px-4 sm:px-6 lg:px-12;
   }
 
   .section-title {
-    @apply text-center font-heading text-2xl font-light uppercase tracking-wider2 text-white;
+    @apply text-center font-heading font-light uppercase text-white;
+    font-size: clamp(1.65rem, 1.2rem + 1.35vw, 2.75rem);
+    letter-spacing: 0.22em;
+    line-height: 1.04;
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center border border-brand-gold bg-transparent px-8 py-3 font-heading text-xs uppercase tracking-wider2 text-white transition-colors hover:bg-brand-gold hover:text-black;
+    @apply inline-flex items-center justify-center gap-2 rounded-brand border bg-transparent px-6 py-3 font-heading text-[11px] uppercase text-white;
+    border-color: rgba(187, 157, 123, 0.7);
+    letter-spacing: 0.18em;
+    transition:
+      transform 160ms var(--ease-out),
+      background-color 180ms ease,
+      border-color 180ms ease,
+      color 180ms ease,
+      box-shadow 180ms ease;
   }
 
   .btn-gold {
-    @apply inline-flex items-center justify-center bg-brand-gold px-8 py-3 font-heading text-xs uppercase tracking-wider2 text-black transition-colors hover:bg-brand-gold-light;
+    @apply inline-flex items-center justify-center gap-2 rounded-brand border border-brand-gold bg-brand-gold px-6 py-3 font-heading text-[11px] uppercase text-black;
+    letter-spacing: 0.18em;
+    box-shadow: 0 18px 45px rgba(187, 157, 123, 0.14);
+    transition:
+      transform 160ms var(--ease-out),
+      background-color 180ms ease,
+      border-color 180ms ease,
+      color 180ms ease,
+      box-shadow 180ms ease;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center border border-brand-border bg-transparent px-8 py-3 font-heading text-xs uppercase tracking-wider2 text-white transition-colors hover:border-white;
+    @apply inline-flex items-center justify-center gap-2 rounded-brand border px-6 py-3 font-heading text-[11px] uppercase text-white;
+    border-color: rgba(255, 255, 255, 0.12);
+    background-color: rgba(255, 255, 255, 0.03);
+    letter-spacing: 0.18em;
+    transition:
+      transform 160ms var(--ease-out),
+      background-color 180ms ease,
+      border-color 180ms ease,
+      color 180ms ease,
+      box-shadow 180ms ease;
   }
 
   .input-field {
-    @apply w-full border border-brand-border bg-transparent px-4 py-3 text-sm text-white placeholder-brand-muted outline-none transition-colors focus:border-brand-gold;
+    @apply w-full rounded-brand border px-4 py-3 text-sm text-white placeholder-brand-muted outline-none;
+    border-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.03);
+    transition:
+      border-color 180ms ease,
+      background-color 180ms ease,
+      box-shadow 180ms ease;
+  }
+
+  .section-shell {
+    @apply relative overflow-hidden rounded-[2rem] border px-5 py-8 sm:px-8 sm:py-10 lg:px-10 lg:py-12;
+    border-color: rgba(255, 255, 255, 0.1);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)),
+      rgba(10, 10, 10, 0.78);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 30px 90px rgba(0, 0, 0, 0.3);
+  }
+
+  .eyebrow {
+    @apply font-heading text-[11px] uppercase text-brand-gold-light;
+    letter-spacing: 0.22em;
+  }
+
+  .section-lead {
+    @apply text-sm leading-7 sm:text-[15px];
+    color: rgba(255, 255, 255, 0.66);
   }
 
   .nav-link {
-    @apply font-heading text-xs uppercase tracking-wider2 text-white/80 transition-colors hover:text-white;
+    @apply relative inline-flex items-center py-2 font-heading text-[11px] uppercase;
+    color: rgba(255, 255, 255, 0.7);
+    letter-spacing: 0.18em;
+    transition: color 180ms ease;
+  }
+
+  .icon-button {
+    @apply inline-flex h-11 w-11 items-center justify-center rounded-full border;
+    border-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.02);
+    color: rgba(255, 255, 255, 0.72);
+    transition:
+      transform 160ms var(--ease-out),
+      border-color 180ms ease,
+      background-color 180ms ease,
+      color 180ms ease,
+      box-shadow 180ms ease;
+  }
+}
+
+.section-shell::before,
+.nav-link::after {
+  content: "";
+}
+
+.section-shell::before {
+  position: absolute;
+  inset: 0 auto auto 0;
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
+  pointer-events: none;
+}
+
+.nav-link::after {
+  position: absolute;
+  left: 0;
+  bottom: 0.15rem;
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(90deg, rgba(187, 157, 123, 0), rgba(187, 157, 123, 0.9), rgba(187, 157, 123, 0));
+  opacity: 0;
+  transform: scaleX(0.75);
+  transform-origin: center;
+  transition:
+    transform 180ms var(--ease-out),
+    opacity 180ms ease;
+}
+
+.btn-primary:active,
+.btn-gold:active,
+.btn-secondary:active,
+.icon-button:active {
+  transform: scale(0.97);
+}
+
+.input-field:focus {
+  border-color: rgba(187, 157, 123, 0.76);
+  background-color: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0 0 3px rgba(187, 157, 123, 0.12);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover {
+    background: rgba(187, 157, 123, 0.1);
+    border-color: rgba(225, 193, 157, 0.88);
+    box-shadow: 0 18px 40px rgba(187, 157, 123, 0.12);
+    color: #fff7ed;
+    transform: translateY(-1px);
+  }
+
+  .btn-gold:hover {
+    background: #e1c19d;
+    border-color: #e1c19d;
+    box-shadow: 0 24px 55px rgba(187, 157, 123, 0.22);
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.28);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+    transform: translateY(-1px);
+  }
+
+  .nav-link:hover {
+    color: rgba(255, 255, 255, 0.98);
+  }
+
+  .nav-link:hover::after {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+
+  .icon-button:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 18px 35px rgba(0, 0, 0, 0.2);
+    color: rgba(255, 255, 255, 0.98);
+    transform: translateY(-1px);
   }
 }
 
@@ -68,4 +244,18 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #BB9D7B;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .btn-primary,
+  .btn-gold,
+  .btn-secondary,
+  .nav-link::after,
+  .icon-button {
+    transition-duration: 0ms;
+  }
 }

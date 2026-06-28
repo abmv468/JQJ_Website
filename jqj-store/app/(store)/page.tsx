@@ -13,12 +13,25 @@ export default function HomePage() {
       <Hero />
       <LatestCollections />
 
-      <section className="container-site pb-16">
-        <h2 className="section-title mb-10">Signature Pieces</h2>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-4">
-          {topProducts.map((p) => (
-            <ProductCard key={p.id} product={p} />
-          ))}
+      <section className="container-site pt-16">
+        <div className="section-shell rounded-none">
+          <div className="flex flex-col items-center gap-2 text-center">
+            <p className="eyebrow">Signiture Pieces</p>
+            <h2 className="section-title whitespace-nowrap">Designed to be kept</h2>
+            <p className="section-lead whitespace-nowrap text-[13px] sm:text-sm md:text-[15px]">
+              Our most collected bracelets and necklaces—selected for balance, wearability, and the kind of presence that gets better with time.
+            </p>
+          </div>
+
+          <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+            {topProducts.map((p) => (
+              <ProductCard
+                key={p.id}
+                product={p}
+                sizes="(max-width: 639px) 100vw, (max-width: 1279px) 50vw, 25vw"
+              />
+            ))}
+          </div>
         </div>
       </section>
 
