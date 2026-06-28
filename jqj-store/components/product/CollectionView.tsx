@@ -335,7 +335,11 @@ export default function CollectionView({
             <>
               <div className="grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3">
                 {visible.map((p) => (
-                  <ProductCard key={p.id} product={p} />
+                  <ProductCard
+                    key={p.id}
+                    product={p}
+                    sizes="(max-width: 767px) 50vw, 33vw"
+                  />
                 ))}
               </div>
 

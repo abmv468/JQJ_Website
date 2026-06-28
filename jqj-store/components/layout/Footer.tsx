@@ -33,13 +33,22 @@ const columns = [
   },
 ];
 
+const socialLinks = [
+  { label: "Facebook", href: "#", icon: Facebook },
+  { label: "Twitter", href: "#", icon: Twitter },
+  { label: "Instagram", href: "#", icon: Instagram },
+];
+
 export default function Footer() {
   return (
-    <footer className="border-t border-brand-border bg-black">
+    <footer className="mt-16 border-t border-white/8 bg-black">
       <div className="container-site grid grid-cols-2 gap-10 py-16 md:grid-cols-4">
         {columns.map((col) => (
           <div key={col.title}>
-            <h4 className="mb-5 font-heading text-xs uppercase tracking-wider2 text-white">
+            <h4
+              className="mb-5 font-heading text-[11px] uppercase text-white/88"
+              style={{ letterSpacing: "0.2em" }}
+            >
               {col.title}
             </h4>
             <ul className="space-y-3">
@@ -47,7 +56,7 @@ export default function Footer() {
                 <li key={link.label}>
                   <Link
                     href={link.href}
-                    className="text-xs text-brand-muted transition-colors hover:text-white"
+                    className="text-sm text-white/56 transition-colors hover:text-white"
                   >
                     {link.label}
                   </Link>
@@ -57,14 +66,16 @@ export default function Footer() {
           </div>
         ))}
 
-        {/* Newsletter */}
         <div className="col-span-2 md:col-span-1">
-          <h4 className="mb-5 font-heading text-xs uppercase tracking-wider2 text-white">
+          <h4
+            className="mb-5 font-heading text-[11px] uppercase text-white/88"
+            style={{ letterSpacing: "0.2em" }}
+          >
             Stay in the Loop
           </h4>
-          <p className="mb-4 text-xs leading-relaxed text-brand-muted">
-            Discover new gemstone releases, cultural collaborations, and limited
-            drops.
+          <p className="mb-4 text-sm leading-7 text-white/56">
+            New gemstone edits, limited drops, and collector releases—sent
+            sparingly.
           </p>
           <form className="space-y-3">
             <input
@@ -80,22 +91,24 @@ export default function Footer() {
         </div>
       </div>
 
-      <div className="border-t border-brand-border">
+      <div className="border-t border-white/8">
         <div className="container-site flex flex-col items-center justify-between gap-4 py-6 sm:flex-row">
-          <p className="text-[11px] uppercase tracking-wider2 text-brand-muted">
+          <p
+            className="text-[11px] uppercase text-white/60"
+            style={{ letterSpacing: "0.18em" }}
+          >
             © {new Date().getFullYear()} — JQJ Group
           </p>
-          <div className="flex items-center gap-5">
-            <Link href="#" aria-label="Facebook">
-              <Facebook className="h-4 w-4 text-brand-muted hover:text-white" />
-            </Link>
-            <Link href="#" aria-label="Twitter">
-              <Twitter className="h-4 w-4 text-brand-muted hover:text-white" />
-            </Link>
-            <Link href="#" aria-label="Instagram">
-              <Instagram className="h-4 w-4 text-brand-muted hover:text-white" />
-            </Link>
+          <div className="flex items-center gap-3">
+            {socialLinks.map(({ label, href, icon: Icon }) => (
+              <Link key={label} href={href} aria-label={label} className="icon-button h-10 w-10">
+                <Icon className="h-4 w-4" />
+              </Link>
+            ))}
           </div>
+          <p className="text-center text-xs text-white/56">
+            Hand-finished natural stone pieces designed for everyday ritual.
+          </p>
         </div>
       </div>
     </footer>
