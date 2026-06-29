@@ -1,17 +1,17 @@
 import PolicyPage from "@/components/trust/PolicyPage";
 
 export const metadata = {
-  title: "Terms & Conditions — JQJ Group",
+  title: "Terms & Conditions — JQD Group",
 };
 
 export default function TermsPage() {
   return (
     <PolicyPage
       title="Terms & Conditions"
-      intro="By using our website or purchasing from JQJ Group, you agree to these terms. Please review them before placing an order."
+      intro="By using our website or purchasing from JQD Group, you agree to these terms. Please review them before placing an order."
       effectiveDate="January 1, 2026"
       contactDetails={[
-        { label: "Email", value: "support@jqjgroup.com", href: "mailto:support@jqjgroup.com" },
+        { label: "Email", value: "support@jqdgroup.com", href: "mailto:support@jqdgroup.com" },
       ]}
       sections={[
         {
@@ -25,7 +25,8 @@ export default function TermsPage() {
           title: "Orders, Pricing, and Availability",
           bullets: [
             "All orders are subject to acceptance, inventory availability, and payment verification.",
-            "Prices are listed in USD and may change without notice.",
+            "You can select a supported display currency on the website; converted prices are estimates and may change without notice.",
+            "Checkout settlement is processed in the selected supported currency for your order.",
             "We reserve the right to cancel or limit any order if pricing, availability, or fraud concerns arise.",
             "Product images are representative; natural stones and handcrafted pieces may vary slightly.",
           ],
@@ -40,13 +41,13 @@ export default function TermsPage() {
         {
           title: "Intellectual Property",
           paragraphs: [
-            "All website content, including text, imagery, branding, and product descriptions, belongs to JQJ Group or its licensors and may not be copied or reused without written permission.",
+            "All website content, including text, imagery, branding, and product descriptions, belongs to JQD Group or its licensors and may not be copied or reused without written permission.",
           ],
         },
         {
           title: "Liability and Disputes",
           paragraphs: [
-            "To the maximum extent permitted by law, JQJ Group is not liable for indirect, incidental, or consequential damages related to your use of this website or products.",
+            "To the maximum extent permitted by law, JQD Group is not liable for indirect, incidental, or consequential damages related to your use of this website or products.",
             "Any disputes should first be submitted to our support team so we can attempt resolution in good faith.",
           ],
         },

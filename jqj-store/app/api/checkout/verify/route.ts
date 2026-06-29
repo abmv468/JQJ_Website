@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendOrderEmails } from "@/lib/email";
+import { convertCurrencyToUsd, normalizeCurrency } from "@/lib/currency";
 import {
   fetchInventoryBySlugs,
   restoreStockForOrder,
@@ -71,9 +72,12 @@ export async function POST(req: Request) {
     }
 
     const meta = session.metadata ?? {};
+    const selectedCurrency = normalizeCurrency(meta.currency);
     const shipping = Number(meta.shipping || 0);
-    const total = (session.amount_total ?? 0) / 100;
-    const subtotal = total - shipping;
+    const chargedTotal = (session.amount_total ?? 0) / 100;
+    const chargedTotalUsd = convertCurrencyToUsd(chargedTotal, selectedCurrency);
+    let subtotal = 0;
+    let total = 0;
     const customerEmail = session.customer_details?.email || "";
     const customerName = meta.customerName || session.customer_details?.name || "";
     const userId = asUuid(meta.userId) ?? (await getAuthenticatedUserId());
@@ -115,6 +119,7 @@ export async function POST(req: Request) {
       country: meta.country || "",
       phone: meta.phone || "",
       payment_method: "stripe" as const,
+      currency: selectedCurrency,
     };
 
     const supabase = createAdminClient();
@@ -225,6 +230,18 @@ export async function POST(req: Request) {
         { orderId: exceptionOrderId, warning: validation.errors[0] || "Inventory issue detected after payment" },
         { headers: { "Cache-Control": "no-store" } }
       );
+    }
+
+    subtotal = validation.resolved.reduce(
+      (sum, line) => sum + line.product.price * line.requestedQuantity,
+      0
+    );
+    total = subtotal + shipping;
+
+    // Guard against rare FX/rounding drift between charged amount and USD normalization.
+    if (Math.abs(chargedTotalUsd - total) > 0.03) {
+      total = chargedTotalUsd;
+      subtotal = Math.max(0, total - shipping);
     }
 
     const claimVerification = async (targetOrderId: string) => {
@@ -413,6 +430,7 @@ export async function POST(req: Request) {
       shipping,
       total,
       paymentMethod: "stripe",
+      currency: selectedCurrency,
       shippingAddress,
     });
 

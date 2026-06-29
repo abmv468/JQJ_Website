@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Instrument_Sans, Manrope } from "next/font/google";
 import "./globals.css";
+import { CurrencyProvider } from "@/context/CurrencyContext";
 
 const heading = Instrument_Sans({
   subsets: ["latin"],
@@ -15,10 +16,10 @@ const body = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "JQJ Group — Natural Stone Jewelry with Cultural Craft",
+  title: "JQD Group — Natural Stone Jewelry with Cultural Craft",
   description:
     "Handcrafted bracelets and necklaces inspired by Eastern cultural heritage, museum collaborations, and natural gemstone artistry.",
-  icons: { icon: "/JQJ-logo.png" },
+  icons: { icon: "/JQD-logo.png" },
 };
 
 export default function RootLayout({
@@ -29,7 +30,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${heading.variable} ${body.variable}`}>
       <body className="bg-brand-bg font-body text-white antialiased">
-        {children}
+        <CurrencyProvider>{children}</CurrencyProvider>
       </body>
     </html>
   );

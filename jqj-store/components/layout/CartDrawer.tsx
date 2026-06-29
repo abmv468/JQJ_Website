@@ -4,9 +4,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { X, Minus, Plus } from "lucide-react";
 import { useCart } from "@/context/CartContext";
-import { formatPrice } from "@/lib/utils";
+import { useCurrency } from "@/context/CurrencyContext";
 
 export default function CartDrawer() {
+  const { formatFromUsd } = useCurrency();
   const {
     items,
     isOpen,
@@ -104,7 +105,7 @@ export default function CartDrawer() {
                         </button>
                       </div>
                       <span className="text-sm text-brand-gold">
-                        {formatPrice(item.price * item.quantity)}
+                        {formatFromUsd(item.price * item.quantity)}
                       </span>
                     </div>
                   </div>
@@ -119,7 +120,7 @@ export default function CartDrawer() {
             <div className="mb-4 flex items-center justify-between">
               <span className="text-sm text-brand-muted">Subtotal</span>
               <span className="font-heading text-lg text-white">
-                {formatPrice(subtotal)}
+                {formatFromUsd(subtotal)}
               </span>
             </div>
             <Link

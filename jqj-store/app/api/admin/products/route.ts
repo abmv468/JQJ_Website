@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -22,8 +23,11 @@ function deriveStockFromVariants(variants?: VariantPayload[]) {
   };
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const authError = await requireAdmin(req);
+    if (authError) return authError;
+
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from("products")
@@ -41,6 +45,9 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    const authError = await requireAdmin(req);
+    if (authError) return authError;
+
     const body = await req.json();
     const variants = Array.isArray(body.variants) ? (body.variants as VariantPayload[]) : [];
     const supabase = createAdminClient();
@@ -87,6 +94,9 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   try {
+    const authError = await requireAdmin(req);
+    if (authError) return authError;
+
     const { id, variants, ...updates } = await req.json();
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
     const supabase = createAdminClient();
@@ -184,6 +194,9 @@ export async function PUT(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
+    const authError = await requireAdmin(req);
+    if (authError) return authError;
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });

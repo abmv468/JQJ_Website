@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { useCart } from "@/context/CartContext";
-import { formatPrice } from "@/lib/utils";
+import { useCurrency } from "@/context/CurrencyContext";
 import { formatOrderStatusLabel, hasPartialRefund, isFullyRefunded } from "@/lib/order-lifecycle";
 
 interface ProfileRow {
@@ -105,6 +105,7 @@ function getMetaString(meta: Record<string, unknown> | null, key: string) {
 export default function AccountPage() {
   const router = useRouter();
   const { addItem } = useCart();
+  const { formatFromUsd } = useCurrency();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState({ firstName: "", lastName: "", phone: "" });
   const [profileSaving, setProfileSaving] = useState(false);
@@ -554,7 +555,7 @@ export default function AccountPage() {
                       <span className="ml-2 text-xs text-brand-muted">(fully refunded)</span>
                     )}
                   </span>
-                  <span className="text-brand-gold">{formatPrice(order.total_amount)}</span>
+                  <span className="text-brand-gold">{formatFromUsd(order.total_amount)}</span>
                   <button type="button" onClick={() => toggleOrder(order.id)} className="btn-secondary px-4 py-2">
                     {expandedOrders[order.id] ? "Hide Details" : "View Details"}
                   </button>
@@ -581,8 +582,8 @@ export default function AccountPage() {
                           <tr key={item.id} className="border-b border-brand-border/40">
                             <td className="p-3">{item.product_name}</td>
                             <td className="p-3">{item.quantity}</td>
-                            <td className="p-3 text-right">{formatPrice(item.price_at_purchase)}</td>
-                            <td className="p-3 text-right">{formatPrice(item.price_at_purchase * item.quantity)}</td>
+                            <td className="p-3 text-right">{formatFromUsd(item.price_at_purchase)}</td>
+                            <td className="p-3 text-right">{formatFromUsd(item.price_at_purchase * item.quantity)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -598,8 +599,8 @@ export default function AccountPage() {
                     <div className="border border-brand-border/60 p-3">
                       <p className="mb-1 text-xs uppercase tracking-wider2 text-brand-muted">Payment & Totals</p>
                       <p>Method: {paymentMethod(order)}</p>
-                      <p>Shipping: {formatPrice(order.shipping_amount || 0)}</p>
-                      <p className="text-brand-gold">Total: {formatPrice(order.total_amount)}</p>
+                      <p>Shipping: {formatFromUsd(order.shipping_amount || 0)}</p>
+                      <p className="text-brand-gold">Total: {formatFromUsd(order.total_amount)}</p>
                     </div>
                   </div>
                 </div>

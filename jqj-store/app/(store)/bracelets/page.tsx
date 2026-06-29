@@ -2,13 +2,13 @@ import CollectionView from "@/components/product/CollectionView";
 import { getProductsByCategory } from "@/data/products";
 
 export const metadata = {
-  title: "Bracelets — JQJ Group",
+  title: "Bracelets — JQD Group",
 };
 
 export default function BraceletsPage({
   searchParams,
 }: {
-  searchParams: { stone?: string; tag?: string };
+  searchParams: { stone?: string; tag?: string; q?: string };
 }) {
   const items = getProductsByCategory("bracelets");
 
@@ -20,6 +20,7 @@ export default function BraceletsPage({
       products={items}
       initialStone={searchParams.stone}
       initialTag={searchParams.tag}
+      initialQuery={searchParams.q}
     />
   );
 }

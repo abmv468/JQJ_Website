@@ -1,10 +1,12 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import type { Product } from "@/data/products";
-import { formatPrice } from "@/lib/utils";
 import { getStockState } from "@/lib/product-stock";
 import StarRating from "@/components/ui/StarRating";
+import { useCurrency } from "@/context/CurrencyContext";
 
 const tagLabels: Record<string, string> = {
   new: "New",
@@ -21,7 +23,9 @@ export default function ProductCard({
   product: Product;
   sizes?: string;
 }) {
+  const { formatFromUsd } = useCurrency();
   const primaryTag = product.tags[0];
+  const hoverImage = product.hoverImage;
   const stock = getStockState({
     stockCount: product.stockCount,
     inStock: product.inStock,
@@ -65,8 +69,17 @@ export default function ProductCard({
             alt={product.name}
             fill
             sizes={sizes}
-            className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+            className={`rounded-[1.2rem] object-cover transition-[transform,opacity] duration-500 ${hoverImage ? "opacity-100 group-hover:scale-[1.04] group-hover:opacity-0" : "group-hover:scale-[1.04]"}`}
           />
+          {hoverImage ? (
+            <Image
+              src={hoverImage}
+              alt={`${product.name} hover view`}
+              fill
+              sizes={sizes}
+              className="rounded-[1.2rem] object-cover opacity-0 transition-[transform,opacity] duration-500 group-hover:scale-[1.04] group-hover:opacity-100"
+            />
+          ) : null}
           <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-black/72" />
           <div className="absolute bottom-3 left-3 rounded-full border border-white/10 bg-black/42 px-3 py-1 text-[10px] uppercase text-white/76 backdrop-blur-md">
             {product.stone}
@@ -91,10 +104,10 @@ export default function ProductCard({
               <div className="flex flex-wrap items-center gap-2">
                 {product.compareAtPrice && (
                   <span className="text-xs text-brand-muted line-through">
-                    {formatPrice(product.compareAtPrice)}
+                    {formatFromUsd(product.compareAtPrice)}
                   </span>
                 )}
-                <span className="text-base text-brand-gold">{formatPrice(product.price)}</span>
+                <span className="text-base text-brand-gold">{formatFromUsd(product.price)}</span>
               </div>
               <span
                 className="text-[10px] uppercase text-white/58"

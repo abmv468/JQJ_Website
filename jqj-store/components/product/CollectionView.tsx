@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, LayoutGrid, Rows3, Search } from "lucide-react";
+import { ChevronDown, LayoutGrid, Rows3, Search, SlidersHorizontal, X } from "lucide-react";
 import type { Product, ProductTag } from "@/data/products";
 import ProductCard from "./ProductCard";
 
@@ -37,19 +37,25 @@ const sortOptions: { value: SortKey; label: string }[] = [
 export default function CollectionView({
   title,
   limitedTitle,
+  emptyTitle,
+  emptyDescription,
   subtitle,
   products,
   initialStone,
   initialTag,
+  initialQuery,
 }: {
   title: string;
   limitedTitle?: string;
+  emptyTitle?: string;
+  emptyDescription?: string;
   subtitle?: string;
   products: Product[];
   initialStone?: string;
   initialTag?: string;
+  initialQuery?: string;
 }) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery ?? "");
   const [sort, setSort] = useState<SortKey>("featured");
   const normalizedInitialTag = useMemo(() => {
     if (!initialTag) return undefined;
@@ -62,6 +68,7 @@ export default function CollectionView({
   const [inStockOnly, setInStockOnly] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>("Gems");
   const [sortOpen, setSortOpen] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [page, setPage] = useState(1);
 
   const stones = useMemo(
@@ -128,6 +135,10 @@ export default function CollectionView({
   }, [initialStone, normalizedInitialTag]);
 
   useEffect(() => {
+    setQuery(initialQuery ?? "");
+  }, [initialQuery]);
+
+  useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
@@ -190,6 +201,14 @@ export default function CollectionView({
           <LayoutGrid className="h-4 w-4" />
           <Rows3 className="h-4 w-4" />
           <span className="text-xs">{filtered.length} items</span>
+          <button
+            type="button"
+            onClick={() => setMobileFiltersOpen(true)}
+            className="inline-flex items-center gap-2 border border-brand-border px-3 py-2 text-xs uppercase tracking-wider2 text-white/85 transition-colors hover:border-white/40 hover:text-white lg:hidden"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            Filters
+          </button>
           <label className="relative block w-full sm:w-[300px]">
             <span className="sr-only">Search products</span>
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-muted" />
@@ -203,7 +222,7 @@ export default function CollectionView({
             />
           </label>
         </div>
-        <div className="relative flex items-center gap-2 text-xs uppercase tracking-wider2 text-brand-muted">
+        <div className="relative flex w-full items-center justify-between gap-2 text-xs uppercase tracking-wider2 text-brand-muted sm:w-auto sm:justify-start">
           <span>Sort by</span>
           <div data-sort-dropdown="true" className="relative">
             <button
@@ -211,7 +230,7 @@ export default function CollectionView({
               aria-haspopup="listbox"
               aria-expanded={sortOpen}
               onClick={() => setSortOpen((prev) => !prev)}
-              className="flex min-w-[220px] items-center justify-between border border-brand-border bg-black px-4 py-2 text-left text-sm text-white transition-colors hover:border-white/60"
+              className="flex w-[185px] items-center justify-between border border-brand-border bg-black px-4 py-2 text-left text-sm text-white transition-colors hover:border-white/60 sm:w-auto sm:min-w-[220px]"
             >
               <span className="normal-case">
                 {sortOptions.find((option) => option.value === sort)?.label ?? "Featured"}
@@ -250,6 +269,98 @@ export default function CollectionView({
           </div>
         </div>
       </div>
+
+      {mobileFiltersOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <button
+            type="button"
+            aria-label="Close filters"
+            className="absolute inset-0 bg-black/70"
+            onClick={() => setMobileFiltersOpen(false)}
+          />
+          <div className="absolute inset-y-0 right-0 w-full max-w-xs overflow-y-auto border-l border-brand-border bg-brand-surface p-5 shadow-2xl">
+            <div className="mb-5 flex items-center justify-between border-b border-brand-border pb-3">
+              <h2 className="font-heading text-sm uppercase tracking-wider2 text-white">Filters</h2>
+              <button
+                type="button"
+                aria-label="Close filters"
+                className="inline-flex h-9 w-9 items-center justify-center border border-brand-border text-white/75 transition-colors hover:border-white/40 hover:text-white"
+                onClick={() => setMobileFiltersOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <ul className="space-y-1">
+              {filterGroups.map((g) => (
+                <li key={g} className="border-b border-brand-border/60">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between py-3 text-xs uppercase tracking-wider2 text-white/80 hover:text-white"
+                    onClick={() => setOpenGroup(openGroup === g ? null : g)}
+                  >
+                    {g}
+                    <ChevronDown
+                      className={`h-4 w-4 transition-transform ${
+                        openGroup === g ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+                  {openGroup === g && g === "Gems" && (
+                    <div className="flex flex-col gap-2 pb-4">
+                      <button
+                        type="button"
+                        onClick={() => setStone(undefined)}
+                        className={`text-left text-xs ${
+                          !stone ? "text-brand-gold" : "text-brand-muted hover:text-white"
+                        }`}
+                      >
+                        All
+                      </button>
+                      {stones.map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setStone(s)}
+                          className={`text-left text-xs ${
+                            stone === s ? "text-brand-gold" : "text-brand-muted hover:text-white"
+                          }`}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {openGroup === g && g === "Availability" && (
+                    <div className="pb-4">
+                      <label className="flex cursor-pointer items-center gap-2 text-xs text-brand-muted hover:text-white">
+                        <input
+                          type="checkbox"
+                          checked={inStockOnly}
+                          onChange={(e) => setInStockOnly(e.target.checked)}
+                          className="h-4 w-4 accent-brand-gold"
+                        />
+                        In stock only
+                      </label>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+
+            <button
+              type="button"
+              onClick={() => {
+                clearFilters();
+                setMobileFiltersOpen(false);
+              }}
+              className="mt-6 w-full border border-brand-border px-4 py-2 text-xs uppercase tracking-wider2 text-white/80 transition-colors hover:border-white hover:text-white"
+            >
+              Clear filters
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-[220px_1fr]">
         <aside className="hidden lg:block">
@@ -328,9 +439,29 @@ export default function CollectionView({
           </div>
 
           {filtered.length === 0 ? (
-            <p className="py-20 text-center text-sm text-brand-muted">
-              No products match your search and filters.
-            </p>
+            products.length === 0 ? (
+              <div className="py-20 text-center">
+                <h2 className="font-heading text-xl uppercase tracking-wider2 text-white">
+                  {emptyTitle ?? `${title} are coming soon`}
+                </h2>
+                <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-brand-muted">
+                  {emptyDescription ??
+                    "We are curating this collection now. Explore bracelets and necklaces for the closest available edits."}
+                </p>
+                <div className="mt-8 flex flex-wrap justify-center gap-3">
+                  <Link href="/bracelets" className="btn-secondary">
+                    Browse bracelets
+                  </Link>
+                  <Link href="/necklaces" className="btn-primary">
+                    Browse necklaces
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <p className="py-20 text-center text-sm text-brand-muted">
+                No products match your search and filters.
+              </p>
+            )
           ) : (
             <>
               <div className="grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3">

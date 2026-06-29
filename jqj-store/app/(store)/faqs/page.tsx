@@ -1,7 +1,7 @@
 import PolicyPage from "@/components/trust/PolicyPage";
 
 export const metadata = {
-  title: "FAQs — JQJ Group",
+  title: "FAQs — JQD Group",
 };
 
 export default function FaqsPage() {
@@ -11,7 +11,7 @@ export default function FaqsPage() {
       intro="Find quick answers about ordering, shipping, returns, and product care."
       effectiveDate="January 1, 2026"
       contactDetails={[
-        { label: "Need Help", value: "support@jqjgroup.com", href: "mailto:support@jqjgroup.com" },
+        { label: "Need Help", value: "support@jqdgroup.com", href: "mailto:support@jqdgroup.com" },
       ]}
       sections={[
         {

@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { formatPrice } from "./utils";
+import { type SupportedCurrency } from "./currency";
 
 export interface OrderEmailItem {
   name: string;
@@ -17,6 +18,7 @@ export interface OrderEmailData {
   codFee?: number;
   total: number;
   paymentMethod: "stripe" | "cod";
+  currency: SupportedCurrency;
   shippingAddress: {
     address: string;
     apartment?: string;
@@ -26,18 +28,18 @@ export interface OrderEmailData {
   };
 }
 
-const BRAND = "JQJ Group";
+const BRAND = "JQD Group";
 const GOLD = "#BB9D7B";
 
-function itemsTable(items: OrderEmailItem[]): string {
+function itemsTable(items: OrderEmailItem[], currency: SupportedCurrency): string {
   return items
     .map(
       (i) => `
       <tr>
         <td style="padding:8px 0;border-bottom:1px solid #eee;">${i.name} × ${i.quantity}</td>
-        <td style="padding:8px 0;border-bottom:1px solid #eee;text-align:right;">${formatPrice(
-          i.price * i.quantity
-        )}</td>
+        <td style="padding:8px 0;border-bottom:1px solid #eee;text-align:right;">${formatPrice(i.price * i.quantity, {
+          currency,
+        })}</td>
       </tr>`
     )
     .join("");
@@ -58,23 +60,23 @@ function buildHtml(data: OrderEmailData, heading: string): string {
         data.paymentMethod === "cod" ? "Cash on Delivery" : "Card (Stripe)"
       }</strong></p>
       <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-        ${itemsTable(data.items)}
-        <tr><td style="padding:8px 0;">Subtotal</td><td style="padding:8px 0;text-align:right;">${formatPrice(
-          data.subtotal
-        )}</td></tr>
-        <tr><td style="padding:8px 0;">Shipping</td><td style="padding:8px 0;text-align:right;">${formatPrice(
-          data.shipping
-        )}</td></tr>
+        ${itemsTable(data.items, data.currency)}
+        <tr><td style="padding:8px 0;">Subtotal</td><td style="padding:8px 0;text-align:right;">${formatPrice(data.subtotal, {
+          currency: data.currency,
+        })}</td></tr>
+        <tr><td style="padding:8px 0;">Shipping</td><td style="padding:8px 0;text-align:right;">${formatPrice(data.shipping, {
+          currency: data.currency,
+        })}</td></tr>
         ${
           data.codFee
-            ? `<tr><td style="padding:8px 0;">COD Fee</td><td style="padding:8px 0;text-align:right;">${formatPrice(
-                data.codFee
-              )}</td></tr>`
+            ? `<tr><td style="padding:8px 0;">COD Fee</td><td style="padding:8px 0;text-align:right;">${formatPrice(data.codFee, {
+                currency: data.currency,
+              })}</td></tr>`
             : ""
         }
-        <tr><td style="padding:12px 0;font-weight:700;border-top:2px solid #111;">Total</td><td style="padding:12px 0;text-align:right;font-weight:700;border-top:2px solid #111;color:${GOLD};">${formatPrice(
-    data.total
-  )}</td></tr>
+        <tr><td style="padding:12px 0;font-weight:700;border-top:2px solid #111;">Total</td><td style="padding:12px 0;text-align:right;font-weight:700;border-top:2px solid #111;color:${GOLD};">${formatPrice(data.total, {
+    currency: data.currency,
+  })}</td></tr>
       </table>
       <h3 style="font-weight:500;">Shipping to</h3>
       <p style="color:#444;line-height:1.5;">
@@ -89,8 +91,8 @@ function buildHtml(data: OrderEmailData, heading: string): string {
 
 export async function sendOrderEmails(data: OrderEmailData): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM || "orders@jqjgroup.com";
-  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+  const from = process.env.EMAIL_FROM || "orders@danvapes.shop";
+  const adminEmail = process.env.ADMIN_EMAIL;
 
   if (!apiKey) {
     console.warn("[email] RESEND_API_KEY missing — skipping order emails");
@@ -111,7 +113,7 @@ export async function sendOrderEmails(data: OrderEmailData): Promise<void> {
       await resend.emails.send({
         from,
         to: adminEmail,
-        subject: `New order ${data.orderId} — ${formatPrice(data.total)}`,
+        subject: `New order ${data.orderId} — ${formatPrice(data.total, { currency: data.currency })}`,
         html: buildHtml(data, "New order received"),
       });
     }

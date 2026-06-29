@@ -1,7 +1,7 @@
 import PolicyPage from "@/components/trust/PolicyPage";
 
 export const metadata = {
-  title: "Returns, Resizes & Exchanges — JQJ Group",
+  title: "Returns, Resizes & Exchanges — JQD Group",
 };
 
 export default function ReturnsPage() {
@@ -11,7 +11,7 @@ export default function ReturnsPage() {
       intro="If something is not the right fit, we are here to help with fair and transparent return and exchange support."
       effectiveDate="January 1, 2026"
       contactDetails={[
-        { label: "Returns Team", value: "returns@jqjgroup.com", href: "mailto:returns@jqjgroup.com" },
+        { label: "Returns Team", value: "returns@jqdgroup.com", href: "mailto:returns@jqdgroup.com" },
       ]}
       sections={[
         {
@@ -27,7 +27,7 @@ export default function ReturnsPage() {
           bullets: [
             "Final sale or clearance items marked as non-returnable.",
             "Custom, personalized, or made-to-order pieces.",
-            "Items showing wear, damage, or alterations not performed by JQJ Group.",
+            "Items showing wear, damage, or alterations not performed by JQD Group.",
             "Gift cards and digital products.",
           ],
         },

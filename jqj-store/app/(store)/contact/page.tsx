@@ -1,7 +1,7 @@
 import PolicyPage from "@/components/trust/PolicyPage";
 
 export const metadata = {
-  title: "Contact Us — JQJ Group",
+  title: "Contact Us — JQD Group",
 };
 
 export default function ContactPage() {
@@ -11,7 +11,7 @@ export default function ContactPage() {
       intro="Our support team is available to help with orders, product questions, and post-purchase care."
       effectiveDate="January 1, 2026"
       contactDetails={[
-        { label: "Customer Care", value: "support@jqjgroup.com", href: "mailto:support@jqjgroup.com" },
+        { label: "Customer Care", value: "support@jqdgroup.com", href: "mailto:support@jqdgroup.com" },
         { label: "Phone", value: "Available on request via email support." },
         { label: "Mailing Address", value: "Available upon verified order-related request." },
         { label: "Support Hours", value: "Monday-Friday, 9:00 AM-5:00 PM (UTC+8)." },
@@ -36,7 +36,7 @@ export default function ContactPage() {
         {
           title: "Business and Press Inquiries",
           paragraphs: [
-            "For wholesale, collaborations, media, or partnerships, contact us at press@jqjgroup.com and include your company details and request summary.",
+            "For wholesale, collaborations, media, or partnerships, contact us at press@jqdgroup.com and include your company details and request summary.",
           ],
         },
       ]}

@@ -1,4 +1,4 @@
-export type CategorySlug = "bracelets" | "necklaces";
+export type CategorySlug = "bracelets" | "necklaces" | "rings" | "earrings";
 
 export type ProductTag = "new" | "limited" | "top-rated" | "restocked" | "sale";
 
@@ -12,6 +12,7 @@ export interface Product {
   sku?: string;
   category: CategorySlug;
   images: string[];
+  hoverImage?: string;
   inStock: boolean;
   stockCount: number;
   lowStockThreshold?: number;
@@ -43,6 +44,8 @@ export const stones = [
 export const categories: { slug: CategorySlug; name: string }[] = [
   { slug: "bracelets", name: "Bracelets" },
   { slug: "necklaces", name: "Necklaces" },
+  { slug: "rings", name: "Rings" },
+  { slug: "earrings", name: "Earrings" },
 ];
 
 const baseFeatures = [
@@ -69,6 +72,7 @@ export const products: Product[] = [
       "/products/red-leopard-jasper-bracelet.webp",
       "/products/lifestyle.webp",
     ],
+    hoverImage: "/products/red-leopard-skin-jasper-bracelet-hover.jpg",
     inStock: true,
     stockCount: 12,
     lowStockThreshold: 5,

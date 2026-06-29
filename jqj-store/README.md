@@ -1,6 +1,6 @@
-# JQJ Group — E-Commerce Storefront
+# JQD Group — E-Commerce Storefront
 
-Dark luxury jewelry storefront for **JQJ Group**, built with Next.js 14 (App Router), Tailwind CSS, Supabase, Stripe and Resend.
+Dark luxury jewelry storefront for **JQD Group**, built with Next.js 14 (App Router), Tailwind CSS, Supabase, Stripe and Resend.
 
 ## Getting started
 
@@ -35,7 +35,7 @@ npm run dev                        # http://localhost:3000
 - `/order-confirmation` — Handles Stripe verify + COD
 - `/auth/login` — Sign in / create account
 - `/account` — Profile + order history
-- `/admin` — Admin dashboard (gated by `NEXT_PUBLIC_ADMIN_EMAIL`)
+- `/admin` — Admin dashboard (gated by `ADMIN_EMAIL`)
 
 ## Backend setup
 
@@ -68,5 +68,5 @@ without backend keys. Checkout, orders, auth and admin require the keys above.
 
 - Background `#010101`, gold accents `#BB9D7B` / `#E1C19D`
 - Headings: Instrument Sans · Body: Manrope
-- Logo: `public/JQJ-logo.png`
+- Logo: `public/JQD-logo.png`
 - Currency: USD via `formatPrice()` in `lib/utils.ts`

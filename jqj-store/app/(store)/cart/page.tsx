@@ -5,10 +5,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { Minus, Plus, X } from "lucide-react";
 import { useCart } from "@/context/CartContext";
-import { formatPrice } from "@/lib/utils";
+import { useCurrency } from "@/context/CurrencyContext";
 
 export default function CartPage() {
   const { items, updateQuantity, removeItem, subtotal } = useCart();
+  const { formatFromUsd } = useCurrency();
   const [stockErrors, setStockErrors] = useState<string[]>([]);
   const [stockLoading, setStockLoading] = useState(false);
 
@@ -86,7 +87,7 @@ export default function CartPage() {
                       <Plus className="h-3 w-3" />
                     </button>
                   </div>
-                  <span className="text-sm text-brand-gold">{formatPrice(item.price * item.quantity)}</span>
+                  <span className="text-sm text-brand-gold">{formatFromUsd(item.price * item.quantity)}</span>
                 </div>
               </div>
             </li>
@@ -98,7 +99,7 @@ export default function CartPage() {
           <div className="mt-6 space-y-3 text-sm">
             <div className="flex justify-between">
               <span className="text-brand-muted">Subtotal</span>
-              <span>{formatPrice(subtotal)}</span>
+              <span>{formatFromUsd(subtotal)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-brand-muted">Shipping</span>
@@ -107,7 +108,7 @@ export default function CartPage() {
           </div>
           <div className="mt-6 flex justify-between border-t border-brand-border pt-4">
             <span className="font-heading uppercase tracking-wider2">Total</span>
-            <span className="font-heading text-lg text-brand-gold">{formatPrice(subtotal)}</span>
+            <span className="font-heading text-lg text-brand-gold">{formatFromUsd(subtotal)}</span>
           </div>
           {stockErrors.length > 0 && (
             <p className="mt-4 text-xs text-red-400">{stockErrors[0]}</p>

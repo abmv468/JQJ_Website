@@ -5,8 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, CreditCard, Truck } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import { useCurrency } from "@/context/CurrencyContext";
 import { createClient } from "@/lib/supabase/client";
-import { formatPrice } from "@/lib/utils";
 
 const SHIPPING_FLAT = 15;
 const COD_FEE = 20;
@@ -24,6 +24,7 @@ const countries = [
 
 export default function CheckoutPage() {
   const { items, subtotal, clearCart } = useCart();
+  const { currency, formatFromUsd } = useCurrency();
   const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
   const [method, setMethod] = useState<"stripe" | "cod">("stripe");
   const [loading, setLoading] = useState(false);
@@ -95,6 +96,10 @@ export default function CheckoutPage() {
   const codFee = method === "cod" ? COD_FEE : 0;
   const shipping = items.length ? SHIPPING_FLAT : 0;
   const total = subtotal + shipping + codFee;
+  const subtotalInCurrency = formatFromUsd(subtotal);
+  const shippingInCurrency = formatFromUsd(shipping);
+  const codFeeInCurrency = formatFromUsd(codFee);
+  const totalInCurrency = formatFromUsd(total);
 
   const payloadItems = useMemo(
     () =>
@@ -148,6 +153,7 @@ export default function CheckoutPage() {
       items: payloadItems,
       customer: form,
       shipping,
+      currency,
       idempotencyKey,
     };
 
@@ -186,10 +192,10 @@ export default function CheckoutPage() {
 
   return (
     <div className="container-site py-12">
-      <div className="grid grid-cols-1 gap-12 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
         {/* Form */}
         <form onSubmit={handleSubmit} className="order-2 lg:order-1">
-          <div className="mb-8 flex flex-wrap items-center gap-6 border border-brand-border p-5">
+          <div className="mb-8 flex flex-wrap items-center gap-4 border border-brand-border p-4 sm:gap-6 sm:p-5">
             <div className="flex items-center gap-2 text-xs text-brand-muted">
               <Truck className="h-4 w-4 text-brand-gold" /> UPS Express — Tracked delivery
             </div>
@@ -242,13 +248,13 @@ export default function CheckoutPage() {
                   </option>
                 ))}
               </select>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <input required placeholder="First name" value={form.firstName} onChange={(e) => update("firstName", e.target.value)} className="input-field" />
                 <input placeholder="Last name" value={form.lastName} onChange={(e) => update("lastName", e.target.value)} className="input-field" />
               </div>
               <input required placeholder="Address" value={form.address} onChange={(e) => update("address", e.target.value)} className="input-field" />
               <input placeholder="Apartment, suite, etc. (optional)" value={form.apartment} onChange={(e) => update("apartment", e.target.value)} className="input-field" />
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <input required placeholder="City" value={form.city} onChange={(e) => update("city", e.target.value)} className="input-field" />
                 <input placeholder="Region / State" value={form.region} onChange={(e) => update("region", e.target.value)} className="input-field" />
               </div>
@@ -266,7 +272,7 @@ export default function CheckoutPage() {
               </label>
               <label className={`flex cursor-pointer items-center gap-3 border p-4 ${method === "cod" ? "border-brand-gold" : "border-brand-border"}`}>
                 <input type="radio" name="method" checked={method === "cod"} onChange={() => setMethod("cod")} className="accent-brand-gold" />
-                <span className="text-sm">Cash on Delivery (+{formatPrice(COD_FEE)} fee)</span>
+                <span className="text-sm">Cash on Delivery (+{formatFromUsd(COD_FEE)} fee)</span>
               </label>
             </div>
           </section>
@@ -276,7 +282,7 @@ export default function CheckoutPage() {
             <p className="mb-4 text-sm text-red-400">{stockErrors[0]}</p>
           )}
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col-reverse items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
             <Link href="/cart" className="flex items-center gap-1 text-xs text-brand-muted hover:text-white">
               <ChevronLeft className="h-4 w-4" /> Return to cart
             </Link>
@@ -306,12 +312,12 @@ export default function CheckoutPage() {
                   {item.size && <p className="text-[11px] text-brand-muted">Size: {item.size}</p>}
                   {item.material && <p className="text-[11px] text-brand-muted">Material: {item.material}</p>}
                 </div>
-                <span className="text-sm">{formatPrice(item.price * item.quantity)}</span>
+                <span className="text-sm">{formatFromUsd(item.price * item.quantity)}</span>
               </li>
             ))}
           </ul>
 
-          <div className="mt-6 flex gap-2">
+          <div className="mt-6 flex flex-col gap-2 sm:flex-row">
             <input placeholder="Discount code or gift card" className="input-field" />
             <button type="button" className="btn-secondary px-5">Apply</button>
           </div>
@@ -319,23 +325,23 @@ export default function CheckoutPage() {
           <div className="mt-6 space-y-3 border-t border-brand-border pt-6 text-sm">
             <div className="flex justify-between">
               <span className="text-brand-muted">Subtotal</span>
-              <span>{formatPrice(subtotal)}</span>
+              <span>{subtotalInCurrency}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-brand-muted">Shipping</span>
-              <span>{formatPrice(shipping)}</span>
+              <span>{shippingInCurrency}</span>
             </div>
             {codFee > 0 && (
               <div className="flex justify-between">
                 <span className="text-brand-muted">Cash on Delivery fee</span>
-                <span>{formatPrice(codFee)}</span>
+                <span>{codFeeInCurrency}</span>
               </div>
             )}
           </div>
 
           <div className="mt-4 flex items-end justify-between border-t border-brand-border pt-4">
             <span className="font-heading uppercase tracking-wider2">Total</span>
-            <span className="font-heading text-2xl text-brand-gold">{formatPrice(total)}</span>
+            <span className="font-heading text-2xl text-brand-gold">{totalInCurrency}</span>
           </div>
         </aside>
       </div>

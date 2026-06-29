@@ -6,11 +6,11 @@ import Link from "next/link";
 import { ChevronDown, Minus, Plus } from "lucide-react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import type { Product } from "@/data/products";
-import { formatPrice } from "@/lib/utils";
 import { useCart } from "@/context/CartContext";
 import StarRating from "@/components/ui/StarRating";
 import ProductCard from "./ProductCard";
 import { getStockState, getVariantLabel } from "@/lib/product-stock";
+import { useCurrency } from "@/context/CurrencyContext";
 
 const accordionData = (product: Product) => [
   { title: "Description", content: product.description },
@@ -35,6 +35,7 @@ export default function ProductDetail({
   related: Product[];
 }) {
   const { addItem } = useCart();
+  const { formatFromUsd } = useCurrency();
   const [activeImage, setActiveImage] = useState(0);
   const [size, setSize] = useState("");
   const [variantSku, setVariantSku] = useState("");
@@ -175,7 +176,7 @@ export default function ProductDetail({
             />
           </div>
           {product.images.length > 1 && (
-            <div className="mt-4 grid grid-cols-4 gap-3">
+            <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4">
               {product.images.map((img, i) => (
                 <button
                   key={img}
@@ -207,10 +208,10 @@ export default function ProductDetail({
             <div className="flex items-baseline gap-2">
               {product.compareAtPrice && (
                 <span className="text-sm text-brand-muted line-through">
-                  {formatPrice(product.compareAtPrice)}
+                  {formatFromUsd(product.compareAtPrice)}
                 </span>
               )}
-              <span className="text-lg text-white">{formatPrice(product.price)}</span>
+              <span className="text-lg text-white">{formatFromUsd(product.price)}</span>
             </div>
             <div className="flex items-center gap-2">
               <StarRating rating={product.rating} />
@@ -220,7 +221,7 @@ export default function ProductDetail({
 
           {product.compareAtPrice && (
             <p className="mt-2 text-xs uppercase tracking-wider2 text-brand-gold">
-              Sale — Save {formatPrice(product.compareAtPrice - product.price)}
+              Sale — Save {formatFromUsd(product.compareAtPrice - product.price)}
             </p>
           )}
 
@@ -274,7 +275,7 @@ export default function ProductDetail({
           ) : null}
 
           {/* Quantity + Add */}
-          <div className="mt-6 flex items-center gap-4">
+          <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center">
             <div className="flex items-center border border-brand-border">
               <button
                 type="button"
@@ -299,7 +300,7 @@ export default function ProductDetail({
               layout
               type="button"
               onClick={handleAdd}
-              className={`btn-gold disabled:cursor-not-allowed disabled:opacity-60 ${
+              className={`btn-gold w-full disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto ${
                 addState === "idle" ? "flex-1" : "w-12 px-0"
               }`}
               disabled={

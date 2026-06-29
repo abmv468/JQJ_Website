@@ -55,7 +55,7 @@ export default function ForgetMassProduced() {
         <div className="relative min-h-[380px]">
           <Image
             src="/products/lifestyle.webp"
-            alt="JQJ Group artisan fitting a bracelet"
+            alt="JQD Group artisan fitting a bracelet"
             fill
             sizes="(max-width: 768px) 100vw, 50vw"
             className="object-cover"

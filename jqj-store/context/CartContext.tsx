@@ -41,7 +41,8 @@ interface CartContextValue {
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
 
-const STORAGE_KEY = "JQJ-cart";
+const STORAGE_KEY = "JQD-cart";
+const LEGACY_STORAGE_KEY = "JQJ-cart";
 
 function lineKey(id: string, sku?: string, size?: string, material?: string) {
   return `${id}__${sku ?? ""}__${size ?? ""}__${material ?? ""}`;
@@ -56,7 +57,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setItems(JSON.parse(raw));
+      const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
+      if (raw) {
+        try {
+          setItems(JSON.parse(raw));
+        } catch {
+          localStorage.removeItem(STORAGE_KEY);
+          if (legacyRaw) {
+            setItems(JSON.parse(legacyRaw));
+            localStorage.setItem(STORAGE_KEY, legacyRaw);
+          }
+        }
+      } else if (legacyRaw) {
+        setItems(JSON.parse(legacyRaw));
+        localStorage.setItem(STORAGE_KEY, legacyRaw);
+      }
     } catch {
       // ignore malformed storage
     }
@@ -66,6 +81,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
   }, [items, hydrated]);
 
   function addItem(item: Omit<CartItem, "quantity">, quantity = 1) {

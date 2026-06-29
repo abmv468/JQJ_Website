@@ -22,7 +22,7 @@ stripe listen --forward-to localhost:3000/api/webhooks/stripe
 
 **Next.js 14 App Router** with two isolated route groups:
 
-- **`app/(store)/`** — Customer-facing pages, wrapped in `CartProvider` + `StoreShell` (header/footer). Cart uses localStorage (`JQJ-cart` key) with hydration-safe loading (starts empty `[]`, loads in `useEffect`).
+- **`app/(store)/`** — Customer-facing pages, wrapped in `CartProvider` + `StoreShell` (header/footer). Cart uses localStorage (`JQD-cart` key) with hydration-safe loading (starts empty `[]`, loads in `useEffect`).
 - **`app/admin/`** — Single-page admin dashboard. Completely isolated from store layout — no CartProvider, no store header/footer. This prevents hydration errors from localStorage reads. Uses direct `@supabase/supabase-js` client (not `@supabase/ssr`) to avoid cookie-related hangs.
 
 ### Supabase Clients (three separate ones)
@@ -61,7 +61,7 @@ RLS: public read on products/categories, user-scoped on orders/order_items. Admi
 
 ## Key Gotchas
 
-- Admin auth checks `NEXT_PUBLIC_ADMIN_EMAIL` env var against Supabase auth user email — not a role system.
+- Admin auth checks `ADMIN_EMAIL` env var against Supabase auth user email — not a role system.
 - Product pages are statically generated at build time from `data/products.ts`. Database products are used by admin and checkout APIs.
 - The `shipping_address` JSONB column in `orders` also stores `payment_method` ('stripe'|'cod') and `cod_fee`.
 - Stripe webhook secret in `.env.local` is currently a URL placeholder, not a real `whsec_...` value — orders work via the verify route instead.

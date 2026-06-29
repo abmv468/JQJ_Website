@@ -16,12 +16,12 @@ const collections = [
 
 export default function LatestCollections() {
   return (
-    <section className="container-site pt-16">
+    <section className="container-site pt-14 sm:pt-16">
       <div className="section-shell rounded-none">
         <div className="flex flex-col items-center gap-2 text-center">
           <p className="eyebrow">Curated edits</p>
-          <h2 className="section-title whitespace-nowrap">Latest Collections</h2>
-          <p className="section-lead whitespace-nowrap text-[13px] sm:text-sm md:text-[15px]">
+          <h2 className="section-title">Latest Collections</h2>
+          <p className="section-lead text-[13px] sm:text-sm md:text-[15px]">
             From earthy neutrals to brighter mineral tones, each edit is composed to feel cohesive, collectible, and easy to wear.
           </p>
         </div>

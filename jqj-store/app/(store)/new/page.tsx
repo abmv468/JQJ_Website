@@ -2,7 +2,7 @@ import CollectionView from "@/components/product/CollectionView";
 import { products } from "@/data/products";
 
 export const metadata = {
-  title: "New — JQJ Group",
+  title: "New — JQD Group",
 };
 
 export default function NewPage({

@@ -13,7 +13,7 @@ export function generateStaticParams() {
 export function generateMetadata({ params }: { params: { slug: string } }) {
   const product = getProductBySlug(params.slug);
   return {
-    title: product ? `${product.name} — JQJ Group` : "Product — JQJ Group",
+    title: product ? `${product.name} — JQD Group` : "Product — JQD Group",
     description: product?.description,
   };
 }

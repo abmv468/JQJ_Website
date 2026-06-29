@@ -61,8 +61,10 @@ const navItems: { key: Tab; label: string; icon: typeof LayoutDashboard }[] = [
 ];
 
 export default function AdminPage() {
+  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
   const [user, setUser] = useState<User | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [tab, setTab] = useState<Tab>("dashboard");
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [orders, setOrders] = useState<AdminOrder[]>([]);
@@ -77,8 +79,6 @@ export default function AdminPage() {
   });
   const [productError, setProductError] = useState<string | null>(null);
   const [refundDrafts, setRefundDrafts] = useState<Record<string, { amount: string; reason: string }>>({});
-
-  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
 
   useEffect(() => {
     const supabase = createClient();
@@ -106,26 +106,55 @@ export default function AdminPage() {
     setLoading(true);
     try {
       const orderHeaders = await getAdminAuthHeaders();
-      const [p, o] = await Promise.all([
-        fetch("/api/admin/products").then((r) => r.json()),
-        fetch("/api/admin/orders", {
+      if (!orderHeaders) {
+        setIsAdmin(false);
+        return;
+      }
+
+      const [productsResponse, ordersResponse] = await Promise.all([
+        fetch("/api/admin/products", {
           headers: orderHeaders ?? undefined,
-        }).then((r) => r.json()),
+        }),
+        fetch("/api/admin/orders", {
+          headers: orderHeaders,
+        }),
       ]);
+
+      if (productsResponse.status === 401 || productsResponse.status === 403) {
+        setIsAdmin(false);
+        return;
+      }
+
+      if (ordersResponse.status === 401 || ordersResponse.status === 403) {
+        setIsAdmin(false);
+        return;
+      }
+
+      if (!productsResponse.ok || !ordersResponse.ok) {
+        throw new Error("Failed to load admin data");
+      }
+
+      const [p, o] = await Promise.all([productsResponse.json(), ordersResponse.json()]);
+      setIsAdmin(true);
       setProducts(p.products ?? []);
       setOrders(o.orders ?? []);
     } catch {
+      setIsAdmin(false);
       // surfaced as empty states below
     } finally {
       setLoading(false);
     }
   }, [getAdminAuthHeaders]);
 
-  const isAdmin = user?.email && adminEmail && user.email === adminEmail;
-
   useEffect(() => {
-    if (isAdmin) loadData();
-  }, [isAdmin, loadData]);
+    if (!authChecked) return;
+    if (!user) {
+      setIsAdmin(false);
+      return;
+    }
+
+    void loadData();
+  }, [authChecked, loadData, user]);
 
   async function updateOrderStatus(id: string, status: string) {
     const headers = await getAdminAuthHeaders(true);
@@ -187,6 +216,12 @@ export default function AdminPage() {
     if (!editingProductId) return;
     setProductError(null);
     try {
+      const headers = await getAdminAuthHeaders(true);
+      if (!headers) {
+        setIsAdmin(false);
+        return;
+      }
+
       const parsedVariants = JSON.parse(stockForm.variantsJson);
       if (!Array.isArray(parsedVariants)) {
         throw new Error("Variants must be a JSON array.");
@@ -202,7 +237,7 @@ export default function AdminPage() {
 
       const res = await fetch("/api/admin/products", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           id: editingProductId,
           sku: stockForm.sku || null,
@@ -212,6 +247,11 @@ export default function AdminPage() {
           variants: cleanedVariants,
         }),
       });
+      if (res.status === 401 || res.status === 403) {
+        setIsAdmin(false);
+        return;
+      }
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save product");
 
@@ -225,6 +265,10 @@ export default function AdminPage() {
   }
 
   if (!authChecked) {
+    return <div className="flex h-screen items-center justify-center text-brand-muted">Loading…</div>;
+  }
+
+  if (user && isAdmin === null) {
     return <div className="flex h-screen items-center justify-center text-brand-muted">Loading…</div>;
   }
 
@@ -244,13 +288,13 @@ export default function AdminPage() {
   const lowStock = products.filter((p) => p.stock_count <= 5);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen flex-col lg:flex-row">
       {/* Sidebar */}
-      <aside className="w-56 shrink-0 border-r border-brand-border bg-brand-surface p-5">
-        <div className="mb-8 font-heading text-sm uppercase tracking-wider2 text-brand-gold">
-          JQJ Admin
+      <aside className="w-full shrink-0 border-b border-brand-border bg-brand-surface p-4 lg:w-56 lg:border-b-0 lg:border-r lg:p-5">
+        <div className="mb-4 font-heading text-sm uppercase tracking-wider2 text-brand-gold lg:mb-8">
+          JQD Admin
         </div>
-        <nav className="space-y-1">
+        <nav className="flex gap-1 overflow-x-auto pb-1 lg:block lg:space-y-1 lg:overflow-visible lg:pb-0">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -258,7 +302,7 @@ export default function AdminPage() {
                 key={item.key}
                 type="button"
                 onClick={() => setTab(item.key)}
-                className={`flex w-full items-center gap-3 px-3 py-2 text-sm ${
+                className={`flex shrink-0 items-center gap-2 whitespace-nowrap px-3 py-2 text-xs sm:text-sm lg:w-full lg:gap-3 ${
                   tab === item.key ? "bg-brand-card text-white" : "text-brand-muted hover:text-white"
                 }`}
               >
@@ -270,8 +314,8 @@ export default function AdminPage() {
       </aside>
 
       {/* Main */}
-      <main className="flex-1 p-8">
-        <div className="mb-8 flex items-center justify-between">
+      <main className="flex-1 p-4 sm:p-6 lg:p-8">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 lg:mb-8">
           <h1 className="font-heading text-xl uppercase tracking-wider2 capitalize">{tab}</h1>
           <button type="button" onClick={loadData} className="btn-secondary flex items-center gap-2">
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Refresh
@@ -305,7 +349,7 @@ export default function AdminPage() {
         {tab === "products" && (
           <div className="space-y-5">
             <div className="overflow-x-auto border border-brand-border">
-              <table className="w-full text-left text-sm">
+              <table className="min-w-[760px] w-full text-left text-sm">
                 <thead className="border-b border-brand-border text-xs uppercase tracking-wider2 text-brand-muted">
                   <tr>
                     <th className="p-3">Name</th>
@@ -423,7 +467,7 @@ export default function AdminPage() {
                   />
                 </label>
                 {productError && <p className="text-xs text-red-400">{productError}</p>}
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-3">
                   <button type="button" className="btn-gold" onClick={saveProductInventory}>
                     Save
                   </button>
@@ -442,7 +486,7 @@ export default function AdminPage() {
 
         {tab === "orders" && (
           <div className="overflow-x-auto border border-brand-border">
-            <table className="w-full text-left text-sm">
+            <table className="min-w-[860px] w-full text-left text-sm">
               <thead className="border-b border-brand-border text-xs uppercase tracking-wider2 text-brand-muted">
                 <tr>
                   <th className="p-3">Order</th>
@@ -547,7 +591,7 @@ export default function AdminPage() {
                                   [o.id]: { amount: e.target.value, reason: prev[o.id]?.reason ?? "" },
                                 }))
                               }
-                              className="w-24 border border-brand-border bg-transparent px-2 py-1 text-xs"
+                              className="w-full min-w-0 border border-brand-border bg-transparent px-2 py-1 text-xs sm:w-24"
                             />
                             <input
                               type="text"
@@ -605,8 +649,8 @@ export default function AdminPage() {
         {tab === "settings" && (
           <div className="max-w-lg space-y-4 border border-brand-border p-6 text-sm">
             <Row label="Admin Email" value={adminEmail ?? "Not set"} />
-            <Row label="Store Name" value="JQJ Group" />
-            <Row label="Currency" value="USD ($)" />
+            <Row label="Store Name" value="JQD Group" />
+            <Row label="Currency" value="User selectable (USD/EUR/GBP/CAD/AUD)" />
             <Row label="COD Fee" value={formatPrice(20)} />
             <Row label="Flat Shipping" value={formatPrice(15)} />
             <p className="pt-2 text-xs text-brand-muted">
@@ -648,7 +692,7 @@ function Table({
 }) {
   return (
     <div className="overflow-x-auto border border-brand-border">
-      <table className="w-full text-left text-sm">
+      <table className="min-w-[520px] w-full text-left text-sm">
         <thead className="border-b border-brand-border text-xs uppercase tracking-wider2 text-brand-muted">
           <tr>
             {head.map((h) => (

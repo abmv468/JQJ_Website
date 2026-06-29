@@ -21,10 +21,12 @@ const columns = [
       { label: "Shop All", href: "/new" },
       { label: "Bracelets", href: "/bracelets" },
       { label: "Necklaces", href: "/necklaces" },
+      { label: "Rings", href: "/rings" },
+      { label: "Earrings", href: "/earrings" },
     ],
   },
   {
-    title: "#JQJGroup",
+    title: "#JQDGroup",
     links: [
       { label: "Our Story", href: "/story" },
       { label: "Privacy Policy", href: "/privacy" },
@@ -97,7 +99,7 @@ export default function Footer() {
             className="text-[11px] uppercase text-white/60"
             style={{ letterSpacing: "0.18em" }}
           >
-            © {new Date().getFullYear()} — JQJ Group
+            © {new Date().getFullYear()} — JQD Group
           </p>
           <div className="flex items-center gap-3">
             {socialLinks.map(({ label, href, icon: Icon }) => (

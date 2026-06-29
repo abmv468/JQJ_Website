@@ -1,15 +1,15 @@
 import { stones } from "@/data/products";
+import Image from "next/image";
 import Link from "next/link";
 
-// Map stone names to a representative swatch color (the design shows raw stones).
-const stoneColors: Record<string, string> = {
-  Sodalite: "#27408b",
-  "Tiger Eye": "#8a5a2b",
-  Carnelian: "#b5402a",
-  Tourmaline: "#5a4632",
-  Aquamarine: "#7fb6c4",
-  Amethyst: "#7b4f9d",
-  "Lapis Lazuli": "#1f3a93",
+const stoneImages: Record<string, string> = {
+  Sodalite: "/stones/sodalite-raw.webp",
+  "Tiger Eye": "/stones/tiger-eye-raw.webp",
+  Carnelian: "/stones/carnelian-raw.webp",
+  Tourmaline: "/stones/tourmaline-raw.webp",
+  Aquamarine: "/stones/aquamarine-raw.webp",
+  Amethyst: "/stones/amethyst-raw.webp",
+  "Lapis Lazuli": "/stones/lapis-lazuli-raw.webp",
 };
 
 export default function ShopByStone() {
@@ -30,27 +30,18 @@ export default function ShopByStone() {
             <Link
               key={stone}
               href={`/bracelets?stone=${encodeURIComponent(stone)}`}
-              className="group rounded-[1.45rem] border border-white/10 bg-white/[0.03] p-4 text-center transition-[transform,border-color,background-color] duration-200 hover:-translate-y-1 hover:border-white/18 hover:bg-white/[0.05]"
+              className="group text-center transition-transform duration-200 hover:-translate-y-1"
             >
-              <span className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-white/10 bg-black/30">
-                <span
-                  className="absolute inset-3 rounded-full opacity-80 blur-md"
-                  style={{ backgroundColor: stoneColors[stone] }}
-                />
-                <span
-                  className="relative h-14 w-14 rounded-full border border-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.28)]"
-                  style={{
-                    background: `radial-gradient(circle at 30% 30%, #ffffff44, ${stoneColors[stone]})`,
-                  }}
+              <span className="relative mx-auto block aspect-square w-full max-w-[178px] overflow-hidden">
+                <Image
+                  src={stoneImages[stone]}
+                  alt={`${stone} raw stone`}
+                  fill
+                  sizes="(max-width: 640px) 42vw, (max-width: 768px) 28vw, (max-width: 1280px) 20vw, 12vw"
+                  className="object-contain transition-transform duration-500 group-hover:scale-[1.04]"
                 />
               </span>
               <span className="mt-4 block text-sm text-white/86">{stone}</span>
-              <span
-                className="mt-1 block text-[10px] uppercase text-white/60"
-                style={{ letterSpacing: "0.18em" }}
-              >
-                Explore edit
-              </span>
             </Link>
           ))}
         </div>

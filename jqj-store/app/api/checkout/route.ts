@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { convertUsdToCurrency, normalizeCurrency, toStripeCurrency } from "@/lib/currency";
 import {
   fetchInventoryBySlugs,
   validateCheckoutItems,
@@ -46,9 +47,10 @@ async function getAuthenticatedUserId() {
 
 export async function POST(req: Request) {
   try {
-    const { items, customer } = (await req.json()) as {
+    const { items, customer, currency } = (await req.json()) as {
       items: CheckoutItemInput[];
       customer: Record<string, string>;
+      currency?: string;
     };
 
     if (!items?.length) {
@@ -56,6 +58,8 @@ export async function POST(req: Request) {
     }
 
     const shippingAmount = items.length ? SHIPPING_FLAT : 0;
+    const selectedCurrency = normalizeCurrency(currency);
+    const stripeCurrency = toStripeCurrency(selectedCurrency);
 
     const supabase = createAdminClient();
     const slugs = Array.from(new Set(items.map((item) => item.slug).filter(Boolean) as string[]));
@@ -71,7 +75,7 @@ export async function POST(req: Request) {
 
     const line_items = validation.resolved.map((line) => ({
       price_data: {
-        currency: "usd",
+        currency: stripeCurrency,
         product_data: {
           name:
             line.product.name +
@@ -79,7 +83,7 @@ export async function POST(req: Request) {
               ? ` (${[line.variant?.size, line.variant?.material].filter(Boolean).join(" / ")})`
               : ""),
         },
-        unit_amount: Math.round(line.product.price * 100),
+        unit_amount: Math.round(convertUsdToCurrency(line.product.price, selectedCurrency) * 100),
       },
       quantity: line.requestedQuantity,
     }));
@@ -87,9 +91,9 @@ export async function POST(req: Request) {
     if (shippingAmount > 0) {
       line_items.push({
         price_data: {
-          currency: "usd",
+          currency: stripeCurrency,
           product_data: { name: "Shipping (UPS Express)" },
-          unit_amount: Math.round(shippingAmount * 100),
+          unit_amount: Math.round(convertUsdToCurrency(shippingAmount, selectedCurrency) * 100),
         },
         quantity: 1,
       });
@@ -131,6 +135,7 @@ export async function POST(req: Request) {
         phone: customer.phone || "",
         userId: userId ?? "",
         shipping: String(shippingAmount),
+        currency: selectedCurrency,
         items: serializedItems,
       },
     });

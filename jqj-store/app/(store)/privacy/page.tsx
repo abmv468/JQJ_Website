@@ -1,7 +1,7 @@
 import PolicyPage from "@/components/trust/PolicyPage";
 
 export const metadata = {
-  title: "Privacy Policy — JQJ Group",
+  title: "Privacy Policy — JQD Group",
 };
 
 export default function PrivacyPage() {
@@ -11,8 +11,8 @@ export default function PrivacyPage() {
       intro="We value your trust and use your information responsibly to fulfill orders, provide support, and improve your shopping experience."
       effectiveDate="January 1, 2026"
       contactDetails={[
-        { label: "Email", value: "privacy@jqjgroup.com", href: "mailto:privacy@jqjgroup.com" },
-        { label: "Support", value: "support@jqjgroup.com", href: "mailto:support@jqjgroup.com" },
+        { label: "Email", value: "privacy@jqdgroup.com", href: "mailto:privacy@jqdgroup.com" },
+        { label: "Support", value: "support@jqdgroup.com", href: "mailto:support@jqdgroup.com" },
       ]}
       sections={[
         {
@@ -36,7 +36,7 @@ export default function PrivacyPage() {
           title: "How We Share Information",
           paragraphs: [
             "We share data only with trusted service providers needed to operate our store, such as payment processors, shipping carriers, email platforms, and fraud-prevention tools.",
-            "We do not sell personal information. Service providers may access data only as required to perform their services for JQJ Group.",
+            "We do not sell personal information. Service providers may access data only as required to perform their services for JQD Group.",
           ],
         },
         {

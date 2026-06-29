@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tai Chi - Interactive Qi Flow</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000000;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        /* Custom scrollbar for settings if needed */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.1);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="bg-black text-gray-200">
+
+    <!-- Canvas -->
+    <canvas id="flowCanvas"></canvas>
+
+    <!-- Overlay UI -->
+    <div class="absolute inset-0 pointer-events-none z-10 flex flex-col justify-between p-6 md:p-8">
+        <!-- Header -->
+        <header class="flex justify-between items-start w-full">
+            <div class="pointer-events-auto bg-black/40 backdrop-blur-md px-4 py-3 rounded-xl border border-white/10">
+                <h1 class="text-xl font-light tracking-widest text-white flex items-center gap-2">
+                    <span class="inline-block w-2.5 h-2.5 rounded-full bg-white animate-pulse"></span>
+                    TAI CHI FLOW
+                </h1>
+                <p class="text-[10px] text-gray-400 uppercase tracking-widest mt-1">Procedural Qi / Air Simulation</p>
+            </div>
+            
+            <!-- Quick Actions / Presets -->
+            <div class="flex gap-2 pointer-events-auto">
+                <button id="btn-toggle-ui" class="bg-black/60 hover:bg-white/10 text-white p-3 rounded-xl border border-white/10 transition-all duration-300 flex items-center justify-center" title="Toggle Settings">
+                    <i data-lucide="sliders-horizontal" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Dynamic Instructions (Fades out after interaction) -->
+        <div id="interaction-hint" class="self-center text-center transition-opacity duration-1000 my-auto pointer-events-none">
+            <p class="text-white/40 text-sm font-light tracking-widest uppercase animate-pulse">
+                Click & drag to guide the flowing energy
+            </p>
+        </div>
+
+        <!-- Bottom Controls / Info Bar -->
+        <footer class="w-full flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="pointer-events-auto bg-black/40 backdrop-blur-md px-4 py-2 rounded-lg border border-white/5 text-xs text-gray-400 font-light flex items-center gap-3">
+                <span id="particle-count-display">Particles: 0</span>
+                <span class="text-white/20">|</span>
+                <span id="fps-display">FPS: 60</span>
+            </div>
+            
+            <!-- Quick Mode Selectors -->
+            <div class="pointer-events-auto flex bg-black/60 backdrop-blur-md p-1 rounded-xl border border-white/10 gap-1 text-xs">
+                <button onclick="setFlowMode('yinyang')" id="mode-yinyang" class="px-4 py-2 rounded-lg transition-all text-white bg-white/10 font-medium">Yin Yang Vortex</button>
+                <button onclick="setFlowMode('breeze')" id="mode-breeze" class="px-4 py-2 rounded-lg transition-all text-gray-400 hover:text-white">Harmonious Wave</button>
+                <button onclick="setFlowMode('cosmic')" id="mode-cosmic" class="px-4 py-2 rounded-lg transition-all text-gray-400 hover:text-white">Chaotic Void</button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Collapsible Settings Panel -->
+    <div id="settings-panel" class="fixed right-6 top-24 z-20 w-80 bg-black/80 backdrop-blur-lg border border-white/10 rounded-2xl p-6 transition-all duration-500 transform translate-x-96 opacity-0 pointer-events-none">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-md font-medium tracking-wider text-white uppercase flex items-center gap-2">
+                <i data-lucide="settings" class="w-4 h-4"></i> Adjust Atmosphere
+            </h2>
+            <button id="btn-close-settings" class="text-gray-400 hover:text-white transition-colors">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <div class="space-y-6">
+            <!-- Transparency (Mist Density Opacity) -->
+            <div>
+                <div class="flex justify-between text-xs mb-2">
+                    <span class="text-gray-400 font-light">Mist Transparency (Opacity)</span>
+                    <span id="val-opacity" class="text-white font-mono">0.02</span>
+                </div>
+                <input type="range" id="slider-opacity" min="0.005" max="0.08" step="0.005" value="0.02" class="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white">
+            </div>
+
+            <!-- Fade Rate (Mist Whispiness / Trails) -->
+            <div>
+                <div class="flex justify-between text-xs mb-2">
+                    <span class="text-gray-400 font-light">Trail Length / Diffusion</span>
+                    <span id="val-trails" class="text-white font-mono">Long</span>
+                </div>
+                <input type="range" id="slider-trails" min="0.01" max="0.25" step="0.01" value="0.07" class="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white">
+            </div>
+
+            <!-- Particle Count -->
+            <div>
+                <div class="flex justify-between text-xs mb-2">
+                    <span class="text-gray-400 font-light">Qi Particles (Density)</span>
+                    <span id="val-density" class="text-white font-mono">6,000</span>
+                </div>
+                <input type="range" id="slider-density" min="1000" max="15000" step="500" value="6000" class="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white">
+            </div>
+
+            <!-- Speed multiplier -->
+            <div>
+                <div class="flex justify-between text-xs mb-2">
+                    <span class="text-gray-400 font-light">Flow Speed (Tempo)</span>
+                    <span id="val-speed" class="text-white font-mono">1.0x</span>
+                </div>
+                <input type="range" id="slider-speed" min="0.1" max="3.0" step="0.1" value="1.0" class="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white">
+            </div>
+
+            <!-- Particle Size -->
+            <div>
+                <div class="flex justify-between text-xs mb-2">
+                    <span class="text-gray-400 font-light">Particle Size (Softness)</span>
+                    <span id="val-size" class="text-white font-mono">1.5px</span>
+                </div>
+                <input type="range" id="slider-size" min="0.5" max="5.0" step="0.5" value="1.5" class="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white">
+            </div>
+
+            <!-- Interactive Gravity Force -->
+            <div>
+                <div class="flex justify-between text-xs mb-2">
+                    <span class="text-gray-400 font-light">Touch Force Influence</span>
+                    <span id="val-force" class="text-white font-mono">Medium</span>
+                </div>
+                <input type="range" id="slider-force" min="20" max="150" step="10" value="80" class="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white">
+            </div>
+
+            <hr class="border-white/10">
+
+            <div class="flex justify-between gap-2">
+                <button id="btn-reset" class="flex-1 py-2 text-xs border border-white/20 hover:border-white text-white rounded-lg transition-all">
+                    Reset Defaults
+                </button>
+                <button id="btn-clear" class="flex-1 py-2 text-xs bg-white text-black hover:bg-gray-200 rounded-lg transition-all font-medium">
+                    Reset Canvas
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Core Simulation Configuration ---
+        const canvas = document.getElementById('flowCanvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: false });
+
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+
+        // Configuration State
+        const config = {
+            opacity: 0.02,         // Particle color opacity
+            fadeRate: 0.07,        // Trail length (black overlay alpha)
+            particleCount: 6000,
+            speed: 1.0,
+            particleSize: 1.5,
+            mouseForce: 80,
+            mode: 'yinyang'        // 'yinyang', 'breeze', 'cosmic'
+        };
+
+        let particles = [];
+        let mouse = { x: -1000, y: -1000, prevX: -1000, prevY: -1000, isDown: false, radius: 150 };
+        let globalTime = 0;
+        let frameCount = 0;
+        let lastFpsUpdate = 0;
+        let fps = 60;
+        let hasInteracted = false;
+
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // UI Panel Interactivity
+        const settingsPanel = document.getElementById('settings-panel');
+        const btnToggleUi = document.getElementById('btn-toggle-ui');
+        const btnCloseSettings = document.getElementById('btn-close-settings');
+        const interactionHint = document.getElementById('interaction-hint');
+
+        btnToggleUi.addEventListener('click', () => {
+            const isHidden = settingsPanel.classList.contains('translate-x-96');
+            if (isHidden) {
+                settingsPanel.classList.remove('translate-x-96', 'opacity-0', 'pointer-events-none');
+                settingsPanel.classList.add('translate-x-0', 'opacity-100', 'pointer-events-auto');
+            } else {
+                closeSettings();
+            }
+        });
+
+        btnCloseSettings.addEventListener('click', closeSettings);
+
+        function closeSettings() {
+            settingsPanel.classList.remove('translate-x-0', 'opacity-100', 'pointer-events-auto');
+            settingsPanel.classList.add('translate-x-96', 'opacity-0', 'pointer-events-none');
+        }
+
+        // Setup Sliders & Listeners
+        function setupSliders() {
+            const sliders = [
+                { id: 'slider-opacity', key: 'opacity', displayId: 'val-opacity', suffix: '' },
+                { id: 'slider-trails', key: 'fadeRate', displayId: 'val-trails', customDisplay: (v) => v < 0.03 ? 'Very Long' : v < 0.08 ? 'Long' : v < 0.15 ? 'Medium' : 'Short' },
+                { id: 'slider-density', key: 'particleCount', displayId: 'val-density', customDisplay: (v) => Number(v).toLocaleString(), onChange: () => adjustParticleCount() },
+                { id: 'slider-speed', key: 'speed', displayId: 'val-speed', suffix: 'x' },
+                { id: 'slider-size', key: 'particleSize', displayId: 'val-size', suffix: 'px' },
+                { id: 'slider-force', key: 'mouseForce', displayId: 'val-force', customDisplay: (v) => v < 40 ? 'Soft' : v < 90 ? 'Medium' : 'Strong' }
+            ];
+
+            sliders.forEach(slider => {
+                const el = document.getElementById(slider.id);
+                const disp = document.getElementById(slider.displayId);
+                el.addEventListener('input', (e) => {
+                    const value = parseFloat(e.target.value);
+                    config[slider.key] = value;
+                    if (slider.customDisplay) {
+                        disp.textContent = slider.customDisplay(value);
+                    } else {
+                        disp.textContent = value + (slider.suffix || '');
+                    }
+                    if (slider.onChange) slider.onChange();
+                });
+            });
+        }
+
+        // Reset settings
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            config.opacity = 0.02;
+            config.fadeRate = 0.07;
+            config.particleCount = 6000;
+            config.speed = 1.0;
+            config.particleSize = 1.5;
+            config.mouseForce = 80;
+
+            document.getElementById('slider-opacity').value = 0.02;
+            document.getElementById('val-opacity').textContent = "0.02";
+            document.getElementById('slider-trails').value = 0.07;
+            document.getElementById('val-trails').textContent = "Long";
+            document.getElementById('slider-density').value = 6000;
+            document.getElementById('val-density').textContent = "6,000";
+            document.getElementById('slider-speed').value = 1.0;
+            document.getElementById('val-speed').textContent = "1.0x";
+            document.getElementById('slider-size').value = 1.5;
+            document.getElementById('val-size').textContent = "1.5px";
+            document.getElementById('slider-force').value = 80;
+            document.getElementById('val-force').textContent = "Medium";
+
+            adjustParticleCount();
+        });
+
+        // Clear Screen
+        document.getElementById('btn-clear').addEventListener('click', () => {
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, width, height);
+            particles.forEach(p => p.reset());
+        });
+
+        // Adjust Particle Count Dynamically
+        function adjustParticleCount() {
+            const currentCount = particles.length;
+            const targetCount = config.particleCount;
+            if (currentCount < targetCount) {
+                for (let i = currentCount; i < targetCount; i++) {
+                    particles.push(new Particle());
+                }
+            } else if (currentCount > targetCount) {
+                particles.length = targetCount;
+            }
+            document.getElementById('particle-count-display').textContent = `Particles: ${targetCount.toLocaleString()}`;
+        }
+
+        // Mode Toggler
+        window.setFlowMode = function(mode) {
+            config.mode = mode;
+            
+            // UI Toggle
+            ['yinyang', 'breeze', 'cosmic'].forEach(m => {
+                const el = document.getElementById(`mode-${m}`);
+                if (m === mode) {
+                    el.className = "px-4 py-2 rounded-lg transition-all text-white bg-white/10 font-medium";
+                } else {
+                    el.className = "px-4 py-2 rounded-lg transition-all text-gray-400 hover:text-white";
+                }
+            });
+
+            // Specific preset updates for standard user experience feel
+            if (mode === 'yinyang') {
+                config.opacity = 0.02;
+                config.fadeRate = 0.07;
+            } else if (mode === 'breeze') {
+                config.opacity = 0.015;
+                config.fadeRate = 0.05;
+            } else {
+                config.opacity = 0.03;
+                config.fadeRate = 0.12;
+            }
+
+            // Sync with sliders
+            document.getElementById('slider-opacity').value = config.opacity;
+            document.getElementById('val-opacity').textContent = config.opacity;
+            document.getElementById('slider-trails').value = config.fadeRate;
+            document.getElementById('val-trails').textContent = config.fadeRate < 0.03 ? 'Very Long' : config.fadeRate < 0.08 ? 'Long' : 'Medium';
+
+            // Clear to avoid messy transitions
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, width, height);
+            particles.forEach(p => p.reset());
+        }
+
+        // --- Simplex Noise / Trigonometric Approximation ---
+        // Lightweight pseudo-noise generators for flow fields without giant dependency libraries
+        function getNoise(x, y, time) {
+            // Stacked sine/cosine functions with varied frequencies to resemble smooth, rich fluid flow
+            let v1 = Math.sin(x * 0.002 + time * 0.4);
+            let v2 = Math.cos(y * 0.003 - time * 0.3);
+            let v3 = Math.sin((x + y) * 0.001 + time * 0.2);
+            let v4 = Math.cos(Math.sqrt(x*x + y*y) * 0.002 - time * 0.15);
+            return (v1 + v2 + v3 + v4) / 4.0;
+        }
+
+        // --- Particle Object Implementation ---
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.vx = 0;
+                this.vy = 0;
+                this.life = Math.random() * 0.5 + 0.5; // lifespan
+                this.decay = Math.random() * 0.003 + 0.001;
+                this.prevX = this.x;
+                this.prevY = this.y;
+                this.size = Math.random() * 0.5 + 0.5; // personal size scalar
+            }
+
+            update(timeScale) {
+                this.prevX = this.x;
+                this.prevY = this.y;
+
+                // Adjust basic lifespan
+                this.life -= this.decay * timeScale;
+                if (this.life <= 0) {
+                    this.reset();
+                    return;
+                }
+
+                // 1. Core Flow Vector field based on chosen Tai Chi/breeze mechanics
+                let ax = 0;
+                let ay = 0;
+
+                if (config.mode === 'yinyang') {
+                    // Double vortex dynamic mirroring Yin/Yang polar rotation
+                    const centerX1 = width * 0.35;
+                    const centerY1 = height * 0.5;
+                    const centerX2 = width * 0.65;
+                    const centerY2 = height * 0.5;
+
+                    const dx1 = this.x - centerX1;
+                    const dy1 = this.y - centerY1;
+                    const dist1 = Math.sqrt(dx1 * dx1 + dy1 * dy1) || 1;
+
+                    const dx2 = this.x - centerX2;
+                    const dy2 = this.y - centerY2;
+                    const dist2 = Math.sqrt(dx2 * dx2 + dy2 * dy2) || 1;
+
+                    // Vortex 1: Yin (Pulls inward, rotates Clockwise)
+                    const fPull1 = Math.max(0, (250 - dist1) / 250) * 0.15;
+                    const rotX1 = -dy1 / dist1;
+                    const rotY1 = dx1 / dist1;
+                    
+                    // Vortex 2: Yang (Pushes outward, rotates Counter-Clockwise)
+                    const fPull2 = Math.max(0, (250 - dist2) / 250) * -0.1;
+                    const rotX2 = dy2 / dist2;
+                    const rotY2 = -dx2 / dist2;
+
+                    // Global base flow wave (The S-Curve wind)
+                    const baseWaveY = Math.sin(this.x * 0.003 + globalTime * 0.5) * 0.15;
+                    const baseWaveX = 0.35; // Gentle left-to-right drift
+
+                    // Combine Forces
+                    ax = baseWaveX + (rotX1 * fPull1) + (rotX2 * fPull2);
+                    ay = baseWaveY + (rotY1 * fPull1) + (rotY2 * fPull2);
+
+                    // Add some noise to make it whispy and mist-like
+                    const noise = getNoise(this.x, this.y, globalTime * 0.8);
+                    const angle = noise * Math.PI * 2;
+                    ax += Math.cos(angle) * 0.12;
+                    ay += Math.sin(angle) * 0.12;
+
+                } else if (config.mode === 'breeze') {
+                    // Harmonious wide curves representing flowing breath / meditation
+                    const noise = getNoise(this.x, this.y * 0.8, globalTime * 0.4);
+                    const angle = noise * Math.PI * 1.5 + (Math.sin(globalTime * 0.2) * 0.5); // sway back and forth
+                    
+                    // Main forward motion with swaying breeze curves
+                    ax = Math.cos(angle) * 0.4 + 0.35;
+                    ay = Math.sin(angle) * 0.3 + 0.05;
+
+                } else if (config.mode === 'cosmic') {
+                    // Chaotic particles interacting in a circular cosmic expansion
+                    const dx = this.x - width/2;
+                    const dy = this.y - height/2;
+                    const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+                    
+                    const noise = getNoise(this.x, this.y, globalTime * 1.5);
+                    const angle = noise * Math.PI * 4;
+
+                    // Expansion pull
+                    const expand = Math.sin(dist * 0.01 - globalTime) * 0.2;
+                    
+                    ax = Math.cos(angle) * 0.35 + (dx/dist * expand);
+                    ay = Math.sin(angle) * 0.35 + (dy/dist * expand);
+                }
+
+                // Apply acceleration to velocity with inertia
+                this.vx = this.vx * 0.94 + ax * 0.15 * timeScale;
+                this.vy = this.vy * 0.94 + ay * 0.15 * timeScale;
+
+                // 2. Mouse Interaction / Guide Qi
+                if (mouse.x !== -1000) {
+                    const dx = this.x - mouse.x;
+                    const dy = this.y - mouse.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist < mouse.radius) {
+                        const force = (1 - (dist / mouse.radius)) * (config.mouseForce / 100);
+                        
+                        if (mouse.isDown) {
+                            // Vortex draw & rotate with drag action
+                            const pullDirX = -dx / dist;
+                            const pullDirY = -dy / dist;
+                            const tangentX = -dy / dist;
+                            const tangentY = dx / dist;
+
+                            this.vx += (pullDirX * 0.4 + tangentX * 0.6) * force * timeScale;
+                            this.vy += (pullDirY * 0.4 + tangentY * 0.6) * force * timeScale;
+                        } else {
+                            // Gentle wind drift on hover
+                            const mSpeedX = mouse.x - mouse.prevX;
+                            const mSpeedY = mouse.y - mouse.prevY;
+                            this.vx += (mSpeedX * 0.03 + (dx / dist) * 0.1) * force * timeScale;
+                            this.vy += (mSpeedY * 0.03 + (dy / dist) * 0.1) * force * timeScale;
+                        }
+                    }
+                }
+
+                // Update position
+                this.x += this.vx * timeScale;
+                this.y += this.vy * timeScale;
+
+                // Border wrapping logic to keep continuous particle field
+                if (this.x < -10) { this.x = width + 5; this.prevX = this.x; }
+                if (this.x > width + 10) { this.x = -5; this.prevX = this.x; }
+                if (this.y < -10) { this.y = height + 5; this.prevY = this.y; }
+                if (this.y > height + 10) { this.y = -5; this.prevY = this.y; }
+            }
+
+            draw() {
+                // To get a soft "mist" / "whisp" aesthetic:
+                // Draw delicate lines connecting past to current position with fading opacity
+                ctx.beginPath();
+                ctx.moveTo(this.prevX, this.prevY);
+                ctx.lineTo(this.x, this.y);
+
+                const opacity = this.life * config.opacity;
+                ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
+                ctx.lineWidth = this.size * config.particleSize;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+            }
+        }
+
+        // --- Simulation Loop & Execution ---
+        let lastTime = performance.now();
+
+        function init() {
+            adjustParticleCount();
+            setupSliders();
+
+            // Render first frame black
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, width, height);
+
+            requestAnimationFrame(tick);
+        }
+
+        function tick(now) {
+            requestAnimationFrame(tick);
+
+            // Compute delta time for variable refreshes (frame-rate safety)
+            let dt = (now - lastTime) / 16.666; 
+            if (dt > 4) dt = 4; // limit physics jumps on background tab wakes
+            lastTime = now;
+
+            // Global time increment based on speed configuration
+            globalTime += 0.015 * config.speed * dt;
+
+            // Draw a subtle translucent black screen overlay to fade previous positions (creating gorgeous misty trails)
+            ctx.fillStyle = `rgba(0, 0, 0, ${config.fadeRate})`;
+            ctx.fillRect(0, 0, width, height);
+
+            // Update & Draw all particles
+            const len = particles.length;
+            for (let i = 0; i < len; i++) {
+                particles[i].update(config.speed * dt);
+                particles[i].draw();
+            }
+
+            // Track mouse velocity
+            mouse.prevX = mouse.prevX * 0.8 + mouse.x * 0.2;
+            mouse.prevY = mouse.prevY * 0.8 + mouse.y * 0.2;
+
+            // Frame Rate diagnostics
+            frameCount++;
+            if (now - lastFpsUpdate >= 1000) {
+                fps = Math.round((frameCount * 1000) / (now - lastFpsUpdate));
+                document.getElementById('fps-display').textContent = `FPS: ${fps}`;
+                frameCount = 0;
+                lastFpsUpdate = now;
+            }
+        }
+
+        // --- Event Listeners & Responsive Adaptation ---
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            
+            // Re-render clear to prevent scaling visual corruption
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, width, height);
+            particles.forEach(p => p.reset());
+        });
+
+        // Event handler helper to extract coordinate information
+        function handlePointer(clientX, clientY, isDown) {
+            if (!hasInteracted) {
+                hasInteracted = true;
+                interactionHint.classList.add('opacity-0');
+            }
+            mouse.x = clientX;
+            mouse.y = clientY;
+            mouse.isDown = isDown;
+        }
+
+        function handlePointerLeave() {
+            mouse.x = -1000;
+            mouse.y = -1000;
+            mouse.isDown = false;
+        }
+
+        // Mouse Listeners
+        window.addEventListener('mousemove', (e) => handlePointer(e.clientX, e.clientY, e.buttons === 1));
+        window.addEventListener('mousedown', (e) => handlePointer(e.clientX, e.clientY, true));
+        window.addEventListener('mouseup', () => mouse.isDown = false);
+        window.addEventListener('mouseleave', handlePointerLeave);
+
+        // Touch Screen Listeners
+        window.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 0) {
+                handlePointer(e.touches[0].clientX, e.touches[0].clientY, true);
+            }
+        });
+        window.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 0) {
+                handlePointer(e.touches[0].clientX, e.touches[0].clientY, true);
+            }
+        });
+        window.addEventListener('touchend', handlePointerLeave);
+
+        // Boot
+        window.onload = init;
+    </script>
+</body>
+</html>

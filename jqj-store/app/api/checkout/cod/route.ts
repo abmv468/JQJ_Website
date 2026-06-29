@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { createHash } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendOrderEmails } from "@/lib/email";
+import { normalizeCurrency } from "@/lib/currency";
 import {
   fetchInventoryBySlugs,
   restoreStockForOrder,
@@ -52,10 +53,11 @@ async function getAuthenticatedUserId() {
 
 export async function POST(req: Request) {
   try {
-    const { items, customer, idempotencyKey } = (await req.json()) as {
+    const { items, customer, idempotencyKey, currency } = (await req.json()) as {
       items: CheckoutItemInput[];
       customer: Record<string, string>;
       idempotencyKey?: string;
+      currency?: string;
     };
 
     if (!items?.length) {
@@ -63,6 +65,7 @@ export async function POST(req: Request) {
     }
 
     const shippingAmount = items.length ? SHIPPING_FLAT : 0;
+    const selectedCurrency = normalizeCurrency(currency);
     const customerName = `${customer.firstName} ${customer.lastName}`.trim();
     const userId = await getAuthenticatedUserId();
 
@@ -75,6 +78,7 @@ export async function POST(req: Request) {
       phone: customer.phone,
       payment_method: "cod" as const,
       cod_fee: COD_FEE,
+      currency: selectedCurrency,
     };
 
     const supabase = createAdminClient();
@@ -325,6 +329,7 @@ export async function POST(req: Request) {
       codFee: COD_FEE,
       total,
       paymentMethod: "cod",
+      currency: selectedCurrency,
       shippingAddress,
     });
 
