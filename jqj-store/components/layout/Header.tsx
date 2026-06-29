@@ -250,6 +250,7 @@ export default function Header() {
   const [hoveredMegaMenu, setHoveredMegaMenu] = useState<MegaMenuKey | null>(null);
   const [pinnedMegaMenu, setPinnedMegaMenu] = useState<MegaMenuKey | null>(null);
   const [mobileExpandedMenu, setMobileExpandedMenu] = useState<MegaMenuKey | null>(null);
+  const [mobileMenuTop, setMobileMenuTop] = useState(0);
   const [isClient, setIsClient] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const megaMenuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -346,6 +347,24 @@ export default function Header() {
   }, [mobileOpen]);
 
   useEffect(() => {
+    if (!mobileOpen) return;
+
+    const updateMobileMenuTop = () => {
+      const headerBottom = headerRef.current?.getBoundingClientRect().bottom ?? 0;
+      setMobileMenuTop(Math.max(0, Math.round(headerBottom)));
+    };
+
+    updateMobileMenuTop();
+    window.addEventListener("resize", updateMobileMenuTop);
+    window.addEventListener("scroll", updateMobileMenuTop, { passive: true });
+
+    return () => {
+      window.removeEventListener("resize", updateMobileMenuTop);
+      window.removeEventListener("scroll", updateMobileMenuTop);
+    };
+  }, [mobileOpen]);
+
+  useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
       if (!pinnedMegaMenu) return;
       if (headerRef.current?.contains(event.target as Node)) return;
@@ -413,6 +432,7 @@ export default function Header() {
               className="icon-button lg:hidden"
               onClick={() => {
                 setMobileExpandedMenu(null);
+                setMobileMenuTop(Math.max(0, Math.round(headerRef.current?.getBoundingClientRect().bottom ?? 0)));
                 setMobileOpen(true);
               }}
             >
@@ -666,7 +686,8 @@ export default function Header() {
             <AnimatePresence>
               {mobileOpen && (
                 <m.div
-                  className="fixed inset-x-0 bottom-0 top-[4.75rem] z-[120] lg:hidden"
+                  className="fixed inset-x-0 bottom-0 z-[120] lg:hidden"
+                  style={{ top: mobileMenuTop }}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
