@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { ArrowUpRight, ChevronDown, Menu, Search, ShoppingBag, User, X } from "lucide-react";
 import { AnimatePresence, LazyMotion, domAnimation, m, useReducedMotion } from "framer-motion";
@@ -249,6 +250,7 @@ export default function Header() {
   const [hoveredMegaMenu, setHoveredMegaMenu] = useState<MegaMenuKey | null>(null);
   const [pinnedMegaMenu, setPinnedMegaMenu] = useState<MegaMenuKey | null>(null);
   const [mobileExpandedMenu, setMobileExpandedMenu] = useState<MegaMenuKey | null>(null);
+  const [isClient, setIsClient] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const megaMenuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const headerRef = useRef<HTMLElement>(null);
@@ -285,6 +287,10 @@ export default function Header() {
     setPinnedMegaMenu(null);
     setHoveredMegaMenu(key);
   }
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     const supabase = createClient();
@@ -655,197 +661,201 @@ export default function Header() {
           )}
         </AnimatePresence>
 
-        <AnimatePresence>
-          {mobileOpen && (
-            <m.div
-              className="fixed inset-0 z-50 lg:hidden"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: shouldReduceMotion ? 0 : 0.18 }}
-            >
-              <button
-                type="button"
-                aria-label="Close menu"
-                className="absolute inset-0 bg-black/72"
-                onClick={() => {
-                  setMobileOpen(false);
-                  setMobileExpandedMenu(null);
-                }}
-              />
-              <m.div
-                initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, x: -18, scale: 0.98 }}
-                animate={{ opacity: 1, x: 0, scale: 1 }}
-                exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: -14, scale: 0.99 }}
-                transition={{
-                  duration: shouldReduceMotion ? 0 : 0.24,
-                  ease: [0.23, 1, 0.32, 1],
-                }}
-                className="absolute inset-y-3 left-3 right-3 max-w-md overflow-y-auto rounded-[1.75rem] border border-white/12 bg-black/88 p-5 shadow-[0_28px_80px_rgba(0,0,0,0.38)] backdrop-blur-2xl sm:right-10 sm:p-6"
-              >
-                <div className="mb-8 flex items-start justify-between gap-4">
-                  <div>
-                    <p className="eyebrow">Navigation</p>
-                    <p className="mt-3 text-sm text-white/64">
-                      Explore new releases and collector favorites.
-                    </p>
-                  </div>
+        {isClient &&
+          createPortal(
+            <AnimatePresence>
+              {mobileOpen && (
+                <m.div
+                  className="fixed inset-0 z-[120] lg:hidden"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: shouldReduceMotion ? 0 : 0.18 }}
+                >
                   <button
                     type="button"
                     aria-label="Close menu"
-                    className="icon-button h-10 w-10 shrink-0"
+                    className="absolute inset-0 bg-black/72"
                     onClick={() => {
                       setMobileOpen(false);
                       setMobileExpandedMenu(null);
                     }}
+                  />
+                  <m.div
+                    initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, x: -18, scale: 0.98 }}
+                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                    exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: -14, scale: 0.99 }}
+                    transition={{
+                      duration: shouldReduceMotion ? 0 : 0.24,
+                      ease: [0.23, 1, 0.32, 1],
+                    }}
+                    className="absolute inset-y-3 left-3 right-3 max-w-md overflow-y-auto rounded-[1.75rem] border border-white/12 bg-black/88 p-5 shadow-[0_28px_80px_rgba(0,0,0,0.38)] backdrop-blur-2xl sm:right-10 sm:p-6"
                   >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-                <nav className="flex flex-col border-t border-white/10 pt-2">
-                  {navLinks.map((l) => {
-                    const megaKey = getMegaMenuKeyByHref(l.href);
-
-                    if (!megaKey) {
-                      return (
-                        <Link
-                          key={l.href}
-                          href={l.href}
-                          className="flex items-center justify-between border-b border-white/8 py-4 font-heading text-sm uppercase text-white/84"
-                          style={{ letterSpacing: "0.18em" }}
-                          onClick={() => setMobileOpen(false)}
-                        >
-                          <span>{l.label}</span>
-                          <span className="text-white/28">/</span>
-                        </Link>
-                      );
-                    }
-
-                    const config = megaMenus[megaKey];
-                    const expanded = mobileExpandedMenu === megaKey;
-
-                    return (
-                      <div key={l.href} className="border-b border-white/8">
-                        <div className="flex items-center justify-between gap-3">
-                          <Link
-                            href={l.href}
-                            className="flex min-w-0 flex-1 items-center py-4 font-heading text-sm uppercase text-white/84"
-                            style={{ letterSpacing: "0.18em" }}
-                            onClick={() => {
-                              setMobileOpen(false);
-                              setMobileExpandedMenu(null);
-                            }}
-                          >
-                            <span className="truncate">{l.label}</span>
-                          </Link>
-                          <button
-                            type="button"
-                            aria-label={`${expanded ? "Collapse" : "Expand"} ${l.label} menu`}
-                            aria-expanded={expanded}
-                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center text-white/84"
-                            onClick={() =>
-                              setMobileExpandedMenu((prev) => (prev === megaKey ? null : megaKey))
-                            }
-                          >
-                            <ChevronDown
-                              className={`h-4 w-4 text-white/44 transition-transform ${
-                                expanded ? "rotate-180" : ""
-                              }`}
-                            />
-                          </button>
-                        </div>
-
-                        {expanded && (
-                          <div className="pb-4">
-                            <Link
-                              href={config.card.href}
-                              className="block rounded-brand border border-white/12 bg-white/[0.03] px-3 py-2 text-xs uppercase tracking-[0.14em] text-white/86"
-                              onClick={() => {
-                                setMobileOpen(false);
-                                setMobileExpandedMenu(null);
-                              }}
-                            >
-                              Shop all {config.label}
-                            </Link>
-
-                            <div className="mt-4 space-y-4">
-                              {config.columns.map((column) => (
-                                <div key={column.title}>
-                                  <p className="mb-2 text-[11px] uppercase tracking-[0.16em] text-white/42">
-                                    {column.title}
-                                  </p>
-                                  <div className="space-y-2">
-                                    {column.items.map((item) => (
-                                      <Link
-                                        key={`${column.title}-${item.label}`}
-                                        href={item.href}
-                                        className="block text-sm text-white/78 transition-colors hover:text-brand-gold-light"
-                                        onClick={() => {
-                                          setMobileOpen(false);
-                                          setMobileExpandedMenu(null);
-                                        }}
-                                      >
-                                        {item.label}
-                                      </Link>
-                                    ))}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
+                    <div className="mb-8 flex items-start justify-between gap-4">
+                      <div>
+                        <p className="eyebrow">Navigation</p>
+                        <p className="mt-3 text-sm text-white/64">
+                          Explore new releases and collector favorites.
+                        </p>
                       </div>
-                    );
-                  })}
+                      <button
+                        type="button"
+                        aria-label="Close menu"
+                        className="icon-button h-10 w-10 shrink-0"
+                        onClick={() => {
+                          setMobileOpen(false);
+                          setMobileExpandedMenu(null);
+                        }}
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+                    <nav className="flex flex-col border-t border-white/10 pt-2">
+                      {navLinks.map((l) => {
+                        const megaKey = getMegaMenuKeyByHref(l.href);
 
-                  <Link
-                    href={signedIn ? "/account" : "/auth/login"}
-                    className="flex items-center justify-between border-b border-white/8 py-4 font-heading text-sm uppercase text-white/84"
-                    style={{ letterSpacing: "0.18em" }}
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    <span>{signedIn ? "Account" : "Sign In"}</span>
-                    <span className="text-white/28">/</span>
-                  </Link>
-                  <div className="flex items-center justify-between border-b border-white/8 py-4">
-                    <span
-                      className="font-heading text-sm uppercase text-white/84"
-                      style={{ letterSpacing: "0.18em" }}
-                    >
-                      Currency
-                    </span>
-                    <label htmlFor="mobile-currency" className="sr-only">
-                      Select currency
-                    </label>
-                    <select
-                      id="mobile-currency"
-                      value={currency}
-                      onChange={(event) => setCurrency(event.target.value as typeof currency)}
-                      className="rounded-full border border-white/12 bg-white/[0.03] px-3 py-2 font-heading text-[10px] uppercase tracking-[0.14em] text-white/86"
-                    >
-                      {supportedCurrencies.map((code) => (
-                        <option key={code} value={code} className="bg-brand-surface text-white">
-                          {code}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  {signedIn && (
-                    <button
-                      type="button"
-                      className="border-b border-white/8 py-4 text-left font-heading text-sm uppercase text-white/70 transition-colors hover:text-white"
-                      style={{ letterSpacing: "0.18em" }}
-                      onClick={signOut}
-                    >
-                      Sign Out
-                    </button>
-                  )}
-                  {signOutError && <p className="pt-4 text-xs text-red-400">{signOutError}</p>}
-                </nav>
-              </m.div>
-            </m.div>
+                        if (!megaKey) {
+                          return (
+                            <Link
+                              key={l.href}
+                              href={l.href}
+                              className="flex items-center justify-between border-b border-white/8 py-4 font-heading text-sm uppercase text-white/84"
+                              style={{ letterSpacing: "0.18em" }}
+                              onClick={() => setMobileOpen(false)}
+                            >
+                              <span>{l.label}</span>
+                              <span className="text-white/28">/</span>
+                            </Link>
+                          );
+                        }
+
+                        const config = megaMenus[megaKey];
+                        const expanded = mobileExpandedMenu === megaKey;
+
+                        return (
+                          <div key={l.href} className="border-b border-white/8">
+                            <div className="flex items-center justify-between gap-3">
+                              <Link
+                                href={l.href}
+                                className="flex min-w-0 flex-1 items-center py-4 font-heading text-sm uppercase text-white/84"
+                                style={{ letterSpacing: "0.18em" }}
+                                onClick={() => {
+                                  setMobileOpen(false);
+                                  setMobileExpandedMenu(null);
+                                }}
+                              >
+                                <span className="truncate">{l.label}</span>
+                              </Link>
+                              <button
+                                type="button"
+                                aria-label={`${expanded ? "Collapse" : "Expand"} ${l.label} menu`}
+                                aria-expanded={expanded}
+                                className="inline-flex h-9 w-9 shrink-0 items-center justify-center text-white/84"
+                                onClick={() =>
+                                  setMobileExpandedMenu((prev) => (prev === megaKey ? null : megaKey))
+                                }
+                              >
+                                <ChevronDown
+                                  className={`h-4 w-4 text-white/44 transition-transform ${
+                                    expanded ? "rotate-180" : ""
+                                  }`}
+                                />
+                              </button>
+                            </div>
+
+                            {expanded && (
+                              <div className="pb-4">
+                                <Link
+                                  href={config.card.href}
+                                  className="block rounded-brand border border-white/12 bg-white/[0.03] px-3 py-2 text-xs uppercase tracking-[0.14em] text-white/86"
+                                  onClick={() => {
+                                    setMobileOpen(false);
+                                    setMobileExpandedMenu(null);
+                                  }}
+                                >
+                                  Shop all {config.label}
+                                </Link>
+
+                                <div className="mt-4 space-y-4">
+                                  {config.columns.map((column) => (
+                                    <div key={column.title}>
+                                      <p className="mb-2 text-[11px] uppercase tracking-[0.16em] text-white/42">
+                                        {column.title}
+                                      </p>
+                                      <div className="space-y-2">
+                                        {column.items.map((item) => (
+                                          <Link
+                                            key={`${column.title}-${item.label}`}
+                                            href={item.href}
+                                            className="block text-sm text-white/78 transition-colors hover:text-brand-gold-light"
+                                            onClick={() => {
+                                              setMobileOpen(false);
+                                              setMobileExpandedMenu(null);
+                                            }}
+                                          >
+                                            {item.label}
+                                          </Link>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      <Link
+                        href={signedIn ? "/account" : "/auth/login"}
+                        className="flex items-center justify-between border-b border-white/8 py-4 font-heading text-sm uppercase text-white/84"
+                        style={{ letterSpacing: "0.18em" }}
+                        onClick={() => setMobileOpen(false)}
+                      >
+                        <span>{signedIn ? "Account" : "Sign In"}</span>
+                        <span className="text-white/28">/</span>
+                      </Link>
+                      <div className="flex items-center justify-between border-b border-white/8 py-4">
+                        <span
+                          className="font-heading text-sm uppercase text-white/84"
+                          style={{ letterSpacing: "0.18em" }}
+                        >
+                          Currency
+                        </span>
+                        <label htmlFor="mobile-currency" className="sr-only">
+                          Select currency
+                        </label>
+                        <select
+                          id="mobile-currency"
+                          value={currency}
+                          onChange={(event) => setCurrency(event.target.value as typeof currency)}
+                          className="rounded-full border border-white/12 bg-white/[0.03] px-3 py-2 font-heading text-[10px] uppercase tracking-[0.14em] text-white/86"
+                        >
+                          {supportedCurrencies.map((code) => (
+                            <option key={code} value={code} className="bg-brand-surface text-white">
+                              {code}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {signedIn && (
+                        <button
+                          type="button"
+                          className="border-b border-white/8 py-4 text-left font-heading text-sm uppercase text-white/70 transition-colors hover:text-white"
+                          style={{ letterSpacing: "0.18em" }}
+                          onClick={signOut}
+                        >
+                          Sign Out
+                        </button>
+                      )}
+                      {signOutError && <p className="pt-4 text-xs text-red-400">{signOutError}</p>}
+                    </nav>
+                  </m.div>
+                </m.div>
+              )}
+            </AnimatePresence>,
+            document.body
           )}
-        </AnimatePresence>
       </header>
     </LazyMotion>
   );
