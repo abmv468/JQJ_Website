@@ -461,7 +461,7 @@ export default function Header() {
               alt="JQD Group"
               width={56}
               height={56}
-              className="h-14 w-14 rounded-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+              className="h-11 w-11 rounded-full object-cover transition-transform duration-200 group-hover:scale-[1.02] sm:h-14 sm:w-14"
               priority
             />
           </Link>
