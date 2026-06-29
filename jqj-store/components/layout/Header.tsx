@@ -726,21 +726,34 @@ export default function Header() {
 
                     return (
                       <div key={l.href} className="border-b border-white/8">
-                        <button
-                          type="button"
-                          className="flex w-full items-center justify-between py-4 font-heading text-sm uppercase text-white/84"
-                          style={{ letterSpacing: "0.18em" }}
-                          onClick={() =>
-                            setMobileExpandedMenu((prev) => (prev === megaKey ? null : megaKey))
-                          }
-                        >
-                          <span>{l.label}</span>
-                          <ChevronDown
-                            className={`h-4 w-4 text-white/44 transition-transform ${
-                              expanded ? "rotate-180" : ""
-                            }`}
-                          />
-                        </button>
+                        <div className="flex items-center justify-between gap-3">
+                          <Link
+                            href={l.href}
+                            className="flex min-w-0 flex-1 items-center py-4 font-heading text-sm uppercase text-white/84"
+                            style={{ letterSpacing: "0.18em" }}
+                            onClick={() => {
+                              setMobileOpen(false);
+                              setMobileExpandedMenu(null);
+                            }}
+                          >
+                            <span className="truncate">{l.label}</span>
+                          </Link>
+                          <button
+                            type="button"
+                            aria-label={`${expanded ? "Collapse" : "Expand"} ${l.label} menu`}
+                            aria-expanded={expanded}
+                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center text-white/84"
+                            onClick={() =>
+                              setMobileExpandedMenu((prev) => (prev === megaKey ? null : megaKey))
+                            }
+                          >
+                            <ChevronDown
+                              className={`h-4 w-4 text-white/44 transition-transform ${
+                                expanded ? "rotate-180" : ""
+                              }`}
+                            />
+                          </button>
+                        </div>
 
                         {expanded && (
                           <div className="pb-4">
