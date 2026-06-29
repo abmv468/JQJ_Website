@@ -666,7 +666,7 @@ export default function Header() {
             <AnimatePresence>
               {mobileOpen && (
                 <m.div
-                  className="fixed inset-0 z-[120] lg:hidden"
+                  className="fixed inset-x-0 bottom-0 top-[4.75rem] z-[120] lg:hidden"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
