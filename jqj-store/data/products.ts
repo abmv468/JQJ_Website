@@ -68,9 +68,9 @@ export const products: Product[] = [
     category: "bracelets",
     images: [
       "/products/red-leopard-skin-jasper-bracelet-iii-2.jpg",
-      "/products/red-leopard-skin-jasper-bracelet-iii-3.jpg",
-      "/products/red-leopard-jasper-bracelet.webp",
-      "/products/lifestyle.webp",
+      "/products/red-leopard-skin-jasper-bracelet-hover.jpg",
+      "/products/pearl-silver-necklace-v-2.jpg",
+      "/products/JQJ-Group-—-Natural-Stone-Jewelry-with-Cultural-Craft_Photoshoot_Vintage-Sunwashed-Film_2026-06-29_1x.png",
     ],
     hoverImage: "/products/red-leopard-skin-jasper-bracelet-hover.jpg",
     inStock: true,

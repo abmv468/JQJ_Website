@@ -269,7 +269,7 @@ on conflict (slug) do nothing;
 
 insert into products (name, slug, description, sku, price, compare_at_price, category_id, images, stock_count, low_stock_threshold, rating, review_count, tags, stone, features, specs)
 values
-  ('Red Leopard Skin Jasper Bracelet III (6mm)', 'red-leopard-skin-jasper-bracelet-iii', 'Earthy and grounding hand-finished bracelet.', 'JQJ-RLSJ-III', 599.99, 699.99, (select id from categories where slug='bracelets'), array['/products/red-leopard-skin-jasper-bracelet-iii-2.jpg','/products/red-leopard-skin-jasper-bracelet-iii-3.jpg','/products/red-leopard-jasper-bracelet.webp','/products/lifestyle.webp'], 12, 5, 4.8, 28, array['top-rated','sale'], 'Carnelian', array['Hand-made for your wrist size'], '{"Bead Size":"6mm","Stone":"Red Leopard Skin Jasper"}'),
+  ('Red Leopard Skin Jasper Bracelet III (6mm)', 'red-leopard-skin-jasper-bracelet-iii', 'Earthy and grounding hand-finished bracelet.', 'JQJ-RLSJ-III', 599.99, 699.99, (select id from categories where slug='bracelets'), array['/products/red-leopard-skin-jasper-bracelet-iii-2.jpg','/products/red-leopard-skin-jasper-bracelet-hover.jpg','/products/pearl-silver-necklace-v-2.jpg','/products/JQJ-Group-—-Natural-Stone-Jewelry-with-Cultural-Craft_Photoshoot_Vintage-Sunwashed-Film_2026-06-29_1x.png'], 12, 5, 4.8, 28, array['top-rated','sale'], 'Carnelian', array['Hand-made for your wrist size'], '{"Bead Size":"6mm","Stone":"Red Leopard Skin Jasper"}'),
   ('Raw Brown Tourmaline Bracelet I (8-10mm)', 'raw-brown-tourmaline-bracelet-i', 'Raw untreated brown tourmaline nuggets.', 'JQJ-TOURM-I', 368.99, null, (select id from categories where slug='bracelets'), array['/products/raw-brown-tourmaline-bracelet-i-2.jpg','/products/raw-brown-tourmaline-bracelet-i-3.jpg','/products/brown-tourmaline-bracelet.webp'], 8, 5, 4.7, 19, array['new'], 'Tourmaline', array['Hand-made for your wrist size'], '{"Bead Size":"8-10mm","Stone":"Raw Brown Tourmaline"}'),
   ('Sodalite Bracelet VIII (4mm)', 'sodalite-bracelet-viii', 'Deep blue sodalite with silver accents.', 'JQJ-SOD-VIII', 549.99, null, (select id from categories where slug='bracelets'), array['/products/sodalite-bracelet-viii-1.jpg','/products/sodalite-bracelet.webp'], 15, 5, 4.9, 41, array['top-rated'], 'Sodalite', array['Hand-made for your wrist size'], '{"Bead Size":"4mm","Stone":"Sodalite"}'),
   ('Amethyst Bracelet XV (5mm)', 'amethyst-bracelet-xv', 'Faceted amethyst beads in graduated violet.', 'JQJ-AMETH-XV', 330.99, null, (select id from categories where slug='bracelets'), array['/products/amethyst-bracelet-xv-1.jpg','/products/amethyst-bracelet.webp'], 20, 5, 4.6, 33, array['new','limited'], 'Amethyst', array['Hand-made for your wrist size'], '{"Bead Size":"5mm","Stone":"Amethyst"}'),
@@ -279,6 +279,15 @@ values
   ('Labradorite Silver Pendant', 'labradorite-silver-pendant', 'Faceted labradorite baton framed in silver.', 'JQJ-LABPEN', 279.99, null, (select id from categories where slug='necklaces'), array['/products/labradorite-silver-pendant-1.jpg','/products/labradorite-pendant.webp'], 11, 5, 4.8, 17, array['restocked'], 'Lapis Lazuli', array['Hand-made'], '{"Chain Length":"55cm","Stone":"Labradorite"}'),
   ('Pearl - Silver Necklace V (7mm)', 'pearl-silver-necklace-v', 'Freshwater pearls with silver-tone hematite.', 'JQJ-PEARL-V', 980.00, null, (select id from categories where slug='necklaces'), array['/products/pearl-silver-necklace-v-1.jpg','/products/pearl-silver-necklace-v-2.jpg','/products/pearl-silver-necklace.webp'], 5, 5, 4.9, 9, array['limited','top-rated'], 'Tiger Eye', array['Hand-made'], '{"Bead Size":"7mm","Stone":"Freshwater Pearl"}')
 on conflict (slug) do nothing;
+
+update products
+set images = array[
+  '/products/red-leopard-skin-jasper-bracelet-iii-2.jpg',
+  '/products/red-leopard-skin-jasper-bracelet-hover.jpg',
+  '/products/pearl-silver-necklace-v-2.jpg',
+  '/products/JQJ-Group-—-Natural-Stone-Jewelry-with-Cultural-Craft_Photoshoot_Vintage-Sunwashed-Film_2026-06-29_1x.png'
+]
+where slug = 'red-leopard-skin-jasper-bracelet-iii';
 
 insert into product_variants (product_id, size, material, sku, stock_count)
 values
