@@ -350,8 +350,14 @@ export default function Header() {
     if (!mobileOpen) return;
 
     const updateMobileMenuTop = () => {
-      const headerBottom = headerRef.current?.getBoundingClientRect().bottom ?? 0;
-      setMobileMenuTop(Math.max(0, Math.round(headerBottom)));
+      const headerRect = headerRef.current?.getBoundingClientRect();
+      if (!headerRect) return;
+
+      const announcementRect = headerRef.current?.previousElementSibling?.getBoundingClientRect();
+      const announcementBottom = Math.max(0, announcementRect?.bottom ?? 0);
+      const safeTop = Math.max(headerRect.bottom, announcementBottom + headerRect.height);
+
+      setMobileMenuTop(Math.max(0, Math.round(safeTop)));
     };
 
     updateMobileMenuTop();
@@ -432,7 +438,14 @@ export default function Header() {
               className="icon-button lg:hidden"
               onClick={() => {
                 setMobileExpandedMenu(null);
-                setMobileMenuTop(Math.max(0, Math.round(headerRef.current?.getBoundingClientRect().bottom ?? 0)));
+                const headerRect = headerRef.current?.getBoundingClientRect();
+                const announcementRect = headerRef.current?.previousElementSibling?.getBoundingClientRect();
+
+                if (headerRect) {
+                  const announcementBottom = Math.max(0, announcementRect?.bottom ?? 0);
+                  const safeTop = Math.max(headerRect.bottom, announcementBottom + headerRect.height);
+                  setMobileMenuTop(Math.max(0, Math.round(safeTop)));
+                }
                 setMobileOpen(true);
               }}
             >
