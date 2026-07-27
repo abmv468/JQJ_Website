@@ -97,7 +97,7 @@ const megaMenus: Record<MegaMenuKey, MegaMenuConfig> = {
     card: {
       title: "ALL Earrings",
       href: "/earrings",
-      image: "/products/blue-lace-agate-silver-pendant-1.jpg",
+      image: "/products/main-hover-card-earring.jpg",
       alt: "Earrings collection",
     },
   },
@@ -141,7 +141,7 @@ const megaMenus: Record<MegaMenuKey, MegaMenuConfig> = {
     card: {
       title: "All Necklaces",
       href: "/necklaces",
-      image: "/products/pearl-silver-necklace-v-1.jpg",
+      image: "/products/main-hover-card-necklaces.jpg",
       alt: "Necklaces collection",
     },
   },
@@ -176,7 +176,7 @@ const megaMenus: Record<MegaMenuKey, MegaMenuConfig> = {
     card: {
       title: "All Bracelets",
       href: "/bracelets",
-      image: "/products/sodalite-bracelet-viii-1.jpg",
+      image: "/products/main-hover-card-bracelets.jpg",
       alt: "Bracelets collection",
     },
   },
@@ -224,7 +224,7 @@ const megaMenus: Record<MegaMenuKey, MegaMenuConfig> = {
     card: {
       title: "All Rings",
       href: "/rings",
-      image: "/products/silver-bracelet-iv-2.jpg",
+      image: "/products/main-hover-card-rings.jpg",
       alt: "Rings collection",
     },
   },
