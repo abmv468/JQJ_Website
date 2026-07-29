@@ -84,6 +84,12 @@ type SortKey =
   | "rating"
   | "newest";
 
+type EditorialSection = {
+  title: string;
+  paragraphs: string[];
+  links?: Array<{ label: string; href: string }>;
+};
+
 const sortOptions: { value: SortKey; label: string }[] = [
   { value: "featured", label: "Featured" },
   { value: "price-asc", label: "Price: Low to High" },
@@ -99,6 +105,7 @@ export default function CollectionView({
   emptyDescription,
   subtitle,
   products,
+  editorialSections,
   initialStone,
   initialTag,
   initialQuery,
@@ -109,6 +116,7 @@ export default function CollectionView({
   emptyDescription?: string;
   subtitle?: string;
   products: Product[];
+  editorialSections?: EditorialSection[];
   initialStone?: string;
   initialTag?: string;
   initialQuery?: string;
@@ -756,6 +764,38 @@ export default function CollectionView({
           )}
         </div>
       </div>
+
+      {editorialSections && editorialSections.length > 0 && (
+        <section className="mt-20 border-t border-brand-border pt-12">
+          <div className="mx-auto grid max-w-5xl gap-10 md:grid-cols-2">
+            {editorialSections.map((section) => (
+              <article key={section.title}>
+                <h2 className="font-heading text-xl uppercase tracking-wider2 text-white">
+                  {section.title}
+                </h2>
+                <div className="mt-4 space-y-3 text-sm leading-7 text-brand-muted">
+                  {section.paragraphs.map((paragraph) => (
+                    <p key={paragraph}>{paragraph}</p>
+                  ))}
+                </div>
+                {section.links && section.links.length > 0 && (
+                  <div className="mt-5 flex flex-wrap gap-x-5 gap-y-3">
+                    {section.links.map((link) => (
+                      <Link
+                        key={link.href}
+                        href={link.href}
+                        className="text-xs uppercase tracking-wider2 text-brand-gold transition-colors hover:text-brand-gold-light"
+                      >
+                        {link.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

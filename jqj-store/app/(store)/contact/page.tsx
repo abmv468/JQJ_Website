@@ -1,7 +1,11 @@
+import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
 
-export const metadata = {
-  title: "Contact Us — JQD Group",
+export const metadata: Metadata = {
+  title: "Contact Us",
+  description:
+    "Contact JQD Group for help with natural stone jewelry orders, sizing, shipping, returns, repairs, and product questions.",
+  alternates: { canonical: "/contact" },
 };
 
 export default function ContactPage() {

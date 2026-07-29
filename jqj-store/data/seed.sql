@@ -12,6 +12,13 @@ create table if not exists categories (
   created_at timestamptz default now()
 );
 
+create table if not exists newsletter_subscribers (
+  email text primary key,
+  source text not null default 'storefront',
+  subscribed_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists products (
   id uuid primary key default uuid_generate_v4(),
   name text not null,
@@ -215,6 +222,7 @@ alter table order_items enable row level security;
 alter table order_refunds enable row level security;
 alter table customer_profiles enable row level security;
 alter table customer_addresses enable row level security;
+alter table newsletter_subscribers enable row level security;
 
 drop policy if exists "public read categories" on categories;
 create policy "public read categories" on categories for select using (true);
