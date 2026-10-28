@@ -17,7 +17,7 @@ export interface OrderEmailData {
   shipping: number;
   codFee?: number;
   total: number;
-  paymentMethod: "stripe" | "cod";
+  paymentMethod: "stripe" | "cod" | "airwallex";
   currency: SupportedCurrency;
   shippingAddress: {
     address: string;
@@ -57,7 +57,11 @@ function buildHtml(data: OrderEmailData, heading: string): string {
       <p>Hi ${data.customerName || "there"},</p>
       <p>Order reference: <strong>${data.orderId}</strong></p>
       <p>Payment method: <strong>${
-        data.paymentMethod === "cod" ? "Cash on Delivery" : "Card (Stripe)"
+        data.paymentMethod === "cod"
+          ? "Cash on Delivery"
+          : data.paymentMethod === "airwallex"
+            ? "Card (Airwallex)"
+            : "Card (Stripe)"
       }</strong></p>
       <table style="width:100%;border-collapse:collapse;margin:16px 0;">
         ${itemsTable(data.items, data.currency)}

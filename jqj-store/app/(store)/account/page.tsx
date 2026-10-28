@@ -43,6 +43,10 @@ interface OrderItemRow {
 interface OrderRow {
   id: string;
   status: string;
+  payment_status: string | null;
+  payment_provider: string | null;
+  fulfillment_status: string | null;
+  currency: string | null;
   total_amount: number;
   refunded_amount: number | null;
   shipping_amount: number;
@@ -148,7 +152,7 @@ export default function AccountPage() {
         supabase
           .from("orders")
           .select(
-            "id, status, total_amount, refunded_amount, shipping_amount, customer_name, customer_email, shipping_address, created_at, order_items(id, product_id, product_name, quantity, price_at_purchase, line_item_meta)"
+            "id, status, payment_status, payment_provider, fulfillment_status, currency, total_amount, refunded_amount, shipping_amount, customer_name, customer_email, shipping_address, created_at, order_items(id, product_id, product_name, quantity, price_at_purchase, line_item_meta)"
           )
           .eq("user_id", data.user.id)
           .order("created_at", { ascending: false }),
@@ -399,6 +403,7 @@ export default function AccountPage() {
   }
 
   function paymentMethod(order: OrderRow) {
+    if (order.payment_provider) return order.payment_provider.toUpperCase();
     const method = order.shipping_address?.payment_method;
     return typeof method === "string" ? method.toUpperCase() : "N/A";
   }
@@ -599,6 +604,12 @@ export default function AccountPage() {
                     <div className="border border-brand-border/60 p-3">
                       <p className="mb-1 text-xs uppercase tracking-wider2 text-brand-muted">Payment & Totals</p>
                       <p>Method: {paymentMethod(order)}</p>
+                      {order.payment_status && (
+                        <p>Status: {order.payment_status.replace(/_/g, " ").toUpperCase()}</p>
+                      )}
+                      {order.fulfillment_status && (
+                        <p>Fulfilment: {order.fulfillment_status.replace(/_/g, " ").toUpperCase()}</p>
+                      )}
                       <p>Shipping: {formatFromUsd(order.shipping_amount || 0)}</p>
                       <p className="text-brand-gold">Total: {formatFromUsd(order.total_amount)}</p>
                     </div>

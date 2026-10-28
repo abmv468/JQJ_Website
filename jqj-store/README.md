@@ -1,6 +1,6 @@
 # JQD Group — E-Commerce Storefront
 
-Dark luxury jewelry storefront for **JQD Group**, built with Next.js 14 (App Router), Tailwind CSS, Supabase, Stripe and Resend.
+Dark luxury jewelry storefront for **JQD Group**, built with Next.js 14 (App Router), Tailwind CSS, Supabase, Airwallex and Resend.
 
 ## Getting started
 
@@ -31,8 +31,8 @@ npm run dev                        # http://localhost:3000
 - `/necklaces` — Necklaces
 - `/products/[slug]` — Product detail (statically generated)
 - `/cart` — Cart
-- `/checkout` — Checkout (Stripe **or** Cash on Delivery)
-- `/order-confirmation` — Handles Stripe verify + COD
+- `/checkout` — Checkout (Airwallex Hosted Payment Page **or** Cash on Delivery)
+- `/order-confirmation` — Handles Airwallex verify + COD
 - `/auth/login` — Sign in / create account
 - `/account` — Profile + order history
 - `/admin` — Admin dashboard (gated by `ADMIN_EMAIL`)
@@ -41,11 +41,10 @@ npm run dev                        # http://localhost:3000
 
 1. Create a Supabase project and run `data/seed.sql` in the SQL editor.
 2. Add Supabase URL + anon key + service role key to `.env.local`.
-3. Add Stripe test keys; for local webhooks:
-   ```bash
-   stripe listen --forward-to localhost:3000/api/webhooks/stripe
-   ```
-4. Add a Resend API key and a verified `EMAIL_FROM` address.
+3. Add Airwallex sandbox keys and webhook secret (`AIRWALLEX_*` variables in `.env.local.example`).
+4. Configure Airwallex webhook URL to `/api/webhooks/airwallex`.
+5. (Optional legacy) Add Stripe test keys if you still use Stripe routes.
+6. Add a Resend API key and a verified `EMAIL_FROM` address.
 
 The storefront runs with **static product data** (`data/products.ts`) even
 without backend keys. Checkout, orders, auth and admin require the keys above.
@@ -54,7 +53,7 @@ without backend keys. Checkout, orders, auth and admin require the keys above.
 
 - `products` now supports base `sku`, `stock_count`, `low_stock_threshold`, and `in_stock`.
 - `product_variants` stores sellable combinations (size/material) with per-variant SKU and stock.
-- Checkout (Stripe + COD) validates inventory before order creation and reserves stock during order persistence.
+- Checkout (Airwallex + COD) validates inventory before order creation and reserves stock during order persistence.
 - Storefront and admin show low-stock/out-of-stock states and block purchases when unavailable.
 
 ## Order lifecycle & refunds

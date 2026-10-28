@@ -172,10 +172,17 @@ export async function POST(req: Request) {
           .insert({
             user_id: userId,
             status: "inventory_exception",
+            fulfillment_status: "payment_failed",
+            payment_provider: "stripe",
+            payment_status: "succeeded",
             verification_completed: true,
             verification_claimed_at: new Date().toISOString(),
+            subtotal_amount: subtotal,
             total_amount: total,
             shipping_amount: shipping,
+            discount_amount: 0,
+            tax_amount: 0,
+            currency: selectedCurrency,
             shipping_address: shippingAddress,
             customer_email: customerEmail,
             customer_name: customerName,
@@ -282,8 +289,16 @@ export async function POST(req: Request) {
           verification_completed: true,
           verification_claimed_at: new Date().toISOString(),
           status: "processing",
+          fulfillment_status: "paid",
+          payment_provider: "stripe",
+          payment_status: "succeeded",
+          paid_at: new Date().toISOString(),
+          subtotal_amount: subtotal,
           total_amount: total,
           shipping_amount: shipping,
+          discount_amount: 0,
+          tax_amount: 0,
+          currency: selectedCurrency,
           shipping_address: shippingAddress,
           customer_email: customerEmail,
           customer_name: customerName,
@@ -304,10 +319,18 @@ export async function POST(req: Request) {
         .from("orders")
         .insert({
           user_id: userId,
+          status: "pending",
+          fulfillment_status: "pending_payment",
+          payment_provider: "stripe",
+          payment_status: "pending",
           verification_completed: false,
           inventory_reserved: false,
+          subtotal_amount: subtotal,
           total_amount: total,
           shipping_amount: shipping,
+          discount_amount: 0,
+          tax_amount: 0,
+          currency: selectedCurrency,
           shipping_address: shippingAddress,
           customer_email: customerEmail,
           customer_name: customerName,
@@ -393,6 +416,8 @@ export async function POST(req: Request) {
           .from("orders")
           .update({
             status: "failed",
+            payment_status: "succeeded",
+            fulfillment_status: "payment_failed",
             verification_completed: false,
             verification_claimed_at: null,
           })
@@ -402,6 +427,8 @@ export async function POST(req: Request) {
           .from("orders")
           .update({
             status: "failed_fulfillment",
+            payment_status: "succeeded",
+            fulfillment_status: "payment_failed",
             verification_completed: false,
             verification_claimed_at: null,
           })

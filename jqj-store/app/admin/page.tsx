@@ -43,6 +43,10 @@ interface AdminProduct {
 interface AdminOrder {
   id: string;
   status: string;
+  fulfillment_status?: string | null;
+  payment_status?: string | null;
+  payment_provider?: string | null;
+  currency?: string | null;
   total_amount: number;
   refunded_amount: number | null;
   customer_email: string | null;
@@ -50,6 +54,21 @@ interface AdminOrder {
   created_at: string;
   shipping_address?: { payment_method?: string } | null;
   order_refunds?: { id: string; amount: number; reason: string | null; created_at: string }[];
+  payments?: Array<{
+    id: string;
+    provider: string;
+    provider_payment_intent_id: string;
+    status: string;
+    currency: string | null;
+    payment_refunds?: Array<{
+      id: string;
+      provider_refund_id: string;
+      amount: number;
+      status: string;
+      reason: string | null;
+      created_at: string;
+    }>;
+  }>;
 }
 
 const navItems: { key: Tab; label: string; icon: typeof LayoutDashboard }[] = [
@@ -79,6 +98,7 @@ export default function AdminPage() {
   });
   const [productError, setProductError] = useState<string | null>(null);
   const [refundDrafts, setRefundDrafts] = useState<Record<string, { amount: string; reason: string }>>({});
+  const [orderActionError, setOrderActionError] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -157,34 +177,83 @@ export default function AdminPage() {
   }, [authChecked, loadData, user]);
 
   async function updateOrderStatus(id: string, status: string) {
+    setOrderActionError(null);
     const headers = await getAdminAuthHeaders(true);
-    if (!headers) return;
+    if (!headers) {
+      setOrderActionError("Admin session is unavailable. Please sign in again.");
+      return;
+    }
 
     const response = await fetch("/api/admin/orders", {
       method: "PUT",
       headers,
       body: JSON.stringify({ id, status }),
     });
-    if (!response.ok) return;
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      setOrderActionError(payload.error || "Failed to update order status.");
+      return;
+    }
     const payload = await response.json();
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, ...payload.order } : o)));
   }
 
-  async function createPartialRefund(order: AdminOrder) {
-    const draft = refundDrafts[order.id];
-    const amount = Number(draft?.amount);
-    if (!Number.isFinite(amount) || amount <= 0) return;
-
+  async function refreshPaymentStatus(order: AdminOrder) {
+    setOrderActionError(null);
     const headers = await getAdminAuthHeaders(true);
-    if (!headers) return;
+    if (!headers) {
+      setOrderActionError("Admin session is unavailable. Please sign in again.");
+      return;
+    }
 
     const response = await fetch("/api/admin/orders", {
       method: "POST",
       headers,
-      body: JSON.stringify({ id: order.id, amount, reason: draft?.reason ?? "" }),
+      body: JSON.stringify({ action: "refresh_payment", id: order.id }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setOrderActionError(payload.error || "Failed to refresh payment status.");
+      return;
+    }
+
+    setOrders((prev) => prev.map((entry) => (entry.id === order.id ? payload.order : entry)));
+  }
+
+  async function createPartialRefund(order: AdminOrder) {
+    setOrderActionError(null);
+    const draft = refundDrafts[order.id];
+    const amount = Number(draft?.amount);
+    if (!Number.isFinite(amount) || amount <= 0) return;
+
+    const orderReference = order.id.slice(0, 8);
+    if (!window.confirm(`Confirm refund of ${formatPrice(amount)} for order #${orderReference}?`)) {
+      return;
+    }
+
+    const headers = await getAdminAuthHeaders(true);
+    if (!headers) {
+      setOrderActionError("Admin session is unavailable. Please sign in again.");
+      return;
+    }
+
+    const response = await fetch("/api/admin/orders", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        action: "refund",
+        id: order.id,
+        amount,
+        reason: draft?.reason ?? "",
+        confirm: true,
+      }),
     });
 
-    if (!response.ok) return;
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      setOrderActionError(payload.error || "Failed to create refund.");
+      return;
+    }
 
     const payload = await response.json();
     setOrders((prev) => prev.map((o) => (o.id === order.id ? payload.order : o)));
@@ -485,149 +554,189 @@ export default function AdminPage() {
         )}
 
         {tab === "orders" && (
-          <div className="overflow-x-auto border border-brand-border">
-            <table className="min-w-[860px] w-full text-left text-sm">
-              <thead className="border-b border-brand-border text-xs uppercase tracking-wider2 text-brand-muted">
-                <tr>
-                  <th className="p-3">Order</th>
-                  <th className="p-3">Customer</th>
-                  <th className="p-3">Method</th>
-                  <th className="p-3">Total</th>
-                  <th className="p-3">Refunded</th>
-                  <th className="p-3">Status</th>
-                  <th className="p-3">Refund Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.length === 0 ? (
+          <div className="space-y-3">
+            {orderActionError && <p className="text-sm text-red-400">{orderActionError}</p>}
+            <div className="overflow-x-auto border border-brand-border">
+              <table className="min-w-[1220px] w-full text-left text-sm">
+                <thead className="border-b border-brand-border text-xs uppercase tracking-wider2 text-brand-muted">
                   <tr>
-                    <td colSpan={7} className="p-6 text-center text-brand-muted">No orders yet.</td>
+                    <th className="p-3">Order</th>
+                    <th className="p-3">Customer</th>
+                    <th className="p-3">Provider</th>
+                    <th className="p-3">Payment</th>
+                    <th className="p-3">Fulfillment</th>
+                    <th className="p-3">Total</th>
+                    <th className="p-3">Refunded</th>
+                    <th className="p-3">Actions</th>
                   </tr>
-                ) : (
-                  orders.map((o) => (
-                    <tr key={o.id} className="border-b border-brand-border/60">
-                      {(() => {
-                        const totalAmount = Number(o.total_amount || 0);
-                        const refundedAmount = Number(o.refunded_amount || 0);
-                        const partialRefund = hasPartialRefund(totalAmount, refundedAmount);
-                        const fullyRefunded = isFullyRefunded(totalAmount, refundedAmount);
-                        const statusLabel = formatOrderStatusLabel(o.status);
-                        const statusOptions = getOrderStatusOptions(o.status);
-                        const currentSelectValue =
-                          statusOptions.find((statusOption) => statusOption === o.status) ??
-                          statusOptions[0];
-                        const canRefund = !fullyRefunded;
-                        const remainingToRefund = Math.max(totalAmount - refundedAmount, 0);
-
-                        return (
-                          <>
-                      <td className="p-3 font-mono text-xs">{o.id.slice(0, 8)}</td>
-                      <td className="p-3">{o.customer_name || o.customer_email || "Guest"}</td>
-                      <td className="p-3 uppercase text-brand-muted">
-                        {o.shipping_address?.payment_method ?? "—"}
-                      </td>
-                      <td className="p-3 text-brand-gold">{formatPrice(Number(o.total_amount))}</td>
-                      <td className="p-3">
-                        {refundedAmount <= 0 ? (
-                          <span className="text-brand-muted">—</span>
-                        ) : (
-                          <div className="space-y-1">
-                            <p className="text-xs text-brand-gold">
-                              {formatPrice(refundedAmount)}
-                              {partialRefund && (
-                                <span className="ml-1 text-brand-muted">
-                                  / {formatPrice(totalAmount)} (partial)
-                                </span>
-                              )}
-                            </p>
-                            {!!o.order_refunds?.length && (
-                              <ul className="space-y-1 text-[11px] text-brand-muted">
-                                {[...o.order_refunds]
-                                  .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
-                                  .slice(0, 3)
-                                  .map((refund) => (
-                                    <li key={refund.id}>
-                                      {formatPrice(Number(refund.amount))}
-                                      {refund.reason ? ` · ${refund.reason}` : ""}
-                                    </li>
-                                  ))}
-                              </ul>
-                            )}
-                          </div>
-                        )}
-                      </td>
-                      <td className="p-3">
-                        <select
-                          value={currentSelectValue}
-                          onChange={(e) => updateOrderStatus(o.id, e.target.value)}
-                          className="border border-brand-border bg-transparent px-2 py-1 text-xs"
-                          disabled={fullyRefunded}
-                        >
-                          {statusOptions.map((s) => (
-                            <option key={s} value={s} className="bg-brand-surface capitalize">
-                              {formatOrderStatusLabel(s)}
-                            </option>
-                          ))}
-                        </select>
-                        {partialRefund && (
-                          <p className="mt-1 text-[11px] text-brand-muted">
-                            {statusLabel} (partial refund)
-                          </p>
-                        )}
-                      </td>
-                      <td className="p-3">
-                        {canRefund ? (
-                          <div className="space-y-2">
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              max={remainingToRefund}
-                              placeholder="Amount"
-                              value={refundDrafts[o.id]?.amount ?? ""}
-                              onChange={(e) =>
-                                setRefundDrafts((prev) => ({
-                                  ...prev,
-                                  [o.id]: { amount: e.target.value, reason: prev[o.id]?.reason ?? "" },
-                                }))
-                              }
-                              className="w-full min-w-0 border border-brand-border bg-transparent px-2 py-1 text-xs sm:w-24"
-                            />
-                            <input
-                              type="text"
-                              placeholder="Reason (optional)"
-                              value={refundDrafts[o.id]?.reason ?? ""}
-                              onChange={(e) =>
-                                setRefundDrafts((prev) => ({
-                                  ...prev,
-                                  [o.id]: { amount: prev[o.id]?.amount ?? "", reason: e.target.value },
-                                }))
-                              }
-                              className="w-full min-w-28 border border-brand-border bg-transparent px-2 py-1 text-xs"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => createPartialRefund(o)}
-                              className="btn-secondary px-2 py-1 text-[11px]"
-                            >
-                              Refund
-                            </button>
-                            <p className="text-[11px] text-brand-muted">
-                              Remaining: {formatPrice(remainingToRefund)}
-                            </p>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-brand-muted">Fully refunded</span>
-                        )}
-                      </td>
-                          </>
-                        );
-                      })()}
+                </thead>
+                <tbody>
+                  {orders.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="p-6 text-center text-brand-muted">No orders yet.</td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    orders.map((o) => {
+                      const totalAmount = Number(o.total_amount || 0);
+                      const settledRefundedAmount = Number(o.refunded_amount || 0);
+                      const primaryPayment =
+                        (o.payments ?? []).find((payment) => payment.provider === "airwallex") ??
+                        (o.payments ?? [])[0];
+                      const providerLabel = (
+                        o.payment_provider ||
+                        primaryPayment?.provider ||
+                        o.shipping_address?.payment_method ||
+                        "—"
+                      ).toUpperCase();
+                      const paymentStatus = (
+                        o.payment_status ||
+                        primaryPayment?.status ||
+                        "unknown"
+                      ).toLowerCase();
+                      const fulfillmentStatusSource = o.fulfillment_status || o.status;
+                      const statusOptions = getOrderStatusOptions(fulfillmentStatusSource);
+                      const currentSelectValue =
+                        statusOptions.find((statusOption) => statusOption === fulfillmentStatusSource) ??
+                        statusOptions[0];
+
+                      const providerRefunds = (primaryPayment?.payment_refunds ?? [])
+                        .filter((refund) => refund.status !== "failed")
+                        .reduce((sum, refund) => sum + Number(refund.amount || 0), 0);
+                      const effectiveRefunded = Math.max(settledRefundedAmount, providerRefunds);
+                      const remainingToRefund = Math.max(totalAmount - effectiveRefunded, 0);
+                      const canRefund = remainingToRefund > 0;
+
+                      const refundHistory = [
+                        ...(o.order_refunds ?? []).map((refund) => ({
+                          id: refund.id,
+                          created_at: refund.created_at,
+                          label: `${formatPrice(Number(refund.amount))}${refund.reason ? ` · ${refund.reason}` : ""}`,
+                        })),
+                        ...((primaryPayment?.payment_refunds ?? []).map((refund) => ({
+                          id: refund.id,
+                          created_at: refund.created_at,
+                          label: `${formatPrice(Number(refund.amount))} · ${refund.status.toLowerCase()}${refund.reason ? ` · ${refund.reason}` : ""}`,
+                        })) ?? []),
+                      ]
+                        .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+                        .slice(0, 3);
+
+                      return (
+                        <tr key={o.id} className="border-b border-brand-border/60 align-top">
+                          <td className="space-y-1 p-3">
+                            <p className="font-mono text-xs">{o.id.slice(0, 8)}</p>
+                            <p className="text-[11px] text-brand-muted">{new Date(o.created_at).toLocaleString()}</p>
+                          </td>
+                          <td className="p-3">{o.customer_name || o.customer_email || "Guest"}</td>
+                          <td className="space-y-1 p-3 text-[11px]">
+                            <p className="uppercase text-brand-muted">{providerLabel}</p>
+                            <p className="uppercase text-brand-muted">{o.currency ?? "USD"}</p>
+                          </td>
+                          <td className="space-y-1 p-3 text-[11px]">
+                            <p className="capitalize">{paymentStatus.replace(/_/g, " ")}</p>
+                            <p className="font-mono text-brand-muted">
+                              {primaryPayment?.provider_payment_intent_id?.slice(0, 18) ?? "—"}
+                            </p>
+                          </td>
+                          <td className="p-3">
+                            <select
+                              value={currentSelectValue}
+                              onChange={(e) => updateOrderStatus(o.id, e.target.value)}
+                              className="border border-brand-border bg-transparent px-2 py-1 text-xs"
+                              disabled={isFullyRefunded(totalAmount, settledRefundedAmount)}
+                            >
+                              {statusOptions.map((statusOption) => (
+                                <option key={statusOption} value={statusOption} className="bg-brand-surface capitalize">
+                                  {formatOrderStatusLabel(statusOption)}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="p-3 text-brand-gold">{formatPrice(totalAmount)}</td>
+                          <td className="p-3 text-[11px]">
+                            {effectiveRefunded <= 0 ? (
+                              <span className="text-brand-muted">—</span>
+                            ) : (
+                              <div className="space-y-1">
+                                <p className="text-brand-gold">
+                                  {formatPrice(effectiveRefunded)}
+                                  {hasPartialRefund(totalAmount, effectiveRefunded) && (
+                                    <span className="ml-1 text-brand-muted">
+                                      / {formatPrice(totalAmount)} (partial)
+                                    </span>
+                                  )}
+                                </p>
+                                {refundHistory.length > 0 && (
+                                  <ul className="space-y-1 text-brand-muted">
+                                    {refundHistory.map((entry) => (
+                                      <li key={entry.id}>{entry.label}</li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                          <td className="space-y-2 p-3">
+                            {primaryPayment?.provider === "airwallex" && (
+                              <button
+                                type="button"
+                                onClick={() => refreshPaymentStatus(o)}
+                                className="btn-secondary px-2 py-1 text-[11px]"
+                              >
+                                Refresh Payment
+                              </button>
+                            )}
+                            {canRefund ? (
+                              <div className="space-y-2">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  max={remainingToRefund}
+                                  placeholder="Amount"
+                                  value={refundDrafts[o.id]?.amount ?? ""}
+                                  onChange={(e) =>
+                                    setRefundDrafts((prev) => ({
+                                      ...prev,
+                                      [o.id]: { amount: e.target.value, reason: prev[o.id]?.reason ?? "" },
+                                    }))
+                                  }
+                                  className="w-full min-w-0 border border-brand-border bg-transparent px-2 py-1 text-xs sm:w-24"
+                                />
+                                <input
+                                  type="text"
+                                  placeholder="Reason (optional)"
+                                  value={refundDrafts[o.id]?.reason ?? ""}
+                                  onChange={(e) =>
+                                    setRefundDrafts((prev) => ({
+                                      ...prev,
+                                      [o.id]: { amount: prev[o.id]?.amount ?? "", reason: e.target.value },
+                                    }))
+                                  }
+                                  className="w-full min-w-28 border border-brand-border bg-transparent px-2 py-1 text-xs"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => createPartialRefund(o)}
+                                  className="btn-secondary px-2 py-1 text-[11px]"
+                                >
+                                  Refund
+                                </button>
+                                <p className="text-[11px] text-brand-muted">
+                                  Remaining: {formatPrice(remainingToRefund)}
+                                </p>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-brand-muted">Fully refunded</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -651,6 +760,7 @@ export default function AdminPage() {
             <Row label="Admin Email" value={adminEmail ?? "Not set"} />
             <Row label="Store Name" value="JQD Group" />
             <Row label="Currency" value="User selectable (USD/EUR/GBP/CAD/AUD)" />
+            <Row label="Airwallex Mode" value="Server-configured (default sandbox)" />
             <Row label="COD Fee" value={formatPrice(20)} />
             <Row label="Flat Shipping" value={formatPrice(15)} />
             <p className="pt-2 text-xs text-brand-muted">

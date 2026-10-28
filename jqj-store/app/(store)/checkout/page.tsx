@@ -1,15 +1,81 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, CreditCard, Truck } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
 import { createClient } from "@/lib/supabase/client";
+import { formatPrice } from "@/lib/utils";
 
 const SHIPPING_FLAT = 15;
 const COD_FEE = 20;
+const AIRWALLEX_SDK_SRC = "https://static.airwallex.com/components/sdk/v1/index.js";
+
+declare global {
+  interface Window {
+    AirwallexComponentsSDK?: {
+      init: (config: {
+        env: "demo" | "prod";
+        enabledElements: string[];
+      }) => Promise<{
+        payments: {
+          redirectToCheckout: (props: {
+            intent_id: string;
+            client_secret: string;
+            currency: string;
+            successUrl: string;
+            failUrl?: string;
+            cancelUrl?: string;
+            country_code?: string;
+          }) => Promise<void> | void;
+        };
+      }>;
+    };
+  }
+}
+
+async function loadAirwallexSdk() {
+  if (window.AirwallexComponentsSDK) {
+    return window.AirwallexComponentsSDK;
+  }
+
+  const existing = document.querySelector<HTMLScriptElement>(
+    'script[data-airwallex-sdk="true"]'
+  );
+  if (existing) {
+    await new Promise<void>((resolve, reject) => {
+      if (window.AirwallexComponentsSDK) {
+        resolve();
+        return;
+      }
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener(
+        "error",
+        () => reject(new Error("Failed to load Airwallex checkout SDK")),
+        { once: true }
+      );
+    });
+    if (window.AirwallexComponentsSDK) return window.AirwallexComponentsSDK;
+    throw new Error("Airwallex SDK is unavailable");
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = AIRWALLEX_SDK_SRC;
+    script.async = true;
+    script.setAttribute("data-airwallex-sdk", "true");
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Failed to load Airwallex checkout SDK"));
+    document.head.appendChild(script);
+  });
+
+  if (!window.AirwallexComponentsSDK) {
+    throw new Error("Airwallex SDK failed to initialize");
+  }
+  return window.AirwallexComponentsSDK;
+}
 
 const countries = [
   "United States",
@@ -25,9 +91,13 @@ const countries = [
 export default function CheckoutPage() {
   const { items, subtotal, clearCart } = useCart();
   const { currency, formatFromUsd } = useCurrency();
+  const checkoutAttemptIdRef = useRef<string>(crypto.randomUUID());
   const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
-  const [method, setMethod] = useState<"stripe" | "cod">("stripe");
+  const [method, setMethod] = useState<"airwallex" | "cod">("airwallex");
   const [loading, setLoading] = useState(false);
+  const [paymentStage, setPaymentStage] = useState<
+    "idle" | "creating_payment" | "redirecting_to_airwallex"
+  >("idle");
   const [error, setError] = useState<string | null>(null);
   const [stockErrors, setStockErrors] = useState<string[]>([]);
   const [checkingStock, setCheckingStock] = useState(false);
@@ -96,10 +166,13 @@ export default function CheckoutPage() {
   const codFee = method === "cod" ? COD_FEE : 0;
   const shipping = items.length ? SHIPPING_FLAT : 0;
   const total = subtotal + shipping + codFee;
-  const subtotalInCurrency = formatFromUsd(subtotal);
-  const shippingInCurrency = formatFromUsd(shipping);
-  const codFeeInCurrency = formatFromUsd(codFee);
-  const totalInCurrency = formatFromUsd(total);
+  const chargeCurrency = method === "airwallex" ? "USD" : currency;
+  const formatCheckoutAmount = (amountUsd: number) =>
+    chargeCurrency === "USD" ? formatPrice(amountUsd, { currency: "USD" }) : formatFromUsd(amountUsd);
+  const subtotalInCurrency = formatCheckoutAmount(subtotal);
+  const shippingInCurrency = formatCheckoutAmount(shipping);
+  const codFeeInCurrency = formatCheckoutAmount(codFee);
+  const totalInCurrency = formatCheckoutAmount(total);
 
   const payloadItems = useMemo(
     () =>
@@ -148,17 +221,19 @@ export default function CheckoutPage() {
     }
 
     setLoading(true);
-    const idempotencyKey = crypto.randomUUID();
+    setPaymentStage(method === "airwallex" ? "creating_payment" : "idle");
+
+    const idempotencyKey = checkoutAttemptIdRef.current;
     const payload = {
       items: payloadItems,
       customer: form,
       shipping,
-      currency,
+      currency: method === "airwallex" ? "USD" : currency,
       idempotencyKey,
     };
 
     try {
-      const endpoint = method === "cod" ? "/api/checkout/cod" : "/api/checkout";
+      const endpoint = method === "cod" ? "/api/checkout/cod" : "/api/checkout/airwallex";
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -167,8 +242,36 @@ export default function CheckoutPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Checkout failed");
 
-      if (method === "stripe") {
-        window.location.href = data.url;
+      if (method === "airwallex") {
+        if (!data.intentId || !data.clientSecret || !data.orderId || !data.currency || !data.sdkEnv) {
+          throw new Error("Airwallex checkout payload is incomplete");
+        }
+
+        setPaymentStage("redirecting_to_airwallex");
+
+        const sdk = await loadAirwallexSdk();
+        const { payments } = await sdk.init({
+          env: data.sdkEnv,
+          enabledElements: ["payments"],
+        });
+        const successUrl = `${window.location.origin}/order-confirmation?provider=airwallex&order_id=${encodeURIComponent(
+          data.orderId
+        )}`;
+        const failUrl = `${window.location.origin}/order-confirmation?provider=airwallex&order_id=${encodeURIComponent(
+          data.orderId
+        )}&state=failed`;
+
+        await payments.redirectToCheckout({
+          intent_id: data.intentId,
+          client_secret: data.clientSecret,
+          currency: data.currency,
+          successUrl,
+          failUrl,
+          country_code: data.countryCode,
+        });
+        setLoading(false);
+        setPaymentStage("idle");
+        setError("Unable to redirect to Airwallex checkout. Please try again.");
       } else {
         clearCart();
         window.location.href = `/order-confirmation?order_id=${data.orderId}&method=cod`;
@@ -176,6 +279,7 @@ export default function CheckoutPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setLoading(false);
+      setPaymentStage("idle");
     }
   }
 
@@ -266,20 +370,31 @@ export default function CheckoutPage() {
           <section className="mb-8">
             <h2 className="mb-4 font-heading text-sm uppercase tracking-wider2">Payment</h2>
             <div className="space-y-3">
-              <label className={`flex cursor-pointer items-center gap-3 border p-4 ${method === "stripe" ? "border-brand-gold" : "border-brand-border"}`}>
-                <input type="radio" name="method" checked={method === "stripe"} onChange={() => setMethod("stripe")} className="accent-brand-gold" />
-                <span className="text-sm">Credit / Debit Card (Stripe)</span>
+              <label className={`flex cursor-pointer items-center gap-3 border p-4 ${method === "airwallex" ? "border-brand-gold" : "border-brand-border"}`}>
+                <input type="radio" name="method" checked={method === "airwallex"} onChange={() => setMethod("airwallex")} className="accent-brand-gold" />
+                <span className="text-sm">Credit / Debit Card (Airwallex Hosted Checkout)</span>
               </label>
               <label className={`flex cursor-pointer items-center gap-3 border p-4 ${method === "cod" ? "border-brand-gold" : "border-brand-border"}`}>
                 <input type="radio" name="method" checked={method === "cod"} onChange={() => setMethod("cod")} className="accent-brand-gold" />
-                <span className="text-sm">Cash on Delivery (+{formatFromUsd(COD_FEE)} fee)</span>
+                <span className="text-sm">Cash on Delivery (+{codFeeInCurrency} fee)</span>
               </label>
             </div>
+            {method === "airwallex" && (
+              <p className="mt-3 text-xs text-brand-muted">
+                Airwallex sandbox checkout currently charges in USD only.
+              </p>
+            )}
           </section>
 
           {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
           {!error && stockErrors.length > 0 && (
             <p className="mb-4 text-sm text-red-400">{stockErrors[0]}</p>
+          )}
+          {!error && paymentStage === "creating_payment" && (
+            <p className="mb-4 text-sm text-brand-muted">Creating secure payment session…</p>
+          )}
+          {!error && paymentStage === "redirecting_to_airwallex" && (
+            <p className="mb-4 text-sm text-brand-muted">Redirecting to Airwallex secure checkout…</p>
           )}
 
           <div className="flex flex-col-reverse items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -291,7 +406,7 @@ export default function CheckoutPage() {
               disabled={loading || checkingStock || stockErrors.length > 0}
               className="btn-gold disabled:opacity-60"
             >
-              {loading ? "Processing…" : method === "cod" ? "Place Order" : "Continue to Payment"}
+              {loading ? "Processing…" : method === "cod" ? "Place Order" : "Continue to Secure Payment"}
             </button>
           </div>
         </form>
