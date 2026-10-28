@@ -1,7 +1,11 @@
+import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
 
-export const metadata = {
-  title: "Privacy Policy — JQD Group",
+export const metadata: Metadata = {
+  title: "Privacy Policy",
+  description:
+    "Read the JQD Group privacy policy for information about the data we collect, how we use it, and your privacy choices.",
+  alternates: { canonical: "/privacy" },
 };
 
 export default function PrivacyPage() {

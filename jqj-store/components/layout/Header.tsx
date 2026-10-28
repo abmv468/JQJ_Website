@@ -16,11 +16,9 @@ const navLinks = [
   { label: "Limited Edition", href: "/bracelets?tag=limited" },
   { label: "Bracelets", href: "/bracelets" },
   { label: "Necklaces", href: "/necklaces" },
-  { label: "Rings", href: "/rings" },
-  { label: "Earrings", href: "/earrings" },
 ];
 
-type MegaMenuKey = "bracelets" | "necklaces" | "earrings" | "rings";
+type MegaMenuKey = "bracelets" | "necklaces";
 
 type CategoryRoute = MegaMenuKey;
 
@@ -51,56 +49,6 @@ const tagHref = (category: CategoryRoute, tag: string) =>
   `/${category}?tag=${encodeURIComponent(tag)}`;
 
 const megaMenus: Record<MegaMenuKey, MegaMenuConfig> = {
-  earrings: {
-    key: "earrings",
-    label: "Earrings",
-    columns: [
-      {
-        title: "Style",
-        items: [
-          { label: "Drops & Dangles", href: queryHref("earrings", "Drops and Dangles") },
-          { label: "Hoops & Huggies", href: queryHref("earrings", "Hoops and Huggies") },
-          { label: "Solitaire", href: queryHref("earrings", "Solitaire") },
-          { label: "Piercing Earrings", href: queryHref("earrings", "Piercing Earrings") },
-          { label: "Studs", href: queryHref("earrings", "Stud Earrings") },
-          { label: "Suspenders", href: queryHref("earrings", "Ear Suspenders") },
-          { label: "Threaders", href: queryHref("earrings", "Threader Earrings") },
-        ],
-      },
-      {
-        title: "Collection",
-        items: [
-          { label: "Bestsellers", href: tagHref("earrings", "top-rated") },
-          { label: "Birthstones Series", href: queryHref("earrings", "Birthstones") },
-          { label: "Pearl Collective", href: queryHref("earrings", "Pearl") },
-          { label: "Sensitive Essentials", href: queryHref("earrings", "Sensitive Essentials") },
-          { label: "Waterproof Edit", href: queryHref("earrings", "Waterproof") },
-        ],
-      },
-      {
-        title: "Material",
-        items: [
-          { label: "925 Silver Post", href: queryHref("earrings", "925 Silver Post") },
-          { label: "Surgical Steel Post", href: queryHref("earrings", "Surgical Steel Post") },
-          { label: "Titanium Post", href: queryHref("earrings", "Titanium Post") },
-        ],
-      },
-      {
-        title: "Finishing Colour",
-        items: [
-          { label: "Silver", href: queryHref("earrings", "Silver") },
-          { label: "Gold", href: queryHref("earrings", "Gold") },
-          { label: "Rose Gold", href: queryHref("earrings", "Rose Gold") },
-        ],
-      },
-    ],
-    card: {
-      title: "ALL Earrings",
-      href: "/earrings",
-      image: "/products/blue-lace-agate-silver-pendant-1.jpg",
-      alt: "Earrings collection",
-    },
-  },
   necklaces: {
     key: "necklaces",
     label: "Necklaces",
@@ -141,7 +89,7 @@ const megaMenus: Record<MegaMenuKey, MegaMenuConfig> = {
     card: {
       title: "All Necklaces",
       href: "/necklaces",
-      image: "/products/pearl-silver-necklace-v-1.jpg",
+      image: "/products/main-hover-card-necklaces.jpg",
       alt: "Necklaces collection",
     },
   },
@@ -176,56 +124,8 @@ const megaMenus: Record<MegaMenuKey, MegaMenuConfig> = {
     card: {
       title: "All Bracelets",
       href: "/bracelets",
-      image: "/products/sodalite-bracelet-viii-1.jpg",
+      image: "/products/main-hover-card-bracelets.jpg",
       alt: "Bracelets collection",
-    },
-  },
-  rings: {
-    key: "rings",
-    label: "Rings",
-    columns: [
-      {
-        title: "Style",
-        items: [
-          { label: "Solitaire Rings", href: queryHref("rings", "Solitaire Rings") },
-          { label: "Statement Rings", href: queryHref("rings", "Statement Rings") },
-          { label: "Stacking Rings", href: queryHref("rings", "Stacking Rings") },
-          { label: "Signet Rings", href: queryHref("rings", "Signet Rings") },
-          { label: "Open Rings", href: queryHref("rings", "Open Rings") },
-        ],
-      },
-      {
-        title: "Collection",
-        items: [
-          { label: "Bestsellers", href: tagHref("rings", "top-rated") },
-          { label: "New In", href: tagHref("rings", "new") },
-          { label: "Limited Edition", href: tagHref("rings", "limited") },
-          { label: "Birthstones", href: queryHref("rings", "Birthstones") },
-          { label: "Waterproof Edit", href: queryHref("rings", "Waterproof") },
-        ],
-      },
-      {
-        title: "Material",
-        items: [
-          { label: "Sterling Silver", href: queryHref("rings", "Sterling Silver") },
-          { label: "Gold Vermeil", href: queryHref("rings", "Gold Vermeil") },
-          { label: "Mixed Metal", href: queryHref("rings", "Mixed Metal") },
-        ],
-      },
-      {
-        title: "Finishing Colour",
-        items: [
-          { label: "Silver", href: queryHref("rings", "Silver") },
-          { label: "Gold", href: queryHref("rings", "Gold") },
-          { label: "Rose Gold", href: queryHref("rings", "Rose Gold") },
-        ],
-      },
-    ],
-    card: {
-      title: "All Rings",
-      href: "/rings",
-      image: "/products/silver-bracelet-iv-2.jpg",
-      alt: "Rings collection",
     },
   },
 };
@@ -397,8 +297,8 @@ export default function Header() {
     event.preventDefault();
     const query = searchQuery.trim();
     const target = query
-      ? `/bracelets?q=${encodeURIComponent(query)}#catalog-search`
-      : "/bracelets#catalog-search";
+      ? `/new?q=${encodeURIComponent(query)}#catalog-search`
+      : "/new#catalog-search";
     router.push(target);
     setSearchOpen(false);
   }

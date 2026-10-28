@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Admin — JQD Group",
+  robots: { index: false, follow: false },
 };
 
 // Admin is intentionally isolated from the store shell (no CartProvider,

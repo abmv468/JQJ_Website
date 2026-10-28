@@ -87,7 +87,9 @@ export const products: Product[] = [
     stone: "Carnelian",
     features: baseFeatures,
     specs: {
+      Color: "Red",
       "Bead Size": "6mm",
+      "Bead Shape": "Round",
       Stone: "Red Leopard Skin Jasper",
       Clasp: "Sterling Silver",
       Origin: "Hand-made",
@@ -117,7 +119,9 @@ export const products: Product[] = [
     stone: "Tourmaline",
     features: baseFeatures,
     specs: {
+      Color: "Brown",
       "Bead Size": "8-10mm",
+      "Bead Shape": "Irregular",
       Stone: "Raw Brown Tourmaline",
       Clasp: "Sterling Silver",
       Origin: "Hand-made",
@@ -143,7 +147,9 @@ export const products: Product[] = [
     stone: "Sodalite",
     features: baseFeatures,
     specs: {
+      Color: "Blue",
       "Bead Size": "4mm",
+      "Bead Shape": "Round",
       Stone: "Sodalite",
       Clasp: "Sterling Silver",
       Origin: "Hand-made",
@@ -169,7 +175,9 @@ export const products: Product[] = [
     stone: "Amethyst",
     features: baseFeatures,
     specs: {
+      Color: "Purple",
       "Bead Size": "5mm",
+      "Bead Shape": "Round",
       Stone: "Amethyst",
       Clasp: "Sterling Silver",
       Origin: "Hand-made",
@@ -195,7 +203,9 @@ export const products: Product[] = [
     stone: "Tiger Eye",
     features: baseFeatures,
     specs: {
+      Color: "Silver",
       "Bead Size": "4mm",
+      "Bead Shape": "Round",
       Stone: "Hematite Silver",
       Clasp: "Sterling Silver",
       Origin: "Hand-made",
@@ -221,7 +231,9 @@ export const products: Product[] = [
     stone: "Lapis Lazuli",
     features: baseFeatures,
     specs: {
+      Color: "Gray",
       "Bead Size": "8mm",
+      "Bead Shape": "Round",
       Stone: "Labradorite",
       Clasp: "Sterling Silver",
       Origin: "Hand-made",

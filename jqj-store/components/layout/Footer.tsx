@@ -1,5 +1,7 @@
+"use client";
+
 import Link from "next/link";
-import { Facebook, Instagram, Twitter } from "lucide-react";
+import { FormEvent, useState } from "react";
 
 const columns = [
   {
@@ -21,8 +23,6 @@ const columns = [
       { label: "Shop All", href: "/new" },
       { label: "Bracelets", href: "/bracelets" },
       { label: "Necklaces", href: "/necklaces" },
-      { label: "Rings", href: "/rings" },
-      { label: "Earrings", href: "/earrings" },
     ],
   },
   {
@@ -35,13 +35,37 @@ const columns = [
   },
 ];
 
-const socialLinks = [
-  { label: "Facebook", href: "#", icon: Facebook },
-  { label: "Twitter", href: "#", icon: Twitter },
-  { label: "Instagram", href: "#", icon: Instagram },
-];
-
 export default function Footer() {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [message, setMessage] = useState("");
+
+  async function handleSubscribe(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setStatus("submitting");
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = (await response.json()) as { message?: string; error?: string };
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "We could not subscribe you. Please try again.");
+      }
+
+      setStatus("success");
+      setMessage(data.message ?? "You are on the list.");
+      setEmail("");
+    } catch (error) {
+      setStatus("error");
+      setMessage(error instanceof Error ? error.message : "We could not subscribe you. Please try again.");
+    }
+  }
+
   return (
     <footer className="mt-16 border-t border-white/8 bg-black">
       <div className="container-site grid grid-cols-2 gap-10 py-16 md:grid-cols-4">
@@ -79,16 +103,31 @@ export default function Footer() {
             New gemstone edits, limited drops, and collector releases—sent
             sparingly.
           </p>
-          <form className="space-y-3">
+          <form className="space-y-3" onSubmit={handleSubscribe}>
             <input
               type="email"
-              placeholder="E-mail"
+              name="email"
+              autoComplete="email"
+              spellCheck={false}
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="Email address"
               className="input-field"
-              aria-label="Email"
+              aria-label="Email address"
+              required
+              disabled={status === "submitting"}
             />
-            <button type="submit" className="btn-gold w-full">
-              Subscribe
+            <button type="submit" className="btn-gold w-full" disabled={status === "submitting"}>
+              {status === "submitting" ? "Subscribing…" : "Subscribe"}
             </button>
+            <p
+              aria-live="polite"
+              className={`min-h-5 text-xs ${
+                status === "error" ? "text-red-300" : "text-white/56"
+              }`}
+            >
+              {message}
+            </p>
           </form>
         </div>
       </div>
@@ -101,13 +140,6 @@ export default function Footer() {
           >
             © {new Date().getFullYear()} — JQD Group
           </p>
-          <div className="flex items-center gap-3">
-            {socialLinks.map(({ label, href, icon: Icon }) => (
-              <Link key={label} href={href} aria-label={label} className="icon-button h-10 w-10">
-                <Icon className="h-4 w-4" />
-              </Link>
-            ))}
-          </div>
           <p className="text-center text-xs text-white/56">
             Hand-finished natural stone pieces designed for everyday ritual.
           </p>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, LayoutGrid, Rows3, Search, SlidersHorizontal, X } from "lucide-react";
 import type { Product, ProductTag } from "@/data/products";
+import { formatPrice } from "@/lib/utils";
 import ProductCard from "./ProductCard";
 
 const filterGroups = [
@@ -15,7 +16,64 @@ const filterGroups = [
   "Bead Shape",
   "Gems",
   "Birthstones",
+] as const;
+
+type FilterGroup = (typeof filterGroups)[number];
+type FacetOption = { value: string; count: number };
+
+const colorSwatches: Record<string, string> = {
+  Black: "#111111",
+  Blue: "#345d8f",
+  Brown: "#76523a",
+  Gray: "#8d9290",
+  Green: "#557c65",
+  Purple: "#704b86",
+  Red: "#9a4441",
+  Silver: "#b9bec3",
+  White: "#f1f1ee",
+};
+
+const birthstoneMonths: Array<{ month: string; stones: string[] }> = [
+  { month: "January", stones: ["Garnet"] },
+  { month: "February", stones: ["Amethyst"] },
+  { month: "March", stones: ["Aquamarine"] },
+  { month: "April", stones: ["Diamond"] },
+  { month: "May", stones: ["Emerald"] },
+  { month: "June", stones: ["Pearl"] },
+  { month: "July", stones: ["Ruby"] },
+  { month: "August", stones: ["Peridot"] },
+  { month: "September", stones: ["Sapphire"] },
+  { month: "October", stones: ["Opal", "Tourmaline"] },
+  { month: "November", stones: ["Citrine", "Topaz"] },
+  { month: "December", stones: ["Tanzanite", "Turquoise", "Zircon"] },
 ];
+
+function getPreciousMetal(product: Product) {
+  const material = product.specs.Clasp ?? product.specs.Metal ?? "";
+  if (/gold/i.test(material)) return "Gold";
+  if (/silver/i.test(material)) return "Silver";
+  return undefined;
+}
+
+function getBirthstoneMonth(product: Product) {
+  const stone = product.specs.Stone ?? product.stone;
+  return birthstoneMonths.find(({ stones }) =>
+    stones.some((birthstone) => stone.toLowerCase().includes(birthstone.toLowerCase()))
+  )?.month;
+}
+
+function getFacetOptions(products: Product[], getValue: (product: Product) => string | undefined) {
+  const counts = new Map<string, number>();
+
+  products.forEach((product) => {
+    const value = getValue(product);
+    if (value) counts.set(value, (counts.get(value) ?? 0) + 1);
+  });
+
+  return Array.from(counts, ([value, count]) => ({ value, count })).sort((a, b) =>
+    a.value.localeCompare(b.value, undefined, { numeric: true })
+  );
+}
 
 const PAGE_SIZE = 6;
 
@@ -25,6 +83,12 @@ type SortKey =
   | "price-desc"
   | "rating"
   | "newest";
+
+type EditorialSection = {
+  title: string;
+  paragraphs: string[];
+  links?: Array<{ label: string; href: string }>;
+};
 
 const sortOptions: { value: SortKey; label: string }[] = [
   { value: "featured", label: "Featured" },
@@ -41,6 +105,7 @@ export default function CollectionView({
   emptyDescription,
   subtitle,
   products,
+  editorialSections,
   initialStone,
   initialTag,
   initialQuery,
@@ -51,6 +116,7 @@ export default function CollectionView({
   emptyDescription?: string;
   subtitle?: string;
   products: Product[];
+  editorialSections?: EditorialSection[];
   initialStone?: string;
   initialTag?: string;
   initialQuery?: string;
@@ -66,6 +132,17 @@ export default function CollectionView({
   const [stone, setStone] = useState<string | undefined>(initialStone);
   const [tag, setTag] = useState<ProductTag | undefined>(normalizedInitialTag);
   const [inStockOnly, setInStockOnly] = useState(false);
+  const priceBounds = useMemo<[number, number]>(() => {
+    if (products.length === 0) return [0, 0];
+    const prices = products.map((product) => product.price);
+    return [Math.floor(Math.min(...prices)), Math.ceil(Math.max(...prices))];
+  }, [products]);
+  const [selectedColors, setSelectedColors] = useState<string[]>([]);
+  const [priceRange, setPriceRange] = useState<[number, number]>(() => priceBounds);
+  const [selectedBeadSizes, setSelectedBeadSizes] = useState<string[]>([]);
+  const [selectedMetals, setSelectedMetals] = useState<string[]>([]);
+  const [selectedBeadShapes, setSelectedBeadShapes] = useState<string[]>([]);
+  const [selectedBirthstones, setSelectedBirthstones] = useState<string[]>([]);
   const [openGroup, setOpenGroup] = useState<string | null>("Gems");
   const [sortOpen, setSortOpen] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
@@ -73,6 +150,27 @@ export default function CollectionView({
 
   const stones = useMemo(
     () => Array.from(new Set(products.map((p) => p.stone))).sort(),
+    [products]
+  );
+
+  const colorOptions = useMemo(
+    () => getFacetOptions(products, (product) => product.specs.Color),
+    [products]
+  );
+  const beadSizeOptions = useMemo(
+    () => getFacetOptions(products, (product) => product.specs["Bead Size"]),
+    [products]
+  );
+  const metalOptions = useMemo(
+    () => getFacetOptions(products, getPreciousMetal),
+    [products]
+  );
+  const beadShapeOptions = useMemo(
+    () => getFacetOptions(products, (product) => product.specs["Bead Shape"]),
+    [products]
+  );
+  const birthstoneOptions = useMemo(
+    () => getFacetOptions(products, getBirthstoneMonth),
     [products]
   );
 
@@ -87,11 +185,35 @@ export default function CollectionView({
 
     if (stone) list = list.filter((p) => p.stone === stone);
     if (tag) list = list.filter((p) => p.tags.includes(tag));
+    if (selectedColors.length) {
+      list = list.filter((product) => selectedColors.includes(product.specs.Color ?? ""));
+    }
+    list = list.filter(
+      (product) => product.price >= priceRange[0] && product.price <= priceRange[1]
+    );
+    if (selectedBeadSizes.length) {
+      list = list.filter((product) =>
+        selectedBeadSizes.includes(product.specs["Bead Size"] ?? "")
+      );
+    }
+    if (selectedMetals.length) {
+      list = list.filter((product) => selectedMetals.includes(getPreciousMetal(product) ?? ""));
+    }
+    if (selectedBeadShapes.length) {
+      list = list.filter((product) =>
+        selectedBeadShapes.includes(product.specs["Bead Shape"] ?? "")
+      );
+    }
+    if (selectedBirthstones.length) {
+      list = list.filter((product) =>
+        selectedBirthstones.includes(getBirthstoneMonth(product) ?? "")
+      );
+    }
     if (inStockOnly) list = list.filter((p) => p.inStock);
     if (normalizedQuery) {
       list = list.filter((p) => {
         const haystack =
-          `${p.name} ${p.description} ${p.stone} ${p.tags.join(" ")}`.toLowerCase();
+          `${p.name} ${p.description} ${p.stone} ${p.tags.join(" ")} ${Object.values(p.specs).join(" ")}`.toLowerCase();
         return haystack.includes(normalizedQuery);
       });
     }
@@ -119,7 +241,21 @@ export default function CollectionView({
         break;
     }
     return list;
-  }, [products, stone, tag, inStockOnly, query, sort, indexById]);
+  }, [
+    products,
+    stone,
+    tag,
+    selectedColors,
+    priceRange,
+    selectedBeadSizes,
+    selectedMetals,
+    selectedBeadShapes,
+    selectedBirthstones,
+    inStockOnly,
+    query,
+    sort,
+    indexById,
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const start = (page - 1) * PAGE_SIZE;
@@ -127,7 +263,27 @@ export default function CollectionView({
 
   useEffect(() => {
     setPage(1);
-  }, [query, sort, stone, tag, inStockOnly]);
+  }, [
+    query,
+    sort,
+    stone,
+    tag,
+    selectedColors,
+    priceRange,
+    selectedBeadSizes,
+    selectedMetals,
+    selectedBeadShapes,
+    selectedBirthstones,
+    inStockOnly,
+  ]);
+
+  useEffect(() => {
+    setPriceRange((current) => {
+      const nextMin = Math.max(priceBounds[0], Math.min(current[0], priceBounds[1]));
+      const nextMax = Math.max(priceBounds[0], Math.min(current[1], priceBounds[1]));
+      return [Math.min(nextMin, nextMax), Math.max(nextMin, nextMax)];
+    });
+  }, [priceBounds]);
 
   useEffect(() => {
     setStone(initialStone);
@@ -160,6 +316,12 @@ export default function CollectionView({
     setQuery("");
     setStone(undefined);
     setTag(undefined);
+    setSelectedColors([]);
+    setPriceRange(priceBounds);
+    setSelectedBeadSizes([]);
+    setSelectedMetals([]);
+    setSelectedBeadShapes([]);
+    setSelectedBirthstones([]);
     setInStockOnly(false);
     setSort("featured");
     setOpenGroup("Gems");
@@ -170,6 +332,201 @@ export default function CollectionView({
     (p) => Math.abs(p - page) <= 2 || p === 1 || p === totalPages
   );
   const displayTitle = limitedTitle && tag === "limited" ? limitedTitle : title;
+
+  const toggleFacetValue = (
+    value: string,
+    selected: string[],
+    setSelected: (values: string[]) => void
+  ) => {
+    setSelected(
+      selected.includes(value)
+        ? selected.filter((selectedValue) => selectedValue !== value)
+        : [...selected, value]
+    );
+  };
+
+  const updateMinimumPrice = (value: number) => {
+    if (!Number.isFinite(value)) return;
+    const nextMinimum = Math.max(priceBounds[0], Math.min(value, priceRange[1]));
+    setPriceRange([nextMinimum, priceRange[1]]);
+  };
+
+  const updateMaximumPrice = (value: number) => {
+    if (!Number.isFinite(value)) return;
+    const nextMaximum = Math.min(priceBounds[1], Math.max(value, priceRange[0]));
+    setPriceRange([priceRange[0], nextMaximum]);
+  };
+
+  const renderCheckboxFacet = (
+    options: FacetOption[],
+    selected: string[],
+    setSelected: (values: string[]) => void,
+    withSwatches = false
+  ) => {
+    if (options.length === 0) {
+      return <p className="pb-4 text-xs text-brand-muted">No options available.</p>;
+    }
+
+    return (
+      <div className="flex flex-col gap-2 pb-4">
+        {options.map((option) => (
+          <label
+            key={option.value}
+            className="flex cursor-pointer items-center gap-2 text-xs text-brand-muted transition-colors hover:text-white"
+          >
+            <input
+              type="checkbox"
+              checked={selected.includes(option.value)}
+              onChange={() => toggleFacetValue(option.value, selected, setSelected)}
+              className="h-4 w-4 shrink-0 accent-brand-gold"
+            />
+            {withSwatches && (
+              <span
+                aria-hidden="true"
+                className="h-3.5 w-3.5 shrink-0 rounded-full border border-white/20"
+                style={{ backgroundColor: colorSwatches[option.value] ?? "#7d817e" }}
+              />
+            )}
+            <span className="flex-1">{option.value}</span>
+            <span className="text-brand-muted/70">({option.count})</span>
+          </label>
+        ))}
+      </div>
+    );
+  };
+
+  const renderFilterPanel = (group: FilterGroup) => {
+    switch (group) {
+      case "Color":
+        return renderCheckboxFacet(colorOptions, selectedColors, setSelectedColors, true);
+      case "Price":
+        return (
+          <div className="space-y-3 pb-4">
+            <div className="flex items-center justify-between text-[11px] text-brand-muted">
+              <span>{formatPrice(priceRange[0])}</span>
+              <span>{formatPrice(priceRange[1])}</span>
+            </div>
+            <div className="space-y-2">
+              <input
+                aria-label="Minimum price"
+                type="range"
+                min={priceBounds[0]}
+                max={priceBounds[1]}
+                value={priceRange[0]}
+                onChange={(event) => updateMinimumPrice(Number(event.target.value))}
+                className="h-2 w-full cursor-pointer accent-brand-gold"
+              />
+              <input
+                aria-label="Maximum price"
+                type="range"
+                min={priceBounds[0]}
+                max={priceBounds[1]}
+                value={priceRange[1]}
+                onChange={(event) => updateMaximumPrice(Number(event.target.value))}
+                className="h-2 w-full cursor-pointer accent-brand-gold"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="border border-brand-border px-2 py-2 text-xs text-brand-muted focus-within:border-brand-gold">
+                <span className="sr-only">Minimum price</span>
+                <span aria-hidden="true" className="mr-1">$</span>
+                <input
+                  type="number"
+                  min={priceBounds[0]}
+                  max={priceRange[1]}
+                  value={priceRange[0]}
+                  onChange={(event) => updateMinimumPrice(Number(event.target.value))}
+                  className="w-full bg-transparent text-right text-xs text-white outline-none"
+                />
+              </label>
+              <label className="border border-brand-border px-2 py-2 text-xs text-brand-muted focus-within:border-brand-gold">
+                <span className="sr-only">Maximum price</span>
+                <span aria-hidden="true" className="mr-1">$</span>
+                <input
+                  type="number"
+                  min={priceRange[0]}
+                  max={priceBounds[1]}
+                  value={priceRange[1]}
+                  onChange={(event) => updateMaximumPrice(Number(event.target.value))}
+                  className="w-full bg-transparent text-right text-xs text-white outline-none"
+                />
+              </label>
+            </div>
+          </div>
+        );
+      case "Availability":
+        return (
+          <div className="pb-4">
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-brand-muted hover:text-white">
+              <input
+                type="checkbox"
+                checked={inStockOnly}
+                onChange={(event) => setInStockOnly(event.target.checked)}
+                className="h-4 w-4 accent-brand-gold"
+              />
+              <span>In stock only</span>
+            </label>
+          </div>
+        );
+      case "Bead Size":
+        return renderCheckboxFacet(beadSizeOptions, selectedBeadSizes, setSelectedBeadSizes);
+      case "Precious Metal":
+        return renderCheckboxFacet(metalOptions, selectedMetals, setSelectedMetals);
+      case "Bead Shape":
+        return renderCheckboxFacet(beadShapeOptions, selectedBeadShapes, setSelectedBeadShapes);
+      case "Gems":
+        return (
+          <div className="flex flex-col gap-2 pb-4">
+            <button
+              type="button"
+              onClick={() => setStone(undefined)}
+              className={`text-left text-xs ${
+                !stone ? "text-brand-gold" : "text-brand-muted hover:text-white"
+              }`}
+            >
+              All
+            </button>
+            {stones.map((stoneOption) => (
+              <button
+                key={stoneOption}
+                type="button"
+                onClick={() => setStone(stoneOption)}
+                className={`text-left text-xs ${
+                  stone === stoneOption ? "text-brand-gold" : "text-brand-muted hover:text-white"
+                }`}
+              >
+                {stoneOption}
+              </button>
+            ))}
+          </div>
+        );
+      case "Birthstones":
+        return renderCheckboxFacet(
+          birthstoneOptions,
+          selectedBirthstones,
+          setSelectedBirthstones
+        );
+    }
+  };
+
+  const renderFilterGroup = (group: FilterGroup) => (
+    <li key={group} className="border-b border-brand-border/60">
+      <button
+        type="button"
+        aria-expanded={openGroup === group}
+        className="flex w-full items-center justify-between py-3 text-xs uppercase tracking-wider2 text-white/80 hover:text-white"
+        onClick={() => setOpenGroup(openGroup === group ? null : group)}
+      >
+        {group}
+        <ChevronDown
+          className={`h-4 w-4 transition-transform ${
+            openGroup === group ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+      {openGroup === group && renderFilterPanel(group)}
+    </li>
+  );
 
   return (
     <div className="container-site py-12">
@@ -291,62 +648,7 @@ export default function CollectionView({
               </button>
             </div>
 
-            <ul className="space-y-1">
-              {filterGroups.map((g) => (
-                <li key={g} className="border-b border-brand-border/60">
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between py-3 text-xs uppercase tracking-wider2 text-white/80 hover:text-white"
-                    onClick={() => setOpenGroup(openGroup === g ? null : g)}
-                  >
-                    {g}
-                    <ChevronDown
-                      className={`h-4 w-4 transition-transform ${
-                        openGroup === g ? "rotate-180" : ""
-                      }`}
-                    />
-                  </button>
-                  {openGroup === g && g === "Gems" && (
-                    <div className="flex flex-col gap-2 pb-4">
-                      <button
-                        type="button"
-                        onClick={() => setStone(undefined)}
-                        className={`text-left text-xs ${
-                          !stone ? "text-brand-gold" : "text-brand-muted hover:text-white"
-                        }`}
-                      >
-                        All
-                      </button>
-                      {stones.map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => setStone(s)}
-                          className={`text-left text-xs ${
-                            stone === s ? "text-brand-gold" : "text-brand-muted hover:text-white"
-                          }`}
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {openGroup === g && g === "Availability" && (
-                    <div className="pb-4">
-                      <label className="flex cursor-pointer items-center gap-2 text-xs text-brand-muted hover:text-white">
-                        <input
-                          type="checkbox"
-                          checked={inStockOnly}
-                          onChange={(e) => setInStockOnly(e.target.checked)}
-                          className="h-4 w-4 accent-brand-gold"
-                        />
-                        In stock only
-                      </label>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <ul className="space-y-1">{filterGroups.map(renderFilterGroup)}</ul>
 
             <button
               type="button"
@@ -364,62 +666,7 @@ export default function CollectionView({
 
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-[220px_1fr]">
         <aside className="hidden lg:block">
-          <ul className="space-y-1">
-            {filterGroups.map((g) => (
-              <li key={g} className="border-b border-brand-border/60">
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between py-3 text-xs uppercase tracking-wider2 text-white/80 hover:text-white"
-                  onClick={() => setOpenGroup(openGroup === g ? null : g)}
-                >
-                  {g}
-                  <ChevronDown
-                    className={`h-4 w-4 transition-transform ${
-                      openGroup === g ? "rotate-180" : ""
-                    }`}
-                  />
-                </button>
-                {openGroup === g && g === "Gems" && (
-                  <div className="flex flex-col gap-2 pb-4">
-                    <button
-                      type="button"
-                      onClick={() => setStone(undefined)}
-                      className={`text-left text-xs ${
-                        !stone ? "text-brand-gold" : "text-brand-muted hover:text-white"
-                      }`}
-                    >
-                      All
-                    </button>
-                    {stones.map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => setStone(s)}
-                        className={`text-left text-xs ${
-                          stone === s ? "text-brand-gold" : "text-brand-muted hover:text-white"
-                        }`}
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {openGroup === g && g === "Availability" && (
-                  <div className="pb-4">
-                    <label className="flex cursor-pointer items-center gap-2 text-xs text-brand-muted hover:text-white">
-                      <input
-                        type="checkbox"
-                        checked={inStockOnly}
-                        onChange={(e) => setInStockOnly(e.target.checked)}
-                        className="h-4 w-4 accent-brand-gold"
-                      />
-                      In stock only
-                    </label>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
+          <ul className="space-y-1">{filterGroups.map(renderFilterGroup)}</ul>
           <button
             type="button"
             onClick={clearFilters}
@@ -517,6 +764,38 @@ export default function CollectionView({
           )}
         </div>
       </div>
+
+      {editorialSections && editorialSections.length > 0 && (
+        <section className="mt-20 border-t border-brand-border pt-12">
+          <div className="mx-auto grid max-w-5xl gap-10 md:grid-cols-2">
+            {editorialSections.map((section) => (
+              <article key={section.title}>
+                <h2 className="font-heading text-xl uppercase tracking-wider2 text-white">
+                  {section.title}
+                </h2>
+                <div className="mt-4 space-y-3 text-sm leading-7 text-brand-muted">
+                  {section.paragraphs.map((paragraph) => (
+                    <p key={paragraph}>{paragraph}</p>
+                  ))}
+                </div>
+                {section.links && section.links.length > 0 && (
+                  <div className="mt-5 flex flex-wrap gap-x-5 gap-y-3">
+                    {section.links.map((link) => (
+                      <Link
+                        key={link.href}
+                        href={link.href}
+                        className="text-xs uppercase tracking-wider2 text-brand-gold transition-colors hover:text-brand-gold-light"
+                      >
+                        {link.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

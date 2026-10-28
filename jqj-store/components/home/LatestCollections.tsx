@@ -5,13 +5,13 @@ import { products } from "@/data/products";
 
 // Build "collection" cards from available product imagery.
 const collections = [
-  { name: "Sodalite Signature", image: products[2].images[0], href: "/bracelets" },
-  { name: "Raw Tourmaline", image: products[1].images[0], href: "/bracelets" },
-  { name: "Jasper Heritage", image: products[0].images[0], href: "/bracelets" },
-  { name: "Labradorite Light", image: products[5].images[0], href: "/bracelets" },
-  { name: "Amethyst Studio", image: products[3].images[0], href: "/bracelets" },
-  { name: "Silver Minimal", image: products[4].images[0], href: "/bracelets" },
-  { name: "Pearl Atelier", image: products[8].images[0], href: "/necklaces" },
+  { name: "Sodalite Signature", image: products[2].images[0], href: "/bracelets", alt: "Sodalite natural stone bracelet" },
+  { name: "Raw Tourmaline", image: products[1].images[0], href: "/bracelets", alt: "Raw tourmaline natural stone bracelet" },
+  { name: "Jasper Heritage", image: products[0].images[0], href: "/bracelets", alt: "Red leopard skin jasper bracelet" },
+  { name: "Labradorite Light", image: products[5].images[0], href: "/bracelets", alt: "Labradorite natural stone bracelet" },
+  { name: "Amethyst Studio", image: products[3].images[0], href: "/bracelets", alt: "Amethyst natural stone bracelet" },
+  { name: "Silver Minimal", image: products[4].images[0], href: "/bracelets", alt: "Silver accent natural stone bracelet" },
+  { name: "Pearl Atelier", image: products[8].images[0], href: "/necklaces", alt: "Pearl and silver necklace" },
 ];
 
 export default function LatestCollections() {
@@ -36,7 +36,7 @@ export default function LatestCollections() {
               <div className="relative aspect-[0.94] overflow-hidden rounded-[1.15rem] bg-brand-card">
                 <Image
                   src={c.image}
-                  alt={c.name}
+                  alt={c.alt}
                   fill
                   sizes="(max-width: 768px) 33vw, 14vw"
                   className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"

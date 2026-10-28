@@ -1,7 +1,11 @@
+import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
 
-export const metadata = {
-  title: "Returns, Resizes & Exchanges — JQD Group",
+export const metadata: Metadata = {
+  title: "Returns, Resizes & Exchanges",
+  description:
+    "Understand JQD Group eligibility windows, return instructions, exchanges, resizing, and refund timing.",
+  alternates: { canonical: "/returns" },
 };
 
 export default function ReturnsPage() {

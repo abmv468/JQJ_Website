@@ -1,7 +1,11 @@
+import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
 
-export const metadata = {
-  title: "Terms & Conditions — JQD Group",
+export const metadata: Metadata = {
+  title: "Terms & Conditions",
+  description:
+    "Review the JQD Group terms and conditions for using the website and purchasing natural stone jewelry.",
+  alternates: { canonical: "/terms" },
 };
 
 export default function TermsPage() {

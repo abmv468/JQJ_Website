@@ -1,7 +1,11 @@
+import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
 
-export const metadata = {
-  title: "Shipping Policy — JQD Group",
+export const metadata: Metadata = {
+  title: "Shipping Policy",
+  description:
+    "Review JQD Group order processing, delivery timing, tracking, international duties, and shipping support.",
+  alternates: { canonical: "/shipping" },
 };
 
 export default function ShippingPage() {
