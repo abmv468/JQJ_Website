@@ -55,9 +55,13 @@ All admin API routes (`/api/admin/*`) use the admin client with service role key
 
 ## Database
 
-Four tables: `categories`, `products`, `orders`, `order_items`. Schema and seed data in `data/seed.sql`. Products also have a static fallback in `data/products.ts` used for SSG on product pages.
+Schema lives in `jqj-store/supabase/migrations/` (run in filename order); catalog rows live in `jqj-store/supabase/seed.sql`, generated from `data/products.ts` with `npm run db:seed:generate` — rerun it whenever the catalog changes so checkout prices/stock match the static product pages.
 
-RLS: public read on products/categories, user-scoped on orders/order_items. Admin routes bypass RLS via service role key.
+Core tables: `categories`, `products`, `product_variants`, `orders`, `order_items`, `order_refunds`, `payments`, `payment_refunds`, `payment_webhook_events`, `customer_profiles`, `customer_addresses`, `newsletter_subscribers`.
+
+RLS: public read on products/categories/variants, user-scoped reads on orders/order_items/refunds/payments, customers manage their own profile/addresses. Orders and inventory/refund RPCs are written only by server routes via the service role key.
+
+The Supabase project belongs to the store only. The retired `jqd-agentic-system` once shared it and replaced the `products` table — never point another system at this database with write access.
 
 ## Key Gotchas
 

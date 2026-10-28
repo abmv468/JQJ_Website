@@ -142,7 +142,7 @@ Existing variables still required:
 1. Install deps:
    - `npm install`
 2. Set env values in `.env.local`.
-3. Apply SQL migration in Supabase SQL editor.
+3. Apply `supabase/migrations/*.sql` (in filename order) and `supabase/seed.sql` in the Supabase SQL editor.
 4. Start app:
    - `npm run dev`
 5. Run checkout with Airwallex sandbox cards and monitor webhook updates.

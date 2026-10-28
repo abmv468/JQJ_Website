@@ -22,6 +22,7 @@ npm run dev                        # http://localhost:3000
 | `npm run build` | Production build (TypeScript + lint checks) |
 | `npm run start` | Serve the production build |
 | `npm run lint` | ESLint |
+| `npm run db:seed:generate` | Regenerate `supabase/seed.sql` from `data/products.ts` |
 
 ## Pages
 
@@ -39,7 +40,7 @@ npm run dev                        # http://localhost:3000
 
 ## Backend setup
 
-1. Create a Supabase project and run `data/seed.sql` in the SQL editor.
+1. Create a Supabase project. In the SQL editor, run every file in `supabase/migrations/` in filename order, then `supabase/seed.sql`.
 2. Add Supabase URL + anon key + service role key to `.env.local`.
 3. Add Airwallex sandbox keys and webhook secret (`AIRWALLEX_*` variables in `.env.local.example`).
 4. Configure Airwallex webhook URL to `/api/webhooks/airwallex`.
@@ -48,6 +49,12 @@ npm run dev                        # http://localhost:3000
 
 The storefront runs with **static product data** (`data/products.ts`) even
 without backend keys. Checkout, orders, auth and admin require the keys above.
+
+## Database
+
+- `supabase/migrations/` is the source of truth for the schema. Every migration is idempotent, so re-running one is safe.
+- `supabase/seed.sql` holds the catalog and is generated from `data/products.ts`. After changing the catalog, run `npm run db:seed:generate` and apply the new seed, so checkout prices and stock match the product pages. Re-running the seed updates product details but never resets stock.
+- This Supabase project is for the store only. Don't give other systems write access to it.
 
 ## Inventory model
 
