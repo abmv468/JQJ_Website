@@ -55,6 +55,14 @@ function Confirmation() {
         return;
       }
 
+      if (
+        data.paymentStatus === "requires_payment_method" ||
+        data.paymentStatus === "requires_customer_action"
+      ) {
+        setStatus("failed");
+        return;
+      }
+
       setStatus("pending");
     },
     [clearCart]
@@ -117,6 +125,13 @@ function Confirmation() {
         <p className="mt-3 text-sm text-brand-muted">
           We received your return from Airwallex, but payment confirmation is still pending.
         </p>
+        <p className="mt-2 text-xs text-brand-muted">
+          If this status does not update after a few minutes, contact{" "}
+          <a className="text-brand-gold underline" href="mailto:support@jqdgroup.com">
+            support@jqdgroup.com
+          </a>{" "}
+          and include your order reference.
+        </p>
         {orderId && (
           <p className="mt-2 text-xs text-brand-muted">
             Order reference: <span className="text-white">{orderId}</span>
@@ -158,6 +173,15 @@ function Confirmation() {
             ? "You can return to checkout to try again."
             : "If you were charged, please contact support with your payment details."}
         </p>
+        {(status === "failed" || status === "cancelled") && (
+          <p className="mt-2 text-xs text-brand-muted">
+            If you continue to have issues, contact{" "}
+            <a className="text-brand-gold underline" href="mailto:support@jqdgroup.com">
+              support@jqdgroup.com
+            </a>{" "}
+            and include your order reference.
+          </p>
+        )}
         {orderId && (
           <p className="mt-2 text-xs text-brand-muted">
             Order reference: <span className="text-white">{orderId}</span>

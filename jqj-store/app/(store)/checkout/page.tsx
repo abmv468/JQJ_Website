@@ -271,7 +271,6 @@ export default function CheckoutPage() {
         });
         setLoading(false);
         setPaymentStage("idle");
-        setError("Unable to redirect to Airwallex checkout. Please try again.");
       } else {
         clearCart();
         window.location.href = `/order-confirmation?order_id=${data.orderId}&method=cod`;
