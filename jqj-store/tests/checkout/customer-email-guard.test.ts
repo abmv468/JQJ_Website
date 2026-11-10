@@ -152,6 +152,7 @@ describe("customer email is a single mailbox", () => {
     db = createCheckoutDb();
     setActiveDb(db);
     process.env.RESEND_API_KEY = "test_dummy";
+    process.env.EMAIL_FROM = "orders@example.com";
     delete process.env.ADMIN_EMAIL;
     process.env.AIRWALLEX_WEBHOOK_SECRET = WEBHOOK_SECRET;
     sendEmail.mockClear();
@@ -233,7 +234,10 @@ describe("customer email is a single mailbox", () => {
     expect(db.rowsOf("orders")[0].customer_email).toBe("buyer@example.com");
     expect(db.rpcCalls.filter((call) => call.fn === "reserve_order_inventory")).toHaveLength(1);
     expect(sendEmail).toHaveBeenCalledTimes(1);
-    expect(sendEmail.mock.calls[0][0]).toMatchObject({ to: "buyer@example.com" });
+    expect(sendEmail.mock.calls[0][0]).toMatchObject({
+      to: "buyer@example.com",
+      from: "orders@example.com",
+    });
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -290,6 +294,31 @@ describe("customer email is a single mailbox", () => {
     expect(logged).toContain("ADMIN_EMAIL");
     expect(logged).not.toContain(injected);
     expect(logged).not.toContain("admin)");
+  });
+
+  it("skips every send when EMAIL_FROM is unset and logs only the env name", async () => {
+    delete process.env.EMAIL_FROM;
+    process.env.ADMIN_EMAIL = "desk@example.com";
+    await sendOrderEmails({
+      orderId: "order-missing-from",
+      customerName: "Ada",
+      customerEmail: "buyer@example.com",
+      items: [{ name: "Bracelet", quantity: 1, price: 100 }],
+      subtotal: 100,
+      shipping: 15,
+      total: 115,
+      paymentMethod: "cod",
+      currency: "USD",
+      shippingAddress: { address: "1 Collector Lane", city: "Austin", region: "TX", country: "United States" },
+    });
+
+    expect(sendEmail).not.toHaveBeenCalled();
+    const logged = errorSpy?.mock.calls.map((args) => args.map(String).join(" ")).join("\n") ?? "";
+    expect(logged).toContain("EMAIL_FROM");
+    expect(logged).not.toContain("orders@danvapes.shop");
+    expect(logged).not.toContain("desk@example.com");
+    expect(logged).not.toContain("buyer@example.com");
+    expect(logged).not.toContain("@");
   });
 
   it("skips both sends when EMAIL_FROM is invalid and logs only the env name", async () => {
