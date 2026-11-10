@@ -5,6 +5,7 @@ import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendOrderEmails } from "@/lib/email";
 import { convertCurrencyToUsd, normalizeCurrency } from "@/lib/currency";
+import { computeShippingUsd } from "@/lib/shipping";
 import {
   fetchInventoryBySlugs,
   restoreStockForOrder,
@@ -73,7 +74,6 @@ export async function POST(req: Request) {
 
     const meta = session.metadata ?? {};
     const selectedCurrency = normalizeCurrency(meta.currency);
-    const shipping = Number(meta.shipping || 0);
     const chargedTotal = (session.amount_total ?? 0) / 100;
     const chargedTotalUsd = convertCurrencyToUsd(chargedTotal, selectedCurrency);
     let subtotal = 0;
@@ -155,6 +155,17 @@ export async function POST(req: Request) {
     const slugs = Array.from(new Set(items.map((item) => item.slug).filter(Boolean) as string[]));
     const inventoryBySlug = await fetchInventoryBySlugs(supabase, slugs);
     const validation = validateCheckoutItems(items, inventoryBySlug);
+    const quotedLines = items.flatMap((item) => {
+      const slug = item.slug?.trim();
+      const product = slug ? inventoryBySlug.get(slug) : undefined;
+      if (!product) return [];
+      const quantity = Math.max(0, Math.floor(Number(item.quantity) || 0));
+      if (quantity < 1) return [];
+      return [{ unitPriceUsd: product.price, quantity }];
+    });
+    let shipping = computeShippingUsd(quotedLines);
+    subtotal = quotedLines.reduce((sum, line) => sum + Number(line.unitPriceUsd) * line.quantity, 0);
+    total = subtotal + shipping;
     if (!validation.ok) {
       const { data: existingException } = await supabase
         .from("orders")
@@ -242,6 +253,12 @@ export async function POST(req: Request) {
     subtotal = validation.resolved.reduce(
       (sum, line) => sum + line.product.price * line.requestedQuantity,
       0
+    );
+    shipping = computeShippingUsd(
+      validation.resolved.map((line) => ({
+        unitPriceUsd: line.product.price,
+        quantity: line.requestedQuantity,
+      }))
     );
     total = subtotal + shipping;
 

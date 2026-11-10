@@ -6,10 +6,7 @@ import { megaMenuLinks, megaMenus } from "@/lib/mega-menu";
 import { productsForListingHref, stoneListingHref } from "@/lib/listing";
 import { getVariantLabel } from "@/lib/product-stock";
 
-const braceletOnlyFeatures = [
-  "Tailored for your preferred fit",
-  "Complimentary first resize for new customers",
-];
+const braceletOnlyFeatures = ["Tailored for your preferred fit"];
 
 const necklaceMains: Record<string, string> = {
   "pearl-silver-necklace-v": "/products/pearl-silver-necklace.webp",
@@ -55,8 +52,9 @@ describe("necklace catalog facts", () => {
     expect(stones).not.toContain("Lapis Lazuli");
   });
 
-  it("keeps bracelet fit and resize copy on bracelets only", () => {
+  it("keeps tailored fit on bracelets and nowhere uses a first resize", () => {
     for (const product of products) {
+      expect(product.features.join(" "), product.slug).not.toMatch(/first resize/i);
       for (const feature of braceletOnlyFeatures) {
         if (product.category === "bracelets") {
           expect(product.features, product.slug).toContain(feature);
@@ -162,8 +160,8 @@ describe("necklace catalog facts", () => {
     }
     for (const product of products.filter((entry) => entry.category === "necklaces")) {
       expect(product.tags, product.slug).not.toContain("top-rated");
-      expect(product.rating, product.slug).toBeUndefined();
-      expect(product.reviewCount, product.slug).toBeUndefined();
+      expect(product, product.slug).not.toHaveProperty("rating");
+      expect(product, product.slug).not.toHaveProperty("reviewCount");
     }
   });
 });

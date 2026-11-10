@@ -108,7 +108,7 @@ test("a bracelet without variants still asks for wrist size", async ({ page }) =
   await page.goto("/products/amethyst-bracelet-xv");
   await expect(page.getByLabel(/wrist size/i)).toBeVisible();
   await expect(page.getByText("Tailored for your preferred fit")).toBeVisible();
-  await expect(page.getByText("Complimentary first resize for new customers")).toBeVisible();
+  await expect(page.getByText(/first resize/i)).toHaveCount(0);
 });
 
 test("every rendered mega-menu link lists at least one product", async ({ page }) => {

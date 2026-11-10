@@ -1,6 +1,6 @@
 export type CategorySlug = "bracelets" | "necklaces" | "rings" | "earrings";
 
-export type ProductTag = "new" | "limited" | "top-rated" | "restocked" | "sale";
+export type ProductTag = "new" | "limited" | "restocked" | "sale";
 
 export interface Product {
   id: string;
@@ -22,8 +22,6 @@ export interface Product {
     sku: string;
     stockCount: number;
   }>;
-  rating?: number;
-  reviewCount?: number;
   tags: ProductTag[];
   stone: string;
   features: string[];
@@ -37,16 +35,10 @@ export const categories: { slug: CategorySlug; name: string }[] = [
   { slug: "earrings", name: "Earrings" },
 ];
 
-const sharedFeatures = [
-  "Natural gemstones selected for color and character",
-  "Crafted in our atelier with museum-inspired design values",
-] as const;
-
 const braceletFeatures = [
   "Tailored for your preferred fit",
-  sharedFeatures[0],
-  "Complimentary first resize for new customers",
-  sharedFeatures[1],
+  "Natural gemstones selected for color and character",
+  "Designed in Hong Kong",
 ];
 
 const necklaceFeatures = ["Designed in Hong Kong", "Sterling silver"];
@@ -77,9 +69,7 @@ export const products: Product[] = [
       { size: "Medium", material: "Sterling Silver", sku: "JQJ-RLSJ-III-M-SS", stockCount: 5 },
       { size: "Large", material: "Sterling Silver", sku: "JQJ-RLSJ-III-L-SS", stockCount: 3 },
     ],
-    rating: 4.8,
-    reviewCount: 28,
-    tags: ["top-rated", "sale"],
+    tags: ["sale"],
     stone: "Red Leopard Skin Jasper",
     features: braceletFeatures,
     specs: {
@@ -88,7 +78,7 @@ export const products: Product[] = [
       "Bead Shape": "Round",
       Stone: "Red Leopard Skin Jasper",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -109,8 +99,6 @@ export const products: Product[] = [
     inStock: true,
     stockCount: 8,
     lowStockThreshold: 5,
-    rating: 4.7,
-    reviewCount: 19,
     tags: ["new"],
     stone: "Raw Brown Tourmaline",
     features: braceletFeatures,
@@ -120,7 +108,7 @@ export const products: Product[] = [
       "Bead Shape": "Irregular",
       Stone: "Raw Brown Tourmaline",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -137,9 +125,7 @@ export const products: Product[] = [
     inStock: true,
     stockCount: 15,
     lowStockThreshold: 5,
-    rating: 4.9,
-    reviewCount: 41,
-    tags: ["top-rated"],
+    tags: [] as ProductTag[],
     stone: "Sodalite",
     features: braceletFeatures,
     specs: {
@@ -148,7 +134,7 @@ export const products: Product[] = [
       "Bead Shape": "Round",
       Stone: "Sodalite",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -165,8 +151,6 @@ export const products: Product[] = [
     inStock: true,
     stockCount: 20,
     lowStockThreshold: 5,
-    rating: 4.6,
-    reviewCount: 33,
     tags: ["new", "limited"],
     stone: "Amethyst",
     features: braceletFeatures,
@@ -176,7 +160,7 @@ export const products: Product[] = [
       "Bead Shape": "Round",
       Stone: "Amethyst",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -193,8 +177,6 @@ export const products: Product[] = [
     inStock: true,
     stockCount: 9,
     lowStockThreshold: 5,
-    rating: 4.8,
-    reviewCount: 26,
     tags: ["restocked", "sale"],
     stone: "Hematite Silver",
     features: braceletFeatures,
@@ -204,7 +186,7 @@ export const products: Product[] = [
       "Bead Shape": "Round",
       Stone: "Hematite Silver",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -221,8 +203,6 @@ export const products: Product[] = [
     inStock: true,
     stockCount: 6,
     lowStockThreshold: 5,
-    rating: 4.9,
-    reviewCount: 22,
     tags: ["limited"],
     stone: "Labradorite",
     features: braceletFeatures,
@@ -232,7 +212,7 @@ export const products: Product[] = [
       "Bead Shape": "Round",
       Stone: "Labradorite",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {

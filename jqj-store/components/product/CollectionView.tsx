@@ -78,12 +78,7 @@ function getFacetOptions(products: Product[], getValue: (product: Product) => st
 
 const PAGE_SIZE = 6;
 
-type SortKey =
-  | "featured"
-  | "price-asc"
-  | "price-desc"
-  | "rating"
-  | "newest";
+type SortKey = "featured" | "price-asc" | "price-desc" | "newest";
 
 type EditorialSection = {
   title: string;
@@ -95,7 +90,6 @@ const sortOptions: { value: SortKey; label: string }[] = [
   { value: "featured", label: "Featured" },
   { value: "price-asc", label: "Price: Low to High" },
   { value: "price-desc", label: "Price: High to Low" },
-  { value: "rating", label: "Top Rated" },
   { value: "newest", label: "Newest" },
 ];
 
@@ -223,9 +217,6 @@ export default function CollectionView({
         break;
       case "price-desc":
         list.sort((a, b) => b.price - a.price);
-        break;
-      case "rating":
-        list.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
         break;
       case "newest":
         list.sort((a, b) => {
