@@ -97,7 +97,7 @@ export async function POST(req: Request) {
       line_items.push({
         price_data: {
           currency: stripeCurrency,
-          product_data: { name: "Shipping (Express)" },
+          product_data: { name: "Shipping (UPS Express)" },
           unit_amount: Math.round(convertUsdToCurrency(shippingAmount, selectedCurrency) * 100),
         },
         quantity: 1,

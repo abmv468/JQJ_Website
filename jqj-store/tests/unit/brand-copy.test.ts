@@ -28,7 +28,12 @@ function walkTs(dir: string): string[] {
   return files;
 }
 
-const COPY_SOURCES = [...walkTs("app"), ...walkTs("components"), "lib/brand-copy.ts"];
+const COPY_SOURCES = [
+  ...walkTs("app/(store)"),
+  ...walkTs("components"),
+  "app/layout.tsx",
+  "lib/brand-copy.ts",
+];
 
 describe("BRAND v4 copy constants", () => {
   it("keeps the standard delivery sentence, including the en dashes", () => {
@@ -53,7 +58,14 @@ describe("BRAND v4 copy constants", () => {
 });
 
 describe("customer copy sources", () => {
-  it("app, components, and brand-copy do not use banned craft words", () => {
+  it("uses the BRAND new-arrivals subtitle", () => {
+    const source = readFileSync(path.resolve(process.cwd(), "app/(store)/new/page.tsx"), "utf8");
+    expect(source).toContain(
+      "Our latest releases and restocks, shaped by natural stones, cultural motifs and contemporary design."
+    );
+  });
+
+  it("storefront UI and brand-copy do not use banned craft words", () => {
     const hits: string[] = [];
     for (const relativePath of COPY_SOURCES) {
       const source = readFileSync(path.resolve(process.cwd(), relativePath), "utf8");
