@@ -7,7 +7,7 @@ import { ChevronLeft, CreditCard, Truck } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
 import { createClient } from "@/lib/supabase/client";
-import { COD_FEE } from "@/lib/checkout-fees";
+import { CARD_CURRENCY_NOTICE, COD_FEE } from "@/lib/checkout-fees";
 import { formatPrice } from "@/lib/utils";
 
 const SHIPPING_FLAT = 15;
@@ -373,6 +373,7 @@ export default function CheckoutPage() {
                 <input type="radio" name="method" checked={method === "airwallex"} onChange={() => setMethod("airwallex")} className="accent-brand-gold" />
                 <span className="text-sm">Credit / Debit Card (Airwallex Hosted Checkout)</span>
               </label>
+              <p className="text-xs text-brand-muted">{CARD_CURRENCY_NOTICE}</p>
               <label className={`flex cursor-pointer items-center gap-3 border p-4 ${method === "cod" ? "border-brand-gold" : "border-brand-border"}`}>
                 <input type="radio" name="method" checked={method === "cod"} onChange={() => setMethod("cod")} className="accent-brand-gold" />
                 <span className="text-sm">Cash on Delivery (+{formatCheckoutAmount(COD_FEE)} fee)</span>

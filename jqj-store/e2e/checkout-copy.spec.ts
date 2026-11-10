@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { COD_FEE } from "../lib/checkout-fees";
+import { CARD_CURRENCY_NOTICE, COD_FEE } from "../lib/checkout-fees";
 
 const CART_KEY = "JQD-cart";
 const codFeeLabel = new Intl.NumberFormat("en-US", {
@@ -55,12 +55,14 @@ test("checkout copy omits sandbox wording and shows the shared COD fee", async (
     await page.goto("/checkout");
     await expect(page.getByRole("button", { name: "Continue to Secure Payment" })).toBeVisible();
     await expect(page.getByText(codOptionLabel)).toBeVisible();
-    await expect(page.getByText(/sandbox/i)).toHaveCount(0);
+    await expect(page.getByText(CARD_CURRENCY_NOTICE)).toBeVisible();
+    expect((await page.locator("body").innerText()).toLowerCase()).not.toContain("sandbox");
 
     await page.getByText(codOptionLabel).click();
     await expect(page.getByRole("button", { name: "Place Order" })).toBeVisible();
     await expect(page.getByText(codOptionLabel)).toBeVisible();
+    await expect(page.getByText(CARD_CURRENCY_NOTICE)).toBeVisible();
     await expect(page.getByText("Cash on Delivery fee")).toBeVisible();
-    await expect(page.getByText(/sandbox/i)).toHaveCount(0);
+    expect((await page.locator("body").innerText()).toLowerCase()).not.toContain("sandbox");
   }
 });
