@@ -67,7 +67,7 @@ describe("order email HTML", () => {
     sendMock.mockResolvedValue({ data: { id: "email_test" }, error: null });
     vi.stubEnv("RESEND_API_KEY", "test_dummy");
     vi.stubEnv("ADMIN_EMAIL", ADMIN_TO);
-    vi.stubEnv("EMAIL_FROM", "");
+    vi.stubEnv("EMAIL_FROM", "orders@example.com");
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => {
@@ -146,8 +146,8 @@ describe("order email HTML", () => {
     const codFee = formatPrice(3, { currency: "USD" });
     const total = formatPrice(58, { currency: "USD" });
 
-    expect(customer.from).toBe("orders@danvapes.shop");
-    expect(admin.from).toBe("orders@danvapes.shop");
+    expect(customer.from).toBe("orders@example.com");
+    expect(admin.from).toBe("orders@example.com");
     expect(customer.to).toBe(CUSTOMER_TO);
     expect(admin.to).toBe(ADMIN_TO);
     expect(customer.subject).toBe("Your JQD Group order ord_123");
