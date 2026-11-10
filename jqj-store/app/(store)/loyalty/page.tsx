@@ -8,7 +8,7 @@ export default function LoyaltyPage() {
   return (
     <PolicyPage
       title="Collector Updates"
-      intro="Join the JQD Group mailing list for new gemstone edits, limited drops, and collector releases."
+      intro="Join our list for new pieces and atelier news."
       effectiveDate="July 28, 2026"
       contactDetails={[
         {
@@ -29,7 +29,7 @@ export default function LoyaltyPage() {
         {
           title: "Stay Connected",
           paragraphs: [
-            "Use the newsletter form in the footer to receive updates. We are building future collector benefits carefully and will share details only when they are ready to honor.",
+            "Use the newsletter form in the footer to receive updates.",
           ],
         },
       ]}

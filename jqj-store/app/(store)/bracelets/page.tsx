@@ -35,7 +35,7 @@ export default function BraceletsPage({
     <CollectionView
       title="Bracelets"
       limitedTitle="Limited Edition Bracelets"
-      subtitle="Museum-inspired bracelet designs, hand-finished in our atelier with carefully selected natural stones."
+      subtitle="Hand-finished bracelet designs with carefully selected natural stones. Crafted in our atelier. Museum-inspired craftsmanship since 2015."
       products={items}
       editorialSections={[
         {
