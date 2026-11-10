@@ -101,6 +101,11 @@ export default function CheckoutPage() {
   const [error, setError] = useState<string | null>(null);
   const [stockErrors, setStockErrors] = useState<string[]>([]);
   const [checkingStock, setCheckingStock] = useState(false);
+  const [quote, setQuote] = useState<{
+    subtotalUsd: number;
+    shippingUsd: number;
+    totalUsd: number;
+  } | null>(null);
   const [form, setForm] = useState({
     email: "",
     firstName: "",
@@ -164,12 +169,13 @@ export default function CheckoutPage() {
   }, []);
 
   const codFee = method === "cod" ? COD_FEE : 0;
-  const shipping = items.length ? SHIPPING_FLAT : 0;
-  const total = subtotal + shipping + codFee;
+  const subtotalUsd = quote?.subtotalUsd ?? subtotal;
+  const shipping = quote?.shippingUsd ?? (items.length ? SHIPPING_FLAT : 0);
+  const total = quote ? quote.totalUsd + codFee : subtotalUsd + shipping + codFee;
   const chargeCurrency = method === "airwallex" ? "USD" : currency;
   const formatCheckoutAmount = (amountUsd: number) =>
     chargeCurrency === "USD" ? formatPrice(amountUsd, { currency: "USD" }) : formatFromUsd(amountUsd);
-  const subtotalInCurrency = formatCheckoutAmount(subtotal);
+  const subtotalInCurrency = formatCheckoutAmount(subtotalUsd);
   const shippingInCurrency = formatCheckoutAmount(shipping);
   const codFeeInCurrency = formatCheckoutAmount(codFee);
   const totalInCurrency = formatCheckoutAmount(total);
@@ -188,6 +194,65 @@ export default function CheckoutPage() {
       })),
     [items]
   );
+
+  useEffect(() => {
+    if (!payloadItems.length) {
+      setQuote(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    let active = true;
+
+    fetch("/api/checkout/quote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        items: payloadItems.map((item) => ({
+          id: item.id,
+          slug: item.slug,
+          quantity: item.quantity,
+          size: item.size,
+          material: item.material,
+          sku: item.sku,
+        })),
+      }),
+    })
+      .then(async (response) => {
+        const data = (await response.json()) as {
+          subtotalUsd?: number;
+          shippingUsd?: number;
+          totalUsd?: number;
+        };
+        if (!response.ok) throw new Error("quote failed");
+        return data;
+      })
+      .then((data) => {
+        if (!active) return;
+        if (
+          typeof data.subtotalUsd !== "number" ||
+          typeof data.shippingUsd !== "number" ||
+          typeof data.totalUsd !== "number"
+        ) {
+          setQuote(null);
+          return;
+        }
+        setQuote({
+          subtotalUsd: data.subtotalUsd,
+          shippingUsd: data.shippingUsd,
+          totalUsd: data.totalUsd,
+        });
+      })
+      .catch(() => {
+        if (active) setQuote(null);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [payloadItems]);
 
   useEffect(() => {
     if (!payloadItems.length) return;
