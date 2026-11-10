@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
+import { DELIVERY_RANGE, DUTIES_LINE, FREE_SHIPPING_OVER_250 } from "@/lib/brand-copy";
 
 export const metadata: Metadata = {
   title: "Shipping Policy",
@@ -19,20 +20,8 @@ export default function ShippingPage() {
       ]}
       sections={[
         {
-          title: "Processing Times",
-          bullets: [
-            "In-stock orders are typically processed within 1–3 business days.",
-            "Custom, resized, or made-to-order pieces may require 5–10 business days before shipment.",
-            "Orders placed on weekends or holidays begin processing on the next business day.",
-          ],
-        },
-        {
-          title: "Delivery Timelines",
-          bullets: [
-            "Domestic standard shipping: 3–7 business days after dispatch.",
-            "Domestic expedited shipping: 1–3 business days after dispatch.",
-            "International shipping (where available): 7–14 business days, excluding customs delays.",
-          ],
+          title: "Delivery",
+          paragraphs: [DELIVERY_RANGE, FREE_SHIPPING_OVER_250],
         },
         {
           title: "Tracking and Notifications",
@@ -51,7 +40,7 @@ export default function ShippingPage() {
         {
           title: "Duties and Taxes",
           paragraphs: [
-            "International orders may be subject to import duties, taxes, or customs fees charged by destination authorities. These charges are the buyer's responsibility unless otherwise stated at checkout.",
+            DUTIES_LINE,
           ],
         },
       ]}

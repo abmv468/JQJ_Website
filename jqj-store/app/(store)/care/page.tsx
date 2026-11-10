@@ -4,7 +4,7 @@ import PolicyPage from "@/components/trust/PolicyPage";
 export const metadata: Metadata = {
   title: "Natural Stone Jewelry Care",
   description:
-    "Learn how to clean, store, and care for natural stone jewelry and hand-finished pieces from JQD Group.",
+    "Natural stones and sterling silver keep their finish with simple care.",
   alternates: { canonical: "/care" },
 };
 
@@ -12,12 +12,15 @@ export default function CarePage() {
   return (
     <PolicyPage
       title="Jewelry Care"
-      intro="Natural stones and hand-finished pieces deserve a little care. These simple habits help preserve their finish and character."
+      intro="Natural stones and sterling silver keep their finish with simple care."
       effectiveDate="July 28, 2026"
       sections={[
         {
           title: "Everyday Care",
           bullets: [
+            "Keep dry.",
+            "Store each piece separately.",
+            "Wipe with a soft cloth.",
             "Remove jewelry before swimming, showering, exercising, or sleeping.",
             "Avoid perfume, lotion, hairspray, and household chemicals while wearing your piece.",
             "Put jewelry on after applying cosmetics and fragrance.",

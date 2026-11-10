@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowUpRight } from "lucide-react";
 import { products } from "@/data/products";
+import { FREE_SHIPPING_OVER_250 } from "@/lib/brand-copy";
 
 // Build "collection" cards from available product imagery.
 const collections = [
@@ -11,7 +12,7 @@ const collections = [
   { name: "Labradorite Light", image: products[5].images[0], href: "/bracelets", alt: "Labradorite natural stone bracelet" },
   { name: "Amethyst Studio", image: products[3].images[0], href: "/bracelets", alt: "Amethyst natural stone bracelet" },
   { name: "Silver Minimal", image: products[4].images[0], href: "/bracelets", alt: "Silver accent natural stone bracelet" },
-  { name: "Pearl Atelier", image: products[8].images[0], href: "/necklaces", alt: "Pearl and silver necklace" },
+  { name: "The Pearl Edit", image: products[8].images[0], href: "/necklaces", alt: "Pearl and silver necklace" },
 ];
 
 export default function LatestCollections() {
@@ -24,6 +25,7 @@ export default function LatestCollections() {
           <p className="section-lead text-[13px] sm:text-sm md:text-[15px]">
             From earthy neutrals to brighter mineral tones, each edit is composed to feel cohesive, collectible, and easy to wear.
           </p>
+          <p className="mt-3 text-sm text-white/72">{FREE_SHIPPING_OVER_250}</p>
         </div>
 
         <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">

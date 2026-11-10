@@ -48,12 +48,17 @@ export const categories: { slug: CategorySlug; name: string }[] = [
   { slug: "earrings", name: "Earrings" },
 ];
 
-const baseFeatures = [
+const sharedFeatures = [
   "Tailored for your preferred fit",
   "Natural gemstones selected for color and character",
-  "Complimentary first resize for new customers",
-  "Crafted in our atelier with museum-inspired design values",
+  "Designed in Hong Kong",
 ];
+
+const braceletResizeFeature = "Complimentary first resize for new customers";
+
+const necklaceFeatures = ["Designed in Hong Kong", "Sterling silver"];
+
+const baseFeatures = [...sharedFeatures, braceletResizeFeature];
 
 export const products: Product[] = [
   {
@@ -61,7 +66,7 @@ export const products: Product[] = [
     name: "Red Leopard Skin Jasper Bracelet III (6mm)",
     slug: "red-leopard-skin-jasper-bracelet-iii",
     description:
-      "Grounded and expressive, this Red Leopard Skin Jasper bracelet pairs warm, naturally patterned stone with a hand-finished silver clasp. A timeless profile, crafted one piece at a time.",
+      "Grounded and expressive, this Red Leopard Skin Jasper bracelet pairs warm, naturally patterned stone. A timeless profile, crafted one piece at a time.",
     price: 599.99,
     compareAtPrice: 699.99,
     sku: "JQJ-RLSJ-III",
@@ -92,7 +97,7 @@ export const products: Product[] = [
       "Bead Shape": "Round",
       Stone: "Red Leopard Skin Jasper",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -124,7 +129,7 @@ export const products: Product[] = [
       "Bead Shape": "Irregular",
       Stone: "Raw Brown Tourmaline",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -152,7 +157,7 @@ export const products: Product[] = [
       "Bead Shape": "Round",
       Stone: "Sodalite",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -180,7 +185,7 @@ export const products: Product[] = [
       "Bead Shape": "Round",
       Stone: "Amethyst",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -208,7 +213,7 @@ export const products: Product[] = [
       "Bead Shape": "Round",
       Stone: "Hematite Silver",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -236,7 +241,7 @@ export const products: Product[] = [
       "Bead Shape": "Round",
       Stone: "Labradorite",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -262,12 +267,12 @@ export const products: Product[] = [
     reviewCount: 14,
     tags: ["new"],
     stone: "Aquamarine",
-    features: baseFeatures,
+    features: necklaceFeatures,
     specs: {
       "Chain Length": "55cm",
       Stone: "Blue Lace Agate",
       Metal: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -288,12 +293,12 @@ export const products: Product[] = [
     reviewCount: 17,
     tags: ["restocked"],
     stone: "Lapis Lazuli",
-    features: baseFeatures,
+    features: necklaceFeatures,
     specs: {
       "Chain Length": "55cm",
       Stone: "Labradorite",
       Metal: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -318,12 +323,12 @@ export const products: Product[] = [
     reviewCount: 9,
     tags: ["limited", "top-rated"],
     stone: "Tiger Eye",
-    features: baseFeatures,
+    features: necklaceFeatures,
     specs: {
       "Bead Size": "7mm",
       Stone: "Freshwater Pearl",
       Metal: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
 ];
