@@ -5,6 +5,51 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import { confirmationCopy } from "@/lib/checkout-copy";
+import { SUPPORT_EMAIL } from "@/lib/support";
+
+const actionRowClass =
+  "mt-8 flex w-full flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:justify-center";
+const actionButtonClass = "w-full whitespace-nowrap sm:w-auto";
+
+function StatusMessage({ children }: { children: React.ReactNode }) {
+  return (
+    <p
+      role="status"
+      aria-live="polite"
+      className="flex items-center justify-center gap-3 text-sm text-brand-muted"
+    >
+      <span
+        aria-hidden="true"
+        className="inline-block h-4 w-4 shrink-0 rounded-full border-2 border-white/25 border-t-brand-gold motion-safe:animate-spin"
+      />
+      {children}
+    </p>
+  );
+}
+
+function OrderReference({ orderId }: { orderId: string }) {
+  return (
+    <p className="mt-3 text-xs text-brand-muted">
+      {confirmationCopy.orderReferenceLabel}{" "}
+      <span className="mt-1 block break-all font-mono text-[13px] leading-5 text-white">
+        {orderId}
+      </span>
+    </p>
+  );
+}
+
+function SupportContact({ lead, tail }: { lead: string; tail: string }) {
+  return (
+    <p className="mt-2 text-xs text-brand-muted">
+      {lead}{" "}
+      <a className="text-brand-gold underline underline-offset-2" href={`mailto:${SUPPORT_EMAIL}`}>
+        {SUPPORT_EMAIL}
+      </a>{" "}
+      {tail}
+    </p>
+  );
+}
 
 function Confirmation() {
   const params = useSearchParams();
@@ -110,37 +155,26 @@ function Confirmation() {
 
   if (status === "loading") {
     return (
-      <p className="text-sm text-brand-muted">
-        {provider === "airwallex"
-          ? "Verifying your payment status…"
-          : "Confirming your order…"}
-      </p>
+      <StatusMessage>
+        {provider === "airwallex" ? confirmationCopy.verifying : confirmationCopy.confirming}
+      </StatusMessage>
     );
   }
 
   if (status === "pending") {
     return (
-      <div className="text-center">
-        <h1 className="font-heading text-2xl uppercase tracking-wider2">Payment verification pending</h1>
-        <p className="mt-3 text-sm text-brand-muted">
-          We received your return from Airwallex, but payment confirmation is still pending.
-        </p>
-        <p className="mt-2 text-xs text-brand-muted">
-          If this status does not update after a few minutes, contact{" "}
-          <a className="text-brand-gold underline" href="mailto:support@jqdgroup.com">
-            support@jqdgroup.com
-          </a>{" "}
-          and include your order reference.
-        </p>
-        {orderId && (
-          <p className="mt-2 text-xs text-brand-muted">
-            Order reference: <span className="text-white">{orderId}</span>
-          </p>
-        )}
-        <div className="mt-8 flex justify-center gap-4">
+      <div className="w-full max-w-xl text-center">
+        <h1 className="font-heading text-2xl uppercase tracking-wider2">{confirmationCopy.pendingTitle}</h1>
+        <p className="mt-3 text-sm text-brand-muted">{confirmationCopy.pendingBody}</p>
+        <SupportContact
+          lead={confirmationCopy.pendingSupportLead}
+          tail={confirmationCopy.pendingSupportTail}
+        />
+        {orderId && <OrderReference orderId={orderId} />}
+        <div className={actionRowClass}>
           <button
             type="button"
-            className="btn-gold"
+            className={`btn-gold ${actionButtonClass}`}
             onClick={() => {
               if (orderId) {
                 setStatus("loading");
@@ -148,10 +182,10 @@ function Confirmation() {
               }
             }}
           >
-            Check Payment Status
+            {confirmationCopy.checkPaymentStatus}
           </button>
-          <Link href="/checkout" className="btn-secondary">
-            Return to Checkout
+          <Link href="/checkout" className={`btn-secondary ${actionButtonClass}`}>
+            {confirmationCopy.returnToCheckout}
           </Link>
         </div>
       </div>
@@ -160,48 +194,34 @@ function Confirmation() {
 
   if (status === "failed" || status === "cancelled" || status === "error") {
     return (
-      <div className="text-center">
+      <div className="w-full max-w-xl text-center">
         <h1 className="font-heading text-2xl uppercase tracking-wider2">
           {status === "cancelled"
-            ? "Payment was cancelled"
+            ? confirmationCopy.cancelledTitle
             : status === "failed"
-              ? "Payment was not completed"
-              : "We couldn&apos;t confirm your order"}
+              ? confirmationCopy.failedTitle
+              : confirmationCopy.invalidTitle}
         </h1>
         <p className="mt-3 text-sm text-brand-muted">
-          {status === "cancelled"
-            ? "You can return to checkout to try again."
-            : "If you were charged, please contact support with your payment details."}
+          {status === "cancelled" ? confirmationCopy.cancelledBody : confirmationCopy.chargedBody}
         </p>
-        {(status === "failed" || status === "cancelled") && (
-          <p className="mt-2 text-xs text-brand-muted">
-            If you continue to have issues, contact{" "}
-            <a className="text-brand-gold underline" href="mailto:support@jqdgroup.com">
-              support@jqdgroup.com
-            </a>{" "}
-            and include your order reference.
-          </p>
-        )}
-        {orderId && (
-          <p className="mt-2 text-xs text-brand-muted">
-            Order reference: <span className="text-white">{orderId}</span>
-          </p>
-        )}
-        <div className="mt-8 flex justify-center gap-4">
+        <SupportContact lead={confirmationCopy.supportLead} tail={confirmationCopy.supportTail} />
+        {orderId && <OrderReference orderId={orderId} />}
+        <div className={actionRowClass}>
           {orderId && provider === "airwallex" && (
             <button
               type="button"
-              className="btn-secondary"
+              className={`btn-secondary ${actionButtonClass}`}
               onClick={() => {
                 setStatus("loading");
                 void verifyAirwallexOrder(orderId).catch(() => setStatus("error"));
               }}
             >
-              Re-check Status
+              {confirmationCopy.recheckStatus}
             </button>
           )}
-          <Link href="/checkout" className="btn-gold">
-            Return to Checkout
+          <Link href="/checkout" className={`btn-gold ${actionButtonClass}`}>
+            {confirmationCopy.returnToCheckout}
           </Link>
         </div>
       </div>
@@ -209,27 +229,25 @@ function Confirmation() {
   }
 
   return (
-    <div className="text-center">
+    <div className="w-full max-w-xl text-center">
       <CheckCircle2 className="mx-auto h-14 w-14 text-brand-gold" />
-      <h1 className="mt-6 font-heading text-2xl uppercase tracking-wider2">Thank you for your order</h1>
+      <h1 className="mt-6 font-heading text-2xl uppercase tracking-wider2">{confirmationCopy.thankYou}</h1>
       <p className="mt-3 text-sm text-brand-muted">
         {method === "cod"
-          ? "Your Cash on Delivery order has been placed."
+          ? confirmationCopy.codSuccess
           : provider === "airwallex"
-            ? "Your Airwallex payment was successful."
-            : "Your payment was successful."}
+            ? confirmationCopy.airwallexSuccess
+            : confirmationCopy.paymentSuccess}
       </p>
-      {orderId && (
-        <p className="mt-2 text-xs text-brand-muted">
-          Order reference: <span className="text-white">{orderId}</span>
-        </p>
-      )}
-      <p className="mt-4 text-sm text-brand-muted">
-        A confirmation email is on its way to your inbox.
-      </p>
-      <div className="mt-8 flex justify-center gap-4">
-        <Link href="/new" className="btn-secondary">Continue Shopping</Link>
-        <Link href="/account" className="btn-gold">View Orders</Link>
+      {orderId && <OrderReference orderId={orderId} />}
+      <p className="mt-4 text-sm text-brand-muted">{confirmationCopy.emailOnTheWay}</p>
+      <div className={actionRowClass}>
+        <Link href="/new" className={`btn-secondary ${actionButtonClass}`}>
+          {confirmationCopy.continueShopping}
+        </Link>
+        <Link href="/account" className={`btn-gold ${actionButtonClass}`}>
+          {confirmationCopy.viewOrders}
+        </Link>
       </div>
     </div>
   );
@@ -238,7 +256,7 @@ function Confirmation() {
 export default function OrderConfirmationPage() {
   return (
     <div className="container-site flex min-h-[60vh] items-center justify-center py-20">
-      <Suspense fallback={<p className="text-sm text-brand-muted">Loading…</p>}>
+      <Suspense fallback={<p className="text-sm text-brand-muted">{confirmationCopy.loading}</p>}>
         <Confirmation />
       </Suspense>
     </div>
