@@ -1,6 +1,7 @@
 name: ci
 
 on:
+  # No branch filter: stacked PRs, whose base is not main, still run this workflow.
   pull_request:
   push:
     branches: [main]
@@ -110,3 +111,51 @@ jobs:
           name: playwright-report
           path: jqj-store/playwright-report
           retention-days: 7
+
+  # Every pull request applies supabase/migrations to a throwaway Postgres,
+  # then runs supabase/tests. Postgres 16 matches SECURITY INVOKER (15+)
+  # and ships uuid-ossp, which the migrations create themselves.
+  db-migrations:
+    name: db-migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    defaults:
+      run:
+        working-directory: jqj-store
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: jqj-store
+          sparse-checkout-cone-mode: true
+
+      - name: Install psql
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends postgresql-client
+
+      - name: Apply migrations
+        run: bash supabase/ci/db-gate.sh apply
+
+      - name: Run SQL tests
+        run: bash supabase/ci/db-gate.sh test
