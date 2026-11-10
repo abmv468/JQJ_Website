@@ -58,11 +58,24 @@ describe("POST /api/checkout/quote", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
+    const body = await response.json();
+    expect(body).toEqual({
       subtotalUsd: 249.99,
       shippingUsd: 15,
       totalUsd: 264.99,
+      lines: [
+        {
+          productId: "prod-amethyst",
+          quantity: 1,
+          unitPriceUsd: 249.99,
+          lineTotalUsd: 249.99,
+        },
+      ],
     });
+    expect(body.subtotalUsd).toBe(
+      body.lines.reduce((sum: number, line: { lineTotalUsd: number }) => sum + line.lineTotalUsd, 0)
+    );
+    expect(body.lines[0].unitPriceUsd).toBe(249.99);
     expect(db.rowsOf("orders")).toHaveLength(0);
     expect(db.rowsOf("products")[0].stock_count).toBe(5);
     expect(db.rpcCalls).toHaveLength(0);
@@ -84,9 +97,60 @@ describe("POST /api/checkout/quote", () => {
       subtotalUsd: 250,
       shippingUsd: 0,
       totalUsd: 250,
+      lines: [
+        {
+          productId: "prod-amethyst",
+          quantity: 1,
+          unitPriceUsd: 250,
+          lineTotalUsd: 250,
+        },
+      ],
     });
     expect(db.rowsOf("orders")).toHaveLength(0);
     expect(db.rpcCalls).toHaveLength(0);
+  });
+
+  it("prices a variant line from the database when the client price differs", async () => {
+    db.rowsOf("products")[0].price = 80;
+    db.seed("product_variants", [
+      {
+        id: "var-amethyst-s",
+        product_id: "prod-amethyst",
+        size: "S",
+        material: "Gold",
+        sku: "JQJ-AMETH-S",
+        stock_count: 3,
+      },
+    ]);
+
+    const response = await postQuote(
+      quoteRequest({
+        items: [
+          checkoutItem({
+            price: 1,
+            quantity: 2,
+            sku: "JQJ-AMETH-S",
+            size: "S",
+            material: "Gold",
+          }),
+        ],
+      })
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.lines).toEqual([
+      {
+        productId: "prod-amethyst",
+        variantId: "var-amethyst-s",
+        quantity: 2,
+        unitPriceUsd: 80,
+        lineTotalUsd: 160,
+      },
+    ]);
+    expect(body.subtotalUsd).toBe(160);
+    expect(body.shippingUsd).toBe(15);
+    expect(body.totalUsd).toBe(175);
   });
 
   it("rejects an unknown item with 400 and does not write", async () => {

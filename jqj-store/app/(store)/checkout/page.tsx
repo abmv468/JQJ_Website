@@ -209,6 +209,7 @@ export default function CheckoutPage() {
       headers: { "Content-Type": "application/json" },
       signal: controller.signal,
       body: JSON.stringify({
+        shippingCountry: form.country,
         items: payloadItems.map((item) => ({
           id: item.id,
           slug: item.slug,
@@ -252,7 +253,7 @@ export default function CheckoutPage() {
       active = false;
       controller.abort();
     };
-  }, [payloadItems]);
+  }, [payloadItems, form.country]);
 
   useEffect(() => {
     if (!payloadItems.length) return;
