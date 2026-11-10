@@ -186,6 +186,7 @@ export async function POST(req: Request) {
         nextStatus: normalizeAirwallexPaymentStatus(intent.status ?? ""),
         providerEventCreatedAt: intent.updated_at ?? null,
         force: true,
+        amount: intent.amount,
       });
 
       const updatedOrder = await loadOrderWithRelations(supabase, id);

@@ -84,7 +84,11 @@ export async function POST(req: Request) {
 
   if (insertEventError) {
     if ((insertEventError as { code?: string }).code !== "23505") {
-      return NextResponse.json({ error: insertEventError.message }, { status: 500 });
+      console.error("[airwallex-webhook] internal error", {
+        webhookEventId: event.id,
+        errorCode: (insertEventError as { code?: string }).code ?? null,
+      });
+      return NextResponse.json({ error: "Internal error" }, { status: 500 });
     }
 
     const { data: existingEvent, error: existingEventError } = await supabase
@@ -94,7 +98,11 @@ export async function POST(req: Request) {
       .eq("provider_event_id", event.id)
       .maybeSingle();
     if (existingEventError) {
-      return NextResponse.json({ error: existingEventError.message }, { status: 500 });
+      console.error("[airwallex-webhook] internal error", {
+        webhookEventId: event.id,
+        errorCode: (existingEventError as { code?: string }).code ?? null,
+      });
+      return NextResponse.json({ error: "Internal error" }, { status: 500 });
     }
 
     if (existingEvent?.status === "processed" || existingEvent?.status === "ignored") {
@@ -161,6 +169,7 @@ export async function POST(req: Request) {
         ),
         providerEventId: event.id,
         providerEventCreatedAt: event.created_at ?? null,
+        amount: object.amount as number | string | null | undefined,
       });
 
       if (!linkedOrderId && "orderId" in applyResult) {
@@ -223,11 +232,15 @@ export async function POST(req: Request) {
         .eq("id", webhookRowId);
     }
 
-    console.error("[airwallex-webhook]", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Webhook processing failed" },
-      { status: 500 }
-    );
+    const paymentIntentId =
+      typeof event.data?.object?.id === "string" ? event.data.object.id : null;
+    console.error("[airwallex-webhook] internal error", {
+      orderId: linkedOrderId,
+      paymentId: linkedPaymentId,
+      paymentIntentId,
+      webhookEventId: event.id,
+    });
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
 

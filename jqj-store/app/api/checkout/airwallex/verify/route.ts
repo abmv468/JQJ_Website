@@ -124,6 +124,7 @@ export async function POST(req: Request) {
         nextStatus: normalizeAirwallexPaymentStatus(intent.status),
         providerEventCreatedAt: intent.updated_at ?? null,
         force: true,
+        amount: intent.amount,
       });
 
       effectiveStatus = normalizeAirwallexPaymentStatus(intent.status);
