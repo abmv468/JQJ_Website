@@ -1,5 +1,5 @@
 import { createHmac } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { verifyAirwallexWebhookSignature } from "@/lib/payments/airwallex";
 
 const SECRET = "test_dummy_webhook_secret";
@@ -62,5 +62,23 @@ describe("verifyAirwallexWebhookSignature", () => {
     });
     expect(result.ok).toBe(false);
     expect(result.error).toMatch(/outside the allowed window/);
+  });
+
+  it("accepts a timestamp exactly 300 seconds old", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-15T12:00:00Z"));
+    try {
+      const timestamp = String(Math.floor(Date.now() / 1000) - 300);
+      expect(
+        verifyAirwallexWebhookSignature({
+          rawBody: body,
+          signature: sign(timestamp, body),
+          timestamp,
+          secret: SECRET,
+        }).ok
+      ).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

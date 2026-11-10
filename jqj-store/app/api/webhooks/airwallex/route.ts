@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   normalizeAirwallexPaymentStatus,
+  resolveAirwallexWebhookMaxSkewSeconds,
   verifyAirwallexWebhookSignature,
 } from "@/lib/payments/airwallex";
 import {
@@ -44,7 +45,9 @@ export async function POST(req: Request) {
     signature,
     timestamp,
     secret: webhookSecret,
-    maxSkewSeconds: Number(process.env.AIRWALLEX_WEBHOOK_MAX_SKEW_SECONDS || 300),
+    maxSkewSeconds: resolveAirwallexWebhookMaxSkewSeconds(
+      process.env.AIRWALLEX_WEBHOOK_MAX_SKEW_SECONDS
+    ),
   });
 
   if (!signatureResult.ok) {
