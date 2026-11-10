@@ -14,11 +14,10 @@ import { createClient } from "@/lib/supabase/client";
 import { formatPrice } from "@/lib/utils";
 import {
   formatOrderStatusLabel,
+  getAdminOrderStatusPresentation,
   getOrderStatusOptions,
-  getOrderStatusPresentation,
   hasPartialRefund,
   isFullyRefunded,
-  resolveAdminOrderStatus,
 } from "@/lib/order-lifecycle";
 
 type Tab = "dashboard" | "products" | "orders" | "customers" | "settings";
@@ -590,16 +589,16 @@ export default function AdminPage() {
                         o.shipping_address?.payment_method ||
                         "—"
                       ).toUpperCase();
-                      const paymentStatus = (
-                        o.payment_status ||
-                        primaryPayment?.status ||
-                        "unknown"
-                      ).toLowerCase();
-                      const displayedStatus = resolveAdminOrderStatus(o.status, o.fulfillment_status);
-                      const statusPresentation = getOrderStatusPresentation(displayedStatus);
-                      const statusOptions = getOrderStatusOptions(displayedStatus);
+                      const rawPaymentStatus = o.payment_status || primaryPayment?.status || "unknown";
+                      const paymentStatus = rawPaymentStatus.toLowerCase();
+                      const statusPresentation = getAdminOrderStatusPresentation({
+                        status: o.status,
+                        fulfillmentStatus: o.fulfillment_status,
+                        paymentStatus: rawPaymentStatus,
+                      });
+                      const statusOptions = getOrderStatusOptions(statusPresentation.selectStatus);
                       const currentSelectValue =
-                        statusOptions.find((statusOption) => statusOption === displayedStatus) ??
+                        statusOptions.find((statusOption) => statusOption === statusPresentation.selectStatus) ??
                         statusOptions[0];
 
                       const providerRefunds = (primaryPayment?.payment_refunds ?? [])
@@ -642,27 +641,30 @@ export default function AdminPage() {
                             </p>
                           </td>
                           <td className="p-3">
-                            {statusPresentation.treatment === "pipeline" ? (
-                              <select
-                                value={currentSelectValue}
-                                onChange={(e) => updateOrderStatus(o.id, e.target.value)}
-                                className="border border-brand-border bg-transparent px-2 py-1 text-xs"
-                                disabled={isFullyRefunded(totalAmount, settledRefundedAmount)}
-                              >
-                                {statusOptions.map((statusOption) => (
-                                  <option key={statusOption} value={statusOption} className="bg-brand-surface capitalize">
-                                    {formatOrderStatusLabel(statusOption)}
-                                  </option>
-                                ))}
-                              </select>
-                            ) : (
-                              <span
-                                data-order-status-flag={statusPresentation.flagged ? "attention" : "neutral"}
-                                className={statusPresentation.className}
-                              >
-                                {statusPresentation.label}
-                              </span>
-                            )}
+                            <div className="flex flex-wrap items-center gap-2">
+                              {statusPresentation.treatment !== "pipeline" && (
+                                <span
+                                  data-order-status-flag={statusPresentation.flagged ? "attention" : "neutral"}
+                                  className={statusPresentation.className}
+                                >
+                                  {statusPresentation.label}
+                                </span>
+                              )}
+                              {statusPresentation.showDropdown && (
+                                <select
+                                  value={currentSelectValue}
+                                  onChange={(e) => updateOrderStatus(o.id, e.target.value)}
+                                  className="border border-brand-border bg-transparent px-2 py-1 text-xs"
+                                  disabled={isFullyRefunded(totalAmount, settledRefundedAmount)}
+                                >
+                                  {statusOptions.map((statusOption) => (
+                                    <option key={statusOption} value={statusOption} className="bg-brand-surface capitalize">
+                                      {formatOrderStatusLabel(statusOption)}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+                            </div>
                           </td>
                           <td className="p-3 text-brand-gold">{formatPrice(totalAmount)}</td>
                           <td className="p-3 text-[11px]">

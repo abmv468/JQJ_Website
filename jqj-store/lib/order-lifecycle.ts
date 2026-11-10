@@ -54,7 +54,7 @@ export function hasPartialRefund(totalAmount: number, refundedAmount: number): b
 
 const INVENTORY_EXCEPTION_STATUS = "inventory_exception";
 
-/** Admin copy for a paid order that could not be fulfilled from stock. */
+/** Shown only when payment_status is succeeded. Fulfillment status never supplies this word. */
 export const INVENTORY_EXCEPTION_LABEL = "Paid \u2013 stock issue (action needed)";
 
 /**
@@ -75,6 +75,17 @@ export type OrderStatusPresentation = {
   className: string;
 };
 
+export type AdminOrderStatusInput = {
+  status?: string | null;
+  fulfillmentStatus?: string | null;
+  paymentStatus?: string | null;
+};
+
+export type AdminOrderStatusPresentation = OrderStatusPresentation & {
+  showDropdown: boolean;
+  selectStatus: string;
+};
+
 function statusKey(status: string): string {
   return status.trim().toLowerCase();
 }
@@ -84,23 +95,25 @@ export function isInventoryExceptionStatus(status: string): boolean {
 }
 
 export function formatOrderStatusLabel(status: string): string {
-  if (isInventoryExceptionStatus(status)) return INVENTORY_EXCEPTION_LABEL;
   const normalized = normalizeOrderStatus(status);
   // Do not substitute a pipeline label. Unknown statuses render as stored.
   if (!normalized) return status;
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
+/**
+ * Attention copy for a stored inventory_exception.
+ * "Paid" is chosen only from payment_status. fulfillment_status is ignored here,
+ * including the intentional inventory_exception + payment_failed write.
+ */
+export function formatInventoryExceptionLabel(paymentStatus: string): string {
+  const raw = paymentStatus.trim();
+  if (raw.toLowerCase() === "succeeded") return INVENTORY_EXCEPTION_LABEL;
+  return `Stock issue \u2013 payment ${raw} (action needed)`;
+}
+
 export function getOrderStatusPresentation(status: string): OrderStatusPresentation {
   const label = formatOrderStatusLabel(status);
-  if (isInventoryExceptionStatus(status)) {
-    return {
-      label,
-      flagged: true,
-      treatment: "attention",
-      className: ORDER_STATUS_ATTENTION_CLASS,
-    };
-  }
   if (!normalizeOrderStatus(status)) {
     return {
       label,
@@ -117,21 +130,30 @@ export function getOrderStatusPresentation(status: string): OrderStatusPresentat
   };
 }
 
-/**
- * Status string the admin orders table should label.
- * Stock shortfalls are stored on `orders.status` while `fulfillment_status`
- * may be something else (for example `payment_failed`). Prefer the exception
- * so the cell does not fall through to a pipeline label.
- */
-export function resolveAdminOrderStatus(
-  status: string | null | undefined,
-  fulfillmentStatus?: string | null
-): string {
-  if (typeof status === "string" && isInventoryExceptionStatus(status)) return status;
-  if (typeof fulfillmentStatus === "string" && isInventoryExceptionStatus(fulfillmentStatus)) {
-    return fulfillmentStatus;
+export function getAdminOrderStatusPresentation(
+  input: AdminOrderStatusInput
+): AdminOrderStatusPresentation {
+  const status = input.status ?? "";
+  const fulfillmentStatus = input.fulfillmentStatus ?? "";
+  const exceptionSource = [status, fulfillmentStatus].find((value) => isInventoryExceptionStatus(value));
+
+  if (exceptionSource) {
+    const rawPayment = (input.paymentStatus ?? "").trim();
+    return {
+      label: formatInventoryExceptionLabel(rawPayment.length > 0 ? rawPayment : "unknown"),
+      flagged: true,
+      treatment: "attention",
+      className: ORDER_STATUS_ATTENTION_CLASS,
+      showDropdown: true,
+      selectStatus: exceptionSource,
+    };
   }
-  if (typeof fulfillmentStatus === "string" && fulfillmentStatus.length > 0) return fulfillmentStatus;
-  if (typeof status === "string") return status;
-  return "";
+
+  const displayed = fulfillmentStatus.length > 0 ? fulfillmentStatus : status;
+  const presentation = getOrderStatusPresentation(displayed);
+  return {
+    ...presentation,
+    showDropdown: true,
+    selectStatus: displayed,
+  };
 }
