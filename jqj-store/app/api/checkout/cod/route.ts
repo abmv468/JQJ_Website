@@ -327,27 +327,31 @@ export async function POST(req: Request) {
       throw new Error("Order was not created.");
     }
 
-    await sendOrderEmails({
-      orderId,
-      customerName,
-      customerEmail: customer.email,
-      items: validation.resolved.map((line) => ({
-        name:
-          line.product.name +
-          (line.variant
-            ? ` (${[line.variant.size, line.variant.material].filter(Boolean).join(" / ")})`
-            : ""),
-        quantity: line.requestedQuantity,
-        price: line.product.price,
-      })),
-      subtotal,
-      shipping: shippingAmount,
-      codFee: COD_FEE,
-      total,
-      paymentMethod: "cod",
-      currency: selectedCurrency,
-      shippingAddress,
-    });
+    try {
+      await sendOrderEmails({
+        orderId,
+        customerName,
+        customerEmail: customer.email,
+        items: validation.resolved.map((line) => ({
+          name:
+            line.product.name +
+            (line.variant
+              ? ` (${[line.variant.size, line.variant.material].filter(Boolean).join(" / ")})`
+              : ""),
+          quantity: line.requestedQuantity,
+          price: line.product.price,
+        })),
+        subtotal,
+        shipping: shippingAmount,
+        codFee: COD_FEE,
+        total,
+        paymentMethod: "cod",
+        currency: selectedCurrency,
+        shippingAddress,
+      });
+    } catch {
+      console.error("[email] order confirmation failed", orderId);
+    }
 
     return NextResponse.json({ orderId }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {

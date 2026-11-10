@@ -440,26 +440,30 @@ export async function POST(req: Request) {
       throw persistError;
     }
 
-    await sendOrderEmails({
-      orderId: orderId!,
-      customerName,
-      customerEmail,
-      items: validation.resolved.map((line) => ({
-        name:
-          line.product.name +
-          ((line.variant?.size || line.variant?.material)
-            ? ` (${[line.variant?.size, line.variant?.material].filter(Boolean).join(" / ")})`
-            : ""),
-        quantity: line.requestedQuantity,
-        price: line.item.price,
-      })),
-      subtotal,
-      shipping,
-      total,
-      paymentMethod: "stripe",
-      currency: selectedCurrency,
-      shippingAddress,
-    });
+    try {
+      await sendOrderEmails({
+        orderId: orderId!,
+        customerName,
+        customerEmail,
+        items: validation.resolved.map((line) => ({
+          name:
+            line.product.name +
+            ((line.variant?.size || line.variant?.material)
+              ? ` (${[line.variant?.size, line.variant?.material].filter(Boolean).join(" / ")})`
+              : ""),
+          quantity: line.requestedQuantity,
+          price: line.item.price,
+        })),
+        subtotal,
+        shipping,
+        total,
+        paymentMethod: "stripe",
+        currency: selectedCurrency,
+        shippingAddress,
+      });
+    } catch {
+      console.error("[email] order confirmation failed", orderId);
+    }
 
     return NextResponse.json({ orderId }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {

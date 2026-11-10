@@ -314,37 +314,41 @@ async function sendOrderEmailsIfNeeded(supabase: SupabaseClient, orderId: string
   const region = typeof shippingAddress.region === "string" ? shippingAddress.region : "";
   const country = typeof shippingAddress.country === "string" ? shippingAddress.country : "";
 
-  await sendOrderEmails({
-    orderId: order.id,
-    customerName: order.customer_name ?? "Customer",
-    customerEmail: order.customer_email,
-    items: (order.order_items ?? []).map((item) => ({
-      name:
-        item.product_name +
-        ((item.variant_size || item.variant_material)
-          ? ` (${[item.variant_size, item.variant_material].filter(Boolean).join(" / ")})`
-          : ""),
-      quantity: item.quantity,
-      price: Number(item.price_at_purchase ?? 0),
-    })),
-    subtotal:
-      toNumber(order.subtotal_amount) ||
-      (order.order_items ?? []).reduce(
-        (sum, item) => sum + Number(item.price_at_purchase || 0) * Number(item.quantity || 0),
-        0
-      ),
-    shipping: toNumber(order.shipping_amount),
-    total: toNumber(order.total_amount),
-    paymentMethod: "airwallex",
-    currency: normalizeCurrency(order.currency ?? "USD"),
-    shippingAddress: {
-      address,
-      apartment,
-      city,
-      region,
-      country,
-    },
-  });
+  try {
+    await sendOrderEmails({
+      orderId: order.id,
+      customerName: order.customer_name ?? "Customer",
+      customerEmail: order.customer_email,
+      items: (order.order_items ?? []).map((item) => ({
+        name:
+          item.product_name +
+          ((item.variant_size || item.variant_material)
+            ? ` (${[item.variant_size, item.variant_material].filter(Boolean).join(" / ")})`
+            : ""),
+        quantity: item.quantity,
+        price: Number(item.price_at_purchase ?? 0),
+      })),
+      subtotal:
+        toNumber(order.subtotal_amount) ||
+        (order.order_items ?? []).reduce(
+          (sum, item) => sum + Number(item.price_at_purchase || 0) * Number(item.quantity || 0),
+          0
+        ),
+      shipping: toNumber(order.shipping_amount),
+      total: toNumber(order.total_amount),
+      paymentMethod: "airwallex",
+      currency: normalizeCurrency(order.currency ?? "USD"),
+      shippingAddress: {
+        address,
+        apartment,
+        city,
+        region,
+        country,
+      },
+    });
+  } catch {
+    console.error("[email] order confirmation failed", order.id);
+  }
 
   const { error: updateError } = await supabase
     .from("orders")
@@ -492,12 +496,16 @@ export async function applyAirwallexPaymentIntentStatus(
 
   if (inventoryException) {
     if (order.status !== "inventory_exception") {
-      await sendInventoryExceptionAlert({
-        orderId: order.id,
-        customerEmail: order.customer_email,
-        totalAmount: toNumber(order.total_amount),
-        currency: order.currency,
-      });
+      try {
+        await sendInventoryExceptionAlert({
+          orderId: order.id,
+          customerEmail: order.customer_email,
+          totalAmount: toNumber(order.total_amount),
+          currency: order.currency,
+        });
+      } catch {
+        console.error("[email] inventory exception alert failed", order.id);
+      }
     }
     return { applied: true, orderId: order.id, inventoryException: true as const };
   }

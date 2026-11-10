@@ -1,9 +1,48 @@
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST as codCheckout } from "@/app/api/checkout/cod/route";
-import { sendInventoryExceptionAlert, sendOrderEmails } from "@/lib/email";
+import { DEFAULT_ORDER_EMAIL_FROM, sendInventoryExceptionAlert, sendOrderEmails } from "@/lib/email";
 import { checkoutCustomer, checkoutItem, createCheckoutDb, setActiveDb } from "../helpers/memory-db";
 
-const send = vi.hoisted(() => vi.fn(async () => ({ data: { id: "email_1" }, error: null })));
+const STORE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const RETIRED_SHOP = ["dan", "vapes"].join("");
+const TEXT_EXTENSIONS = new Set([
+  ".ts",
+  ".tsx",
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".cjs",
+  ".json",
+  ".md",
+  ".css",
+  ".sql",
+  ".yml",
+  ".yaml",
+  ".html",
+  ".txt",
+  ".svg",
+  ".example",
+]);
+
+function sourceFiles(dir: string, found: string[] = []): string[] {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === "node_modules" || entry.name === ".next" || entry.name === "coverage") continue;
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      sourceFiles(full, found);
+      continue;
+    }
+    if (TEXT_EXTENSIONS.has(path.extname(entry.name))) found.push(full);
+  }
+  return found;
+}
+
+const send = vi.hoisted(() =>
+  vi.fn(async (_payload?: { from?: string }) => ({ data: { id: "email_1" }, error: null }))
+);
 
 vi.mock("resend", () => {
   return {
@@ -31,7 +70,7 @@ const orderMail = {
   },
 };
 
-describe("EMAIL_FROM unset", () => {
+describe("EMAIL_FROM default", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -50,16 +89,35 @@ describe("EMAIL_FROM unset", () => {
     );
   });
 
-  it("skips the order email and logs an error without throwing", async () => {
-    await expect(sendOrderEmails(orderMail)).resolves.toBe(false);
-    expect(send).not.toHaveBeenCalled();
-    expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining("EMAIL_FROM is not set")
+  it("sends from the store address when EMAIL_FROM is unset or blank", async () => {
+    expect(DEFAULT_ORDER_EMAIL_FROM.toLowerCase().includes(RETIRED_SHOP)).toBe(false);
+    expect(DEFAULT_ORDER_EMAIL_FROM).toBe("orders@jqdgroup.com");
+
+    await expect(sendOrderEmails(orderMail)).resolves.toBe(true);
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({ from: DEFAULT_ORDER_EMAIL_FROM, to: orderMail.customerEmail })
+    );
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({ from: DEFAULT_ORDER_EMAIL_FROM, to: "admin@example.com" })
     );
     expect(fetch).not.toHaveBeenCalled();
+
+    send.mockClear();
+    process.env.EMAIL_FROM = "   ";
+    await expect(sendOrderEmails(orderMail)).resolves.toBe(true);
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ from: DEFAULT_ORDER_EMAIL_FROM }));
   });
 
-  it("skips the inventory-exception alert without throwing", async () => {
+  it("lets EMAIL_FROM override the store address", async () => {
+    process.env.EMAIL_FROM = "orders@example.com";
+    await expect(sendOrderEmails(orderMail)).resolves.toBe(true);
+    expect(send.mock.calls.map((call) => call[0]?.from)).toEqual([
+      "orders@example.com",
+      "orders@example.com",
+    ]);
+  });
+
+  it("sends the inventory-exception alert from the store address", async () => {
     await expect(
       sendInventoryExceptionAlert({
         orderId: "order-email",
@@ -68,13 +126,16 @@ describe("EMAIL_FROM unset", () => {
         currency: "USD",
       })
     ).resolves.toBeUndefined();
-    expect(send).not.toHaveBeenCalled();
-    expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining("EMAIL_FROM is not set")
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        from: DEFAULT_ORDER_EMAIL_FROM,
+        to: "admin@example.com",
+      })
     );
+    expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("still confirms a COD checkout for the shopper", async () => {
+  it("still confirms a COD checkout and sends from the store address", async () => {
     const db = createCheckoutDb();
     setActiveDb(db);
 
@@ -96,8 +157,16 @@ describe("EMAIL_FROM unset", () => {
       orderId: expect.any(String),
     });
     expect(db.rowsOf("orders")).toHaveLength(1);
+    expect(db.rowsOf("orders")[0].inventory_reserved).toBe(true);
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
-    expect(send).not.toHaveBeenCalled();
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ from: DEFAULT_ORDER_EMAIL_FROM }));
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("finds no retired shop name in the store source", () => {
+    const hits = sourceFiles(STORE_ROOT).filter((file) =>
+      readFileSync(file, "utf8").toLowerCase().includes(RETIRED_SHOP)
+    );
+    expect(hits.map((file) => path.relative(STORE_ROOT, file))).toEqual([]);
   });
 });

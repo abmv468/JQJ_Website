@@ -31,6 +31,9 @@ export interface OrderEmailData {
 const BRAND = "JQD Group";
 const GOLD = "#BB9D7B";
 
+/** Used when EMAIL_FROM is unset or blank. EMAIL_FROM overrides this. */
+export const DEFAULT_ORDER_EMAIL_FROM = "orders@jqdgroup.com";
+
 function itemsTable(items: OrderEmailItem[], currency: SupportedCurrency): string {
   return items
     .map(
@@ -93,48 +96,120 @@ function buildHtml(data: OrderEmailData, heading: string): string {
   </div>`;
 }
 
-function senderAddress(): string | null {
+function senderAddress(): string {
   const from = process.env.EMAIL_FROM?.trim();
-  if (!from) {
-    console.error("[email] EMAIL_FROM is not set — skipping send");
-    return null;
+  return from || DEFAULT_ORDER_EMAIL_FROM;
+}
+
+const EMAIL_ADDRESS = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+const RESEND_KEY = /\bre_[A-Za-z0-9_-]+\b/g;
+
+function redact(message: string) {
+  return message.replace(EMAIL_ADDRESS, "[redacted]").replace(RESEND_KEY, "[redacted]").slice(0, 180);
+}
+
+function describeSendFailure(reason: unknown): {
+  name: string;
+  statusCode: number | null;
+  message: string;
+} {
+  if (typeof reason === "string") {
+    return { name: "Error", statusCode: null, message: redact(reason) };
   }
-  return from;
+  if (reason instanceof Error) {
+    const statusCode =
+      "statusCode" in reason && typeof reason.statusCode === "number" ? reason.statusCode : null;
+    return {
+      name: reason.name || "Error",
+      statusCode,
+      message: redact(reason.message || "email send failed"),
+    };
+  }
+  if (reason && typeof reason === "object") {
+    const record = reason as Record<string, unknown>;
+    return {
+      name: typeof record.name === "string" && record.name ? record.name : "Error",
+      statusCode: typeof record.statusCode === "number" ? record.statusCode : null,
+      message: redact(
+        typeof record.message === "string" && record.message ? record.message : "email send failed"
+      ),
+    };
+  }
+  return { name: "Error", statusCode: null, message: "email send failed" };
+}
+
+function logSendFailure(orderId: string, label: string, reason: unknown) {
+  console.error("[email] send failed", {
+    orderId,
+    label,
+    ...describeSendFailure(reason),
+  });
+}
+
+function failureFromResult(result: unknown): unknown | null {
+  if (!result || typeof result !== "object" || !("error" in result)) return null;
+  const error = (result as { error?: unknown }).error;
+  return error ? error : null;
+}
+
+interface OutboundMail {
+  orderId: string;
+  label: string;
+  to: string;
+  subject: string;
+  html?: string;
+  text?: string;
+}
+
+async function deliver(mail: OutboundMail): Promise<boolean> {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  if (!apiKey) return false;
+
+  try {
+    const resend = new Resend(apiKey);
+    const payload = mail.html
+      ? { from: senderAddress(), to: mail.to, subject: mail.subject, html: mail.html }
+      : { from: senderAddress(), to: mail.to, subject: mail.subject, text: mail.text ?? "" };
+    const failure = failureFromResult(await resend.emails.send(payload));
+    if (failure) {
+      logSendFailure(mail.orderId, mail.label, failure);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    logSendFailure(mail.orderId, mail.label, error);
+    return false;
+  }
 }
 
 export async function sendOrderEmails(data: OrderEmailData): Promise<boolean> {
-  const from = senderAddress();
-  if (!from) return false;
-
-  const apiKey = process.env.RESEND_API_KEY;
-  const adminEmail = process.env.ADMIN_EMAIL;
-
-  if (!apiKey) {
-    console.warn("[email] RESEND_API_KEY missing — skipping order emails");
-    return false;
-  }
-
-  const resend = new Resend(apiKey);
-
   try {
-    await resend.emails.send({
-      from,
+    if (!process.env.RESEND_API_KEY?.trim()) {
+      console.warn("[email] RESEND_API_KEY missing — skipping order emails");
+      return false;
+    }
+
+    const customerSent = await deliver({
+      orderId: data.orderId,
+      label: "order confirmation",
       to: data.customerEmail,
       subject: `Your ${BRAND} order ${data.orderId}`,
       html: buildHtml(data, "Thank you for your order"),
     });
 
-    if (adminEmail) {
-      await resend.emails.send({
-        from,
-        to: adminEmail,
-        subject: `New order ${data.orderId} — ${formatPrice(data.total, { currency: data.currency })}`,
-        html: buildHtml(data, "New order received"),
-      });
-    }
-    return true;
-  } catch (err) {
-    console.error("[email] Failed to send order emails", err);
+    const adminEmail = process.env.ADMIN_EMAIL?.trim();
+    if (!adminEmail) return customerSent;
+
+    const adminSent = await deliver({
+      orderId: data.orderId,
+      label: "order notification",
+      to: adminEmail,
+      subject: `New order ${data.orderId} — ${formatPrice(data.total, { currency: data.currency })}`,
+      html: buildHtml(data, "New order received"),
+    });
+    return customerSent && adminSent;
+  } catch (error) {
+    logSendFailure(data.orderId, "order emails", error);
     return false;
   }
 }
@@ -146,17 +221,13 @@ export async function sendInventoryExceptionAlert(input: {
   currency?: string | null;
 }): Promise<void> {
   console.error("[inventory] paid order has no stock; manual review required", input.orderId);
-  const from = senderAddress();
-  if (!from) return;
-
-  const apiKey = process.env.RESEND_API_KEY;
-  const adminEmail = process.env.ADMIN_EMAIL;
-  if (!apiKey || !adminEmail) return;
-
   try {
-    const resend = new Resend(apiKey);
-    await resend.emails.send({
-      from,
+    const adminEmail = process.env.ADMIN_EMAIL?.trim();
+    if (!process.env.RESEND_API_KEY?.trim() || !adminEmail) return;
+
+    await deliver({
+      orderId: input.orderId,
+      label: "inventory exception",
       to: adminEmail,
       subject: `Manual review required: order ${input.orderId} was paid without stock`,
       text: [
@@ -167,7 +238,7 @@ export async function sendInventoryExceptionAlert(input: {
         "Do not ship this order. Refund the payment or source the item.",
       ].join(" "),
     });
-  } catch (err) {
-    console.error("[email] inventory exception alert failed", err);
+  } catch (error) {
+    logSendFailure(input.orderId, "inventory exception", error);
   }
 }

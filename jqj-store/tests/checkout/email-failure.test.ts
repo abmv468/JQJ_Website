@@ -1,0 +1,341 @@
+import { createHmac } from "node:crypto";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { POST as cardCheckout } from "@/app/api/checkout/airwallex/route";
+import { POST as cardVerify } from "@/app/api/checkout/airwallex/verify/route";
+import { POST as codCheckout } from "@/app/api/checkout/cod/route";
+import { GET as releaseReservations } from "@/app/api/cron/release-reservations/route";
+import { POST as webhook } from "@/app/api/webhooks/airwallex/route";
+import { createAirwallexPaymentIntent, retrieveAirwallexPaymentIntent } from "@/lib/payments/airwallex";
+import { checkoutCustomer, checkoutItem, createCheckoutDb, setActiveDb, type MemoryDb } from "../helpers/memory-db";
+
+const send = vi.hoisted(() => vi.fn());
+
+vi.mock("resend", () => {
+  return {
+    Resend: class {
+      emails = { send };
+    },
+  };
+});
+
+vi.mock("@/lib/payments/airwallex", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/payments/airwallex")>(
+    "@/lib/payments/airwallex"
+  );
+  return {
+    ...actual,
+    createAirwallexPaymentIntent: vi.fn(),
+    retrieveAirwallexPaymentIntent: vi.fn(),
+  };
+});
+
+const SECRET = "test_dummy_webhook_secret";
+const CRON_SECRET = "test_dummy_cron";
+const REQUEST_ID = "11111111-1111-4111-8111-111111111111";
+const LEAK = "mailbox rejected for buyer@example.com key re_live_secretvalue";
+const MODES = ["throw", "reject", "error"] as const;
+type FailureMode = (typeof MODES)[number];
+
+function sign(timestamp: string, body: string) {
+  return createHmac("sha256", SECRET).update(`${timestamp}${body}`).digest("hex");
+}
+
+function failSend(mode: FailureMode) {
+  if (mode === "throw") {
+    send.mockImplementation(() => {
+      throw Object.assign(new Error(LEAK), { html: "1 Atelier Lane" });
+    });
+    return;
+  }
+  if (mode === "reject") {
+    send.mockImplementation(() => Promise.reject(Object.assign(new Error(LEAK), { html: "1 Atelier Lane" })));
+    return;
+  }
+  send.mockResolvedValue({
+    data: null,
+    error: {
+      name: "validation_error",
+      statusCode: 403,
+      message: LEAK,
+      html: "1 Atelier Lane",
+    },
+  });
+}
+
+function loggedText() {
+  return vi
+    .mocked(console.error)
+    .mock.calls.flat()
+    .map((part) => {
+      if (part instanceof Error) return `${part.name} ${part.message} ${JSON.stringify(part)}`;
+      if (typeof part === "string") return part;
+      return JSON.stringify(part);
+    })
+    .join("\n");
+}
+
+function expectSafeLog(mode: FailureMode) {
+  const text = loggedText();
+  expect(text).toContain("[email] send failed");
+  expect(text).not.toContain("buyer@example.com");
+  expect(text).not.toContain("admin@example.com");
+  expect(text).not.toContain("re_live_secretvalue");
+  expect(text).not.toContain("Atelier");
+  expect(vi.mocked(console.error)).toHaveBeenCalledWith(
+    "[email] send failed",
+    expect.objectContaining({
+      name: mode === "error" ? "validation_error" : "Error",
+      statusCode: mode === "error" ? 403 : null,
+      message: expect.stringContaining("[redacted]"),
+    })
+  );
+}
+
+function seedHeldOrder(db: MemoryDb, createdAt = new Date().toISOString()) {
+  db.rowsOf("products")[0].stock_count = 4;
+  db.seed("orders", [
+    {
+      id: "order-1",
+      status: "pending",
+      payment_provider: "airwallex",
+      payment_status: "requires_payment_method",
+      fulfillment_status: "pending_payment",
+      inventory_reserved: true,
+      total_amount: 115,
+      subtotal_amount: 100,
+      shipping_amount: 15,
+      currency: "USD",
+      customer_email: "buyer@example.com",
+      customer_name: "Ada Lovelace",
+      created_at: createdAt,
+      shipping_address: {
+        address: "1 Atelier Lane",
+        city: "Austin",
+        region: "TX",
+        country: "United States",
+      },
+    },
+  ]);
+  db.seed("order_items", [
+    {
+      id: "item-1",
+      order_id: "order-1",
+      product_id: "prod-amethyst",
+      variant_id: null,
+      quantity: 1,
+      product_name: "Amethyst Bracelet XV (5mm)",
+      price_at_purchase: 100,
+    },
+  ]);
+  db.seed("payments", [
+    {
+      id: "pay-1",
+      order_id: "order-1",
+      provider: "airwallex",
+      provider_payment_intent_id: "int_1",
+      provider_request_id: "req-1",
+      status: "requires_payment_method",
+      amount: 115,
+      currency: "USD",
+    },
+  ]);
+}
+
+function succeededIntent() {
+  return {
+    id: "int_1",
+    request_id: "req-1",
+    status: "SUCCEEDED",
+    amount: 115,
+    currency: "USD",
+    client_secret: "secret_test",
+    merchant_order_id: "order-1",
+    updated_at: new Date().toISOString(),
+  };
+}
+
+describe("Resend failures stay off the order path", () => {
+  let db: MemoryDb;
+
+  beforeEach(() => {
+    db = createCheckoutDb();
+    setActiveDb(db);
+    send.mockReset();
+    vi.mocked(createAirwallexPaymentIntent).mockReset();
+    vi.mocked(retrieveAirwallexPaymentIntent).mockReset();
+    process.env.RESEND_API_KEY = "re_live_secretvalue";
+    process.env.ADMIN_EMAIL = "admin@example.com";
+    process.env.AIRWALLEX_WEBHOOK_SECRET = SECRET;
+    process.env.CRON_SECRET = CRON_SECRET;
+    delete process.env.EMAIL_FROM;
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("unexpected network call");
+      })
+    );
+  });
+
+  it.each(MODES)("keeps a COD order when Resend %s", async (mode) => {
+    failSend(mode);
+    const response = await codCheckout(
+      new Request("http://localhost:3000/api/checkout/cod", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: [checkoutItem()],
+          customer: checkoutCustomer,
+          currency: "USD",
+          idempotencyKey: `cod-mail-${mode}`,
+        }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ orderId: expect.any(String) });
+    expect(db.rowsOf("orders")).toHaveLength(1);
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      payment_provider: "cod",
+      inventory_reserved: true,
+      status: "pending",
+    });
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
+    expect(send).toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+    expectSafeLog(mode);
+  });
+
+  it.each(MODES)("marks the card webhook paid when Resend %s", async (mode) => {
+    failSend(mode);
+    seedHeldOrder(db);
+    const body = JSON.stringify({
+      id: `evt_${mode}`,
+      name: "payment_intent.succeeded",
+      created_at: new Date().toISOString(),
+      data: {
+        object: {
+          id: "int_1",
+          status: "SUCCEEDED",
+          amount: 115,
+          currency: "USD",
+          merchant_order_id: "order-1",
+        },
+      },
+    });
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const response = await webhook(
+      new Request("http://localhost:3000/api/webhooks/airwallex", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-signature": sign(timestamp, body),
+          "x-timestamp": timestamp,
+        },
+        body,
+      })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ received: true });
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      status: "paid",
+      payment_status: "succeeded",
+      inventory_reserved: true,
+    });
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
+    expect(db.rowsOf("payment_webhook_events")[0]).toMatchObject({
+      provider_event_id: `evt_${mode}`,
+      status: "processed",
+    });
+    expect(send).toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+    expectSafeLog(mode);
+  });
+
+  it("keeps reserved stock when card checkout mail throws", async () => {
+    failSend("throw");
+    vi.mocked(createAirwallexPaymentIntent).mockResolvedValue({
+      ...succeededIntent(),
+      id: "int_test",
+      request_id: REQUEST_ID,
+    });
+
+    const response = await cardCheckout(
+      new Request("http://localhost:3000/api/checkout/airwallex", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: [checkoutItem()],
+          customer: checkoutCustomer,
+          currency: "USD",
+          idempotencyKey: REQUEST_ID,
+        }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      status: "paid",
+      inventory_reserved: true,
+      payment_status: "succeeded",
+    });
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
+    expect(fetch).not.toHaveBeenCalled();
+    expectSafeLog("throw");
+  });
+
+  it("confirms a paid card return when Resend throws", async () => {
+    failSend("throw");
+    seedHeldOrder(db);
+    vi.mocked(retrieveAirwallexPaymentIntent).mockResolvedValue(succeededIntent());
+
+    const response = await cardVerify(
+      new Request("http://localhost:3000/api/checkout/airwallex/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: "order-1", refresh: true }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      orderId: "order-1",
+      succeeded: true,
+      paymentStatus: "succeeded",
+      inventoryReserved: true,
+    });
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      status: "paid",
+      payment_status: "succeeded",
+      inventory_reserved: true,
+    });
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
+    expect(fetch).not.toHaveBeenCalled();
+    expectSafeLog("throw");
+  });
+
+  it("counts a late capture as paid when Resend throws during the cron", async () => {
+    failSend("throw");
+    seedHeldOrder(db, new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString());
+    vi.mocked(retrieveAirwallexPaymentIntent).mockResolvedValue(succeededIntent());
+
+    const response = await releaseReservations(
+      new Request("http://localhost:3000/api/cron/release-reservations", {
+        headers: { authorization: `Bearer ${CRON_SECRET}` },
+      })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ paid: 1, released: 0, errors: [] });
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      status: "paid",
+      payment_status: "succeeded",
+      inventory_reserved: true,
+    });
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
+    expect(fetch).not.toHaveBeenCalled();
+    expectSafeLog("throw");
+  });
+});
