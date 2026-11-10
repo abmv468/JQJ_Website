@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST as postAirwallex } from "@/app/api/checkout/airwallex/route";
 import { POST as postCod } from "@/app/api/checkout/cod/route";
+import * as checkoutCustomerModule from "@/lib/checkout-customer";
 import { validateCheckoutCustomer } from "@/lib/checkout-customer";
 import { createAirwallexPaymentIntent } from "@/lib/payments/airwallex";
 import {
@@ -46,6 +47,7 @@ describe("checkout customer validation", () => {
   let db: MemoryDb;
 
   beforeEach(() => {
+    checkoutCustomerModule.POSTCODE_REQUIRED_ENFORCED.enabled = false;
     db = createCheckoutDb();
     setActiveDb(db);
     delete process.env.RESEND_API_KEY;
@@ -210,5 +212,55 @@ describe("checkout customer validation", () => {
         postalCode: "",
       }).ok
     ).toBe(true);
+  });
+
+  it("accepts a blank postcode for Hong Kong and for a country outside the map", async () => {
+    const hk = await postCod(
+      request(
+        "/api/checkout/cod",
+        { ...checkoutCustomer, city: "Central", country: "Hong Kong SAR", postalCode: "" },
+        `${REQUEST_ID}-hk-blank`
+      )
+    );
+    expect(hk.status).toBe(200);
+
+    const unlisted = await postAirwallex(
+      request(
+        "/api/checkout/airwallex",
+        { ...checkoutCustomer, city: "Tokyo", country: "Japan", postalCode: "" },
+        `${REQUEST_ID}-jp-blank`
+      )
+    );
+    expect(unlisted.status).toBe(200);
+    expect(createAirwallexPaymentIntent).toHaveBeenCalled();
+  });
+
+  it("requires a postcode for the United States only when enforcement is on", async () => {
+    checkoutCustomerModule.POSTCODE_REQUIRED_ENFORCED.enabled = true;
+    try {
+      const missing = await postAirwallex(
+        request(
+          "/api/checkout/airwallex",
+          { ...checkoutCustomer, postalCode: "" },
+          `${REQUEST_ID}-us-required`
+        )
+      );
+      const missingBody = await missing.json();
+      expect(missing.status).toBe(400);
+      expect(missingBody.fields).toEqual({ postalCode: "Enter a valid postcode." });
+      expect(db.rowsOf("orders")).toHaveLength(0);
+      expect(createAirwallexPaymentIntent).not.toHaveBeenCalled();
+
+      const hk = await postCod(
+        request(
+          "/api/checkout/cod",
+          { ...checkoutCustomer, city: "Central", country: "Hong Kong SAR", postalCode: "" },
+          `${REQUEST_ID}-hk-still-optional`
+        )
+      );
+      expect(hk.status).toBe(200);
+    } finally {
+      checkoutCustomerModule.POSTCODE_REQUIRED_ENFORCED.enabled = false;
+    }
   });
 });

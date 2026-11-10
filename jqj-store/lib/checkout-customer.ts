@@ -15,6 +15,47 @@ export type CheckoutCustomerInput = {
 
 export type CheckoutFieldErrors = Record<string, string>;
 
+// Same eight checkout countries and postcode flags as PR #24.
+// Hong Kong is optional. The other seven are required. A country not listed is optional.
+// https://github.com/abmv468/JQJ_Website/pull/24
+export const CHECKOUT_POSTCODE_REQUIRED = {
+  "United States": true,
+  "United Kingdom": true,
+  Canada: true,
+  Australia: true,
+  "Hong Kong SAR": false,
+  Singapore: true,
+  Netherlands: true,
+  Germany: true,
+} as const;
+
+// Flip enabled to true once WEB-008 sends postalCode. Until then a missing postcode is accepted.
+export const POSTCODE_REQUIRED_ENFORCED = { enabled: false };
+
+const CHECKOUT_COUNTRY_NAMES: Record<string, keyof typeof CHECKOUT_POSTCODE_REQUIRED> = {
+  "united states": "United States",
+  "united states of america": "United States",
+  usa: "United States",
+  us: "United States",
+  "united kingdom": "United Kingdom",
+  uk: "United Kingdom",
+  "great britain": "United Kingdom",
+  gb: "United Kingdom",
+  canada: "Canada",
+  ca: "Canada",
+  australia: "Australia",
+  au: "Australia",
+  "hong kong": "Hong Kong SAR",
+  "hong kong sar": "Hong Kong SAR",
+  hk: "Hong Kong SAR",
+  singapore: "Singapore",
+  sg: "Singapore",
+  netherlands: "Netherlands",
+  nl: "Netherlands",
+  germany: "Germany",
+  de: "Germany",
+};
+
 const COUNTRY_CODES: Record<string, string> = {
   "united states": "US",
   "united states of america": "US",
@@ -38,6 +79,12 @@ function countryCode(country: string) {
   if (COUNTRY_CODES[key]) return COUNTRY_CODES[key];
   if (/^[a-z]{2}$/i.test(country.trim())) return country.trim().toUpperCase();
   return "";
+}
+
+function postcodeRequiredForCountry(country: string) {
+  const name = CHECKOUT_COUNTRY_NAMES[country.trim().toLowerCase().replace(/\./g, "")];
+  if (!name) return false;
+  return CHECKOUT_POSTCODE_REQUIRED[name];
 }
 
 function readPostcode(customer: CheckoutCustomerInput) {
@@ -76,11 +123,12 @@ export function validateCheckoutCustomer(customer: CheckoutCustomerInput | null 
   const postcode = readPostcode(source);
   if (!country) {
     fields.country = "Choose a country.";
+  } else if (POSTCODE_REQUIRED_ENFORCED.enabled && postcodeRequiredForCountry(country) && !postcode) {
+    fields.postalCode = "Enter a valid postcode.";
   } else if (postcode && !isValidPostcode(countryCode(country), postcode)) {
     fields.postalCode = "Enter a valid postcode.";
   }
 
-  // Postal code is optional until the checkout form sends it.
   // Phone stays optional. The checkout form does not require it.
   if (Object.keys(fields).length > 0) return { ok: false as const, fields };
   return { ok: true as const };
