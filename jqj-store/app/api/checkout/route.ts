@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { convertUsdToCurrency, normalizeCurrency, toStripeCurrency } from "@/lib/currency";
+import { computeShippingUsd } from "@/lib/shipping";
 import {
   fetchInventoryBySlugs,
   validateCheckoutItems,
@@ -11,7 +12,6 @@ import {
 } from "@/lib/inventory";
 
 export const dynamic = "force-dynamic";
-const SHIPPING_FLAT = 15;
 
 async function getAuthenticatedUserId() {
   const cookieStore = cookies();
@@ -57,7 +57,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
     }
 
-    const shippingAmount = items.length ? SHIPPING_FLAT : 0;
     const selectedCurrency = normalizeCurrency(currency);
     const stripeCurrency = toStripeCurrency(selectedCurrency);
 
@@ -69,6 +68,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: validation.errors[0] || "Insufficient stock" }, { status: 409 });
     }
 
+    const shippingAmount = computeShippingUsd(
+      validation.resolved.map((line) => ({
+        unitPriceUsd: line.product.price,
+        quantity: line.requestedQuantity,
+      }))
+    );
     const stripe = getStripe();
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
     const userId = await getAuthenticatedUserId();

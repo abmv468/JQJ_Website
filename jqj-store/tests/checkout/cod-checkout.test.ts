@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/checkout/cod/route";
+import { convertUsdToCurrency } from "@/lib/currency";
+import { computeShippingUsd } from "@/lib/shipping";
 import {
   checkoutCustomer,
   checkoutItem,
@@ -112,4 +114,44 @@ describe("POST /api/checkout/cod", () => {
     expect(db.rpcCalls.filter((call) => call.fn === "restore_order_inventory")).toHaveLength(1);
     expect(fetch).not.toHaveBeenCalled();
   });
+
+  it.each([
+    { usd: 249.99 },
+    { usd: 250 },
+    { usd: 499.98 },
+  ])(
+    "COD total for USD $usd is the USD subtotal + helper shipping + the unchanged COD fee, even in EUR",
+    async ({ usd }) => {
+      db.rowsOf("products")[0].price = usd;
+      const shipping = computeShippingUsd(usd);
+      const codFee = 20;
+      const eurDisplay = convertUsdToCurrency(usd, "EUR");
+
+      const response = await POST(
+        request({
+          items: [checkoutItem({ price: 1, quantity: 1 })],
+          customer: checkoutCustomer,
+          currency: "EUR",
+          shipping: 0,
+          total: eurDisplay,
+          idempotencyKey: `${KEY}-${usd}`,
+        })
+      );
+
+      expect(response.status).toBe(200);
+      expect(shipping).toBe(usd >= 250 ? 0 : 15);
+      expect(db.rowsOf("orders")[0]).toMatchObject({
+        subtotal_amount: usd,
+        shipping_amount: shipping,
+        total_amount: usd + shipping + codFee,
+        currency: "EUR",
+        shipping_address: expect.objectContaining({
+          payment_method: "cod",
+          cod_fee: codFee,
+          currency: "EUR",
+        }),
+      });
+      expect(db.rowsOf("orders")[0].total_amount).not.toBe(eurDisplay);
+    }
+  );
 });
