@@ -14,8 +14,10 @@ import {
   type ResolvedCheckoutItem,
 } from "@/lib/inventory";
 import {
+  CARD_PAYMENTS_UNAVAILABLE_MESSAGE,
   createAirwallexPaymentIntent,
   getAirwallexSdkEnvironment,
+  isCardPaymentsEnabled,
   normalizeAirwallexPaymentStatus,
 } from "@/lib/payments/airwallex";
 import {
@@ -85,7 +87,21 @@ async function getAuthenticatedUserId() {
   return data.user?.id ?? null;
 }
 
+export async function GET() {
+  return NextResponse.json(
+    { cardEnabled: isCardPaymentsEnabled() },
+    { headers: { "Cache-Control": "no-store" } }
+  );
+}
+
 export async function POST(req: Request) {
+  if (!isCardPaymentsEnabled()) {
+    return NextResponse.json(
+      { error: CARD_PAYMENTS_UNAVAILABLE_MESSAGE },
+      { status: 503, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
   let supabase: ReturnType<typeof createAdminClient> | null = null;
   let orderId: string | null = null;
   let reservedStock = false;

@@ -7,6 +7,7 @@ import { ChevronLeft, CreditCard, Truck } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
 import { createClient } from "@/lib/supabase/client";
+import { CARD_PAYMENTS_UNAVAILABLE_MESSAGE } from "@/lib/payments/card-payments";
 import { computeShippingUsd } from "@/lib/shipping";
 import { formatPrice } from "@/lib/utils";
 
@@ -94,6 +95,7 @@ export default function CheckoutPage() {
   const checkoutAttemptIdRef = useRef<string>(crypto.randomUUID());
   const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
   const [method, setMethod] = useState<"airwallex" | "cod">("airwallex");
+  const [cardEnabled, setCardEnabled] = useState(true);
   const [loading, setLoading] = useState(false);
   const [paymentStage, setPaymentStage] = useState<
     "idle" | "creating_payment" | "redirecting_to_airwallex"
@@ -158,6 +160,26 @@ export default function CheckoutPage() {
     }
 
     void prefillFromAccount();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetch("/api/checkout/airwallex", { cache: "no-store" })
+      .then((response) => {
+        if (!response.ok) throw new Error("Card config unavailable");
+        return response.json() as Promise<{ cardEnabled?: boolean }>;
+      })
+      .then((data) => {
+        if (!isMounted || data.cardEnabled !== false) return;
+        setCardEnabled(false);
+        setMethod((current) => (current === "airwallex" ? "cod" : current));
+      })
+      .catch(() => {
+        // Config fetch failed: leave card checkout selectable. The server 503 is the backstop.
+      });
     return () => {
       isMounted = false;
     };
@@ -241,8 +263,10 @@ export default function CheckoutPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Checkout failed");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(typeof data?.error === "string" && data.error ? data.error : "Checkout failed");
+      }
 
       if (method === "airwallex") {
         if (!data.intentId || !data.clientSecret || !data.orderId || !data.currency || !data.sdkEnv) {
@@ -371,10 +395,23 @@ export default function CheckoutPage() {
           <section className="mb-8">
             <h2 className="mb-4 font-heading text-sm uppercase tracking-wider2">Payment</h2>
             <div className="space-y-3">
-              <label className={`flex cursor-pointer items-center gap-3 border p-4 ${method === "airwallex" ? "border-brand-gold" : "border-brand-border"}`}>
-                <input type="radio" name="method" checked={method === "airwallex"} onChange={() => setMethod("airwallex")} className="accent-brand-gold" />
+              <label className={`flex items-center gap-3 border p-4 ${cardEnabled ? "cursor-pointer" : "cursor-not-allowed opacity-60"} ${method === "airwallex" ? "border-brand-gold" : "border-brand-border"}`}>
+                <input
+                  type="radio"
+                  name="method"
+                  checked={method === "airwallex"}
+                  disabled={!cardEnabled}
+                  aria-describedby={cardEnabled ? undefined : "card-payments-unavailable"}
+                  onChange={() => setMethod("airwallex")}
+                  className="accent-brand-gold"
+                />
                 <span className="text-sm">Credit / Debit Card (Airwallex Hosted Checkout)</span>
               </label>
+              {!cardEnabled && (
+                <p id="card-payments-unavailable" role="status" className="text-sm text-red-400">
+                  {CARD_PAYMENTS_UNAVAILABLE_MESSAGE}
+                </p>
+              )}
               <label className={`flex cursor-pointer items-center gap-3 border p-4 ${method === "cod" ? "border-brand-gold" : "border-brand-border"}`}>
                 <input type="radio" name="method" checked={method === "cod"} onChange={() => setMethod("cod")} className="accent-brand-gold" />
                 <span className="text-sm">Cash on Delivery (+{codFeeInCurrency} fee)</span>
