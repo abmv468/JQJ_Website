@@ -121,6 +121,13 @@ export function reportPaidClaimLost(orderId: string) {
     event: PAID_CLAIM_LOST_EVENT,
     orderId,
   });
+  console.error(
+    JSON.stringify({
+      tag: "jqd_alert",
+      event: PAID_CLAIM_LOST_EVENT,
+      orderId,
+    })
+  );
 }
 
 /** Stable event for a terminal payment on a cancelled or test order. Ids only. */

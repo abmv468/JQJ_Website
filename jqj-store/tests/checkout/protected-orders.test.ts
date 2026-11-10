@@ -6,6 +6,7 @@ import { POST as webhook } from "@/app/api/webhooks/airwallex/route";
 import { sendOrderEmails } from "@/lib/email";
 import { retrieveAirwallexPaymentIntent } from "@/lib/payments/airwallex";
 import {
+  applyAirwallexPaymentIntentStatus,
   PAYMENT_ON_PROTECTED_ORDER_EVENT,
   PROTECTED_ORDER_ALERT_EVENT,
 } from "@/lib/payments/airwallex-orders";
@@ -263,6 +264,31 @@ describe("protected cancelled and test orders", () => {
       expect(closedOrderAlerts(errorSpy)).toHaveLength(0);
     }
   );
+
+  it.each([
+    ["NaN", Number.NaN],
+    ["Infinity", Number.POSITIVE_INFINITY],
+    ["-Infinity", Number.NEGATIVE_INFINITY],
+  ] as const)("rejects a protected success amount of %s from apply()", async (_label, amount) => {
+    seedOrder(db, { id: "order-cancelled", status: "cancelled" });
+
+    await expect(
+      applyAirwallexPaymentIntentStatus(db as never, {
+        paymentIntentId: "int_order-cancelled",
+        nextStatus: "succeeded",
+        amount,
+      })
+    ).rejects.toThrow("Payment amount is not a finite number");
+    expect(db.rowsOf("payments")[0]).toMatchObject({
+      status: "requires_payment_method",
+      amount: 115,
+    });
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      status: "cancelled",
+      inventory_reserved: false,
+    });
+    expect(stockMoves(db)).toHaveLength(0);
+  });
 
   it("does not record a protected success when the amount is not finite", async () => {
     seedOrder(db, { id: "order-cancelled", status: "cancelled" });
