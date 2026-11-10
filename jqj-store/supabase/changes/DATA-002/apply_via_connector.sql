@@ -2,16 +2,23 @@
 -- Route C in RUNBOOK.md: Supabase connector execute_sql, because the box has
 -- no IPv6 route to the direct DB host. PREPARED ONLY. Needs the Owner's own
 -- words for THIS route, relayed via CTO and CEO, before it is sent.
--- Migration file sha256: 5f3c5543df202d82adb8b9a2887b1162a4afd875763737f528afebd80e6eeecf
+-- Migration file sha256: 6afa0fe2429031d629a7d20493d025d3d8b9a7a43305bd7908cb3cf7fe1d91b4
 -- History row = byte-identical to what Supabase CLI 3.1.0 `migration up`
--- writes (statements md5 of chr(31)-joined: 92ce61a4bcd22a9ed59b0c8ddefceacd, n=9).
+-- writes (statements md5 of chr(31)-joined: 3a93554c01cf4c453f418c02a8efdec1, n=9).
 -- One transaction: any error rolls back everything, including the history row.
--- Order (r3): PR #7's 20261110042024 must already be applied and recorded
+-- Order (r4): PR #7's 20261110042024 must already be applied and recorded
 -- (route A order), so history stays in version order; the guard refuses
--- otherwise. The migration's session-level SETs are RESET before COMMIT so
--- nothing leaks into the connector's (possibly pooled) session.
+-- otherwise. SET LOCAL lock_timeout='3s' and SET LOCAL statement_timeout='60s'
+-- run directly after BEGIN, before $guard$'s count(*) on orders, so a held
+-- lock on orders fails the guard in 3s and a failed apply cannot leave the
+-- settings on a pooled session. The verbatim migration still uses session-level
+-- SET (required for CLI / autocommit psql -f), so RESET before COMMIT remains
+-- necessary on the success path; SET LOCAL alone does not undo those after COMMIT.
 
 BEGIN;
+
+SET LOCAL lock_timeout = '3s';
+SET LOCAL statement_timeout = '60s';
 
 DO $guard$
 BEGIN
@@ -90,7 +97,8 @@ $guard$;
 -- every later read and write on orders, including checkout). It can't leak:
 -- Supabase CLI 3.1.0 runs RESET ALL before every migration file
 -- (migration-apply.ts resetConnectionState); apply_via_connector.sql RESETs
--- both settings before its COMMIT; psql/db-gate sessions end with the file.
+-- both settings before its COMMIT; #8's db-migrations runner does not run
+-- RESET ALL — each file runs in its own psql -f session.
 -- The DO blocks also set it transaction-locally (belt and braces).
 --
 -- Idempotent: every step is IF NOT EXISTS / guarded, so a re-run is a no-op.
@@ -239,7 +247,8 @@ INSERT INTO supabase_migrations.schema_migrations (version, name, statements) VA
 -- every later read and write on orders, including checkout). It can't leak:
 -- Supabase CLI 3.1.0 runs RESET ALL before every migration file
 -- (migration-apply.ts resetConnectionState); apply_via_connector.sql RESETs
--- both settings before its COMMIT; psql/db-gate sessions end with the file.
+-- both settings before its COMMIT; #8's db-migrations runner does not run
+-- RESET ALL — each file runs in its own psql -f session.
 -- The DO blocks also set it transaction-locally (belt and braces).
 --
 -- Idempotent: every step is IF NOT EXISTS / guarded, so a re-run is a no-op.
@@ -348,7 +357,7 @@ BEGIN
     RAISE EXCEPTION 'post-check: payment_status still nullable';
   END IF;
   IF (SELECT md5(array_to_string(statements, chr(31))) FROM supabase_migrations.schema_migrations
-      WHERE version = '20261110065700') IS DISTINCT FROM '92ce61a4bcd22a9ed59b0c8ddefceacd' THEN
+      WHERE version = '20261110065700') IS DISTINCT FROM '3a93554c01cf4c453f418c02a8efdec1' THEN
     RAISE EXCEPTION 'post-check: history row statements differ from the CLI''s';
   END IF;
   IF (SELECT string_agg(version, ',' ORDER BY version) FROM supabase_migrations.schema_migrations)

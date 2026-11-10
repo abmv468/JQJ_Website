@@ -44,7 +44,8 @@
 -- every later read and write on orders, including checkout). It can't leak:
 -- Supabase CLI 3.1.0 runs RESET ALL before every migration file
 -- (migration-apply.ts resetConnectionState); apply_via_connector.sql RESETs
--- both settings before its COMMIT; psql/db-gate sessions end with the file.
+-- both settings before its COMMIT; #8's db-migrations runner does not run
+-- RESET ALL — each file runs in its own psql -f session.
 -- The DO blocks also set it transaction-locally (belt and braces).
 --
 -- Idempotent: every step is IF NOT EXISTS / guarded, so a re-run is a no-op.
