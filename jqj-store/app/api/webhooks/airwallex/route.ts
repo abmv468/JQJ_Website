@@ -166,6 +166,29 @@ export async function POST(req: Request) {
       if (!linkedOrderId && "orderId" in applyResult) {
         linkedOrderId = applyResult.orderId ?? null;
       }
+
+      if ("reason" in applyResult && applyResult.reason === "order_not_claimed") {
+        const failedOrderId = applyResult.orderId ?? linkedOrderId;
+        console.error("[airwallex-webhook] order_not_claimed", {
+          orderId: failedOrderId,
+          merchantOrderId,
+          paymentIntentId,
+        });
+        if (webhookRowId) {
+          const { error: markFailedError } = await supabase
+            .from("payment_webhook_events")
+            .update({
+              status: "failed",
+              processing_error: "order_not_claimed",
+              processed_at: new Date().toISOString(),
+              order_id: failedOrderId,
+              payment_id: linkedPaymentId,
+            })
+            .eq("id", webhookRowId);
+          if (markFailedError) throw markFailedError;
+        }
+        return NextResponse.json({ received: true, failed: true });
+      }
     } else if (event.name.startsWith("refund.")) {
       const object = event.data?.object ?? {};
       const refundResult = await applyAirwallexRefundEvent(supabase, {
