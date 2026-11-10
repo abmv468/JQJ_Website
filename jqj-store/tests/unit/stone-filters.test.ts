@@ -7,19 +7,19 @@ describe("stone filters derived from products", () => {
       "Amethyst",
       "Blue Lace Agate",
       "Brown Tourmaline",
-      "Carnelian",
       "Freshwater Pearl",
       "Hematite",
       "Labradorite",
+      "Red Leopard Skin Jasper",
       "Sodalite",
     ]);
 
     expect(getStoneFilters(products, "bracelets")).toEqual([
       "Amethyst",
       "Brown Tourmaline",
-      "Carnelian",
       "Hematite",
       "Labradorite",
+      "Red Leopard Skin Jasper",
       "Sodalite",
     ]);
 
@@ -48,5 +48,6 @@ describe("stone filters derived from products", () => {
     ]);
     expect(getStoneFilters(products, "bracelets")).toContain("Labradorite");
     expect(getStoneFilters(products, "necklaces")).toContain("Labradorite");
+    expect(getStoneFilters(products, "bracelets")).toContain("Red Leopard Skin Jasper");
   });
 });

@@ -48,7 +48,7 @@ const baseFeatures = [
 export const products: Product[] = [
   {
     id: "red-leopard-jasper-iii",
-    name: "Red Leopard Skin Jasper Bracelet III (6mm)",
+    name: "Red Leopard Skin Jasper Cube Bracelet",
     slug: "red-leopard-skin-jasper-bracelet-iii",
     description:
       "Grounded and expressive, this Red Leopard Skin Jasper bracelet pairs warm, naturally patterned stone with a hand-finished silver clasp. A timeless profile, crafted one piece at a time.",
@@ -56,13 +56,8 @@ export const products: Product[] = [
     compareAtPrice: 699.99,
     sku: "JQJ-RLSJ-III",
     category: "bracelets",
-    images: [
-      "/products/red-leopard-skin-jasper-bracelet-iii-2.jpg",
-      "/products/red-leopard-skin-jasper-bracelet-hover.jpg",
-      "/products/pearl-silver-necklace-v-2.jpg",
-      "/products/JQJ-Group-—-Natural-Stone-Jewelry-with-Cultural-Craft_Photoshoot_Vintage-Sunwashed-Film_2026-06-29_1x.png",
-    ],
-    hoverImage: "/products/red-leopard-skin-jasper-bracelet-hover.jpg",
+    images: ["/products/red-leopard-jasper-bracelet.webp"],
+    hoverImage: "/products/red-leopard-jasper-bracelet.webp",
     inStock: true,
     lowStockThreshold: 5,
     variants: [
@@ -73,7 +68,7 @@ export const products: Product[] = [
     rating: 4.8,
     reviewCount: 28,
     tags: ["top-rated", "sale"],
-    stone: "Carnelian",
+    stone: "Red Leopard Skin Jasper",
     features: baseFeatures,
     specs: {
       Color: "Red",

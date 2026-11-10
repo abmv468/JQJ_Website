@@ -77,14 +77,10 @@ describe("catalog parity with DATA-004", () => {
 
   it("keeps Red Leopard and JQJ-BLAPEN-55-GV as they are on main", () => {
     const red = getProductBySlug("red-leopard-skin-jasper-bracelet-iii");
-    expect(red?.images).toEqual([
-      "/products/red-leopard-skin-jasper-bracelet-iii-2.jpg",
-      "/products/red-leopard-skin-jasper-bracelet-hover.jpg",
-      "/products/pearl-silver-necklace-v-2.jpg",
-      "/products/JQJ-Group-—-Natural-Stone-Jewelry-with-Cultural-Craft_Photoshoot_Vintage-Sunwashed-Film_2026-06-29_1x.png",
-    ]);
-    expect(red?.hoverImage).toBe("/products/red-leopard-skin-jasper-bracelet-hover.jpg");
-    expect(red?.stone).toBe("Carnelian");
+    expect(red?.name).toBe("Red Leopard Skin Jasper Cube Bracelet");
+    expect(red?.images).toEqual(["/products/red-leopard-jasper-bracelet.webp"]);
+    expect(red?.hoverImage).toBe("/products/red-leopard-jasper-bracelet.webp");
+    expect(red?.stone).toBe("Red Leopard Skin Jasper");
     expect(red?.specs.Stone).toBe("Red Leopard Skin Jasper");
     expect(red?.price).toBe(599.99);
     expect(red?.variants).toEqual([

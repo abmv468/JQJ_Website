@@ -80,6 +80,49 @@ test("an availability timeout does not claim stock and still adds to cart", asyn
   await waitForCart(page);
 });
 
+test("a malformed availability body stays neutral and leaves cart and checkout usable", async ({
+  page,
+}) => {
+  await page.route(/\/api\/products\/availability/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ product: { inStock: true } }),
+    })
+  );
+
+  await page.goto("/products/amethyst-bracelet-xv");
+  await expect(page.locator("[data-stock-state='unknown']")).toBeVisible();
+  await expect(page.getByTestId("stock-status")).toHaveCount(0);
+  await expect(page.getByText(/out of stock/i)).toHaveCount(0);
+  await page.getByRole("button", { name: "Add to Cart" }).click();
+  await waitForCart(page);
+
+  const cartAvailability = page.waitForResponse((response) =>
+    response.url().includes("/api/products/availability")
+  );
+  await page.goto("/cart");
+  await cartAvailability;
+  await expect(page.getByText("Amethyst Bracelet XV (5mm)").first()).toBeVisible();
+  await expect(page.getByText(/out of stock/i)).toHaveCount(0);
+  const checkoutLink = page.getByRole("link", { name: "Checkout", exact: true });
+  await expect(checkoutLink).toBeVisible();
+  await expect(checkoutLink).toBeEnabled();
+
+  const checkoutAvailability = page.waitForResponse((response) =>
+    response.url().includes("/api/products/availability")
+  );
+  await page.goto("/checkout");
+  await checkoutAvailability;
+  const submit = page.getByRole("button", { name: "Continue to Secure Payment" });
+  await expect(submit).toBeVisible();
+  await expect(submit).toBeEnabled();
+  await expect(page.getByText(/out of stock/i)).toHaveCount(0);
+  await expect
+    .poll(async () => page.evaluate((key) => localStorage.getItem(key), CART_KEY))
+    .toContain("amethyst-bracelet-xv");
+});
+
 test("selecting Labradorite shows both Labradorite products", async ({ page }) => {
   await page.goto("/new");
   await page.locator("aside").getByRole("button", { name: "Labradorite", exact: true }).click();

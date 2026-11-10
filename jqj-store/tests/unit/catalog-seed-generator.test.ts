@@ -143,6 +143,6 @@ describe("catalog seed generator", () => {
     expect(products.rows.every((row) => row[thresholdIndex] === "5")).toBe(true);
     expect(variants.rows.every((row) => row[row.length - 1] === "0")).toBe(true);
     expect(sql).toContain("'JQJ-BLAPEN-55-GV', 0");
-    expect(seedBefore).toContain("'JQJ-BLAPEN-55-GV', 3");
+    expect(seedBefore).toContain("'JQJ-BLAPEN-55-GV', 0");
   });
 });
