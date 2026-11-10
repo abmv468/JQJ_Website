@@ -155,7 +155,29 @@ export function reportPaymentOnProtectedOrder(input: {
     tag: "jqd_alert",
     event: PAYMENT_ON_PROTECTED_ORDER_EVENT,
     orderId: input.orderId,
+    kind: input.status === "succeeded" ? "succeeded" : "failed",
   });
+}
+
+function capturedPaymentAmount(value: unknown) {
+  if (typeof value === "number") {
+    if (!Number.isFinite(value) || value < 0) {
+      throw new Error("Payment amount is not a finite number");
+    }
+    return value;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!/^(\d+(\.\d+)?|\.\d+)$/.test(trimmed)) {
+      throw new Error("Payment amount is not a finite number");
+    }
+    const parsed = Number(trimmed);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      throw new Error("Payment amount is not a finite number");
+    }
+    return parsed;
+  }
+  throw new Error("Payment amount is not a finite number");
 }
 
 const REFUND_STATUS_WEIGHT: Record<string, number> = {
@@ -637,12 +659,7 @@ export async function applyAirwallexPaymentIntentStatus(
   if (protectedError) throw protectedError;
   if (protectedRow && isProtectedOrder(protectedRow)) {
     if (isSuccessfulPaymentStatus(input.nextStatus)) {
-      const amountSource = input.amount == null ? payment.amount : input.amount;
-      const parsedAmount = Number(amountSource);
-      if (!Number.isFinite(parsedAmount)) {
-        throw new Error("Payment amount is not a finite number");
-      }
-      const amount = parsedAmount;
+      const amount = capturedPaymentAmount(input.amount == null ? payment.amount : input.amount);
       const { data: recorded, error: recordError } = await supabase
         .from("payments")
         .update({
