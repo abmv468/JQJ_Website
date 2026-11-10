@@ -167,22 +167,31 @@ export default function CheckoutPage() {
   }, []);
 
   useEffect(() => {
-    let isMounted = true;
-    fetch("/api/checkout/shipping", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then((data: { expressShippingEnabled?: boolean }) => {
-        if (!isMounted) return;
-        const enabled = data.expressShippingEnabled === true;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4_000);
+    let cancelled = false;
+
+    fetch("/api/checkout/shipping", { cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(String(response.status));
+        return response.json();
+      })
+      .then((data: { expressShippingEnabled?: unknown } | null) => {
+        if (cancelled) return;
+        const enabled = !!data && typeof data === "object" && data.expressShippingEnabled === true;
         setExpressShippingEnabled(enabled);
         if (!enabled) setShippingMethod("standard");
       })
       .catch(() => {
-        if (!isMounted) return;
+        if (cancelled) return;
         setExpressShippingEnabled(false);
         setShippingMethod("standard");
       });
+
     return () => {
-      isMounted = false;
+      cancelled = true;
+      clearTimeout(timeoutId);
+      controller.abort();
     };
   }, []);
 
@@ -255,11 +264,17 @@ export default function CheckoutPage() {
     setPaymentStage(method === "airwallex" ? "creating_payment" : "idle");
 
     const idempotencyKey = checkoutAttemptIdRef.current;
+    const offerExpedited = expressShippingEnabled === true;
+    const postedShippingMethod =
+      offerExpedited && shippingMethod === "expedited" ? "expedited" : "standard";
+    if (postedShippingMethod === "standard" && shippingMethod !== "standard") {
+      setShippingMethod("standard");
+    }
     const payload = {
       items: payloadItems,
       customer: form,
       shipping,
-      shippingMethod: expressShippingEnabled ? shippingMethod : "standard",
+      shippingMethod: postedShippingMethod,
       currency: method === "airwallex" ? "USD" : currency,
       idempotencyKey,
     };
