@@ -339,6 +339,23 @@ describe("GET /api/admin/orders/needs-attention", () => {
     );
   });
 
+  it("limits the payments query to 101 rows", async () => {
+    seedOrder(db, {
+      id: "order-closed",
+      status: "cancelled",
+      payment_status: "requires_payment_method",
+      created_at: "2026-11-10T08:00:00.000Z",
+    });
+    seedPayment(db, "order-closed");
+
+    const response = await GET(request("Bearer admin-token"));
+
+    expect(response.status).toBe(200);
+    expect(db.limits.filter((call) => call.table === "payments")).toEqual([
+      { table: "payments", count: 101 },
+    ]);
+  });
+
   it("sets truncated when more than 100 protected payments match", async () => {
     for (let index = 0; index < 101; index += 1) {
       const id = `order-${String(index).padStart(3, "0")}`;

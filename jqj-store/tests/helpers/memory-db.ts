@@ -85,6 +85,7 @@ export class MemoryDb {
   private readonly rows: Record<string, Row[]>;
   readonly rpcCalls: { fn: string; args: Record<string, unknown> }[] = [];
   readonly writes: DbWrite[] = [];
+  readonly limits: { table: string; count: number }[] = [];
   failWhen: FailWhen | null = null;
 
   constructor(schema: StoreSchema = loadStoreSchema()) {
@@ -379,6 +380,7 @@ class Query implements PromiseLike<QueryResult> {
 
   limit(count: number) {
     this.limitN = count;
+    this.db.limits.push({ table: this.table, count });
     return this;
   }
 
