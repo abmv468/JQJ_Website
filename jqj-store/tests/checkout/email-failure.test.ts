@@ -864,59 +864,6 @@ describe("Resend failures stay off the order path", () => {
     expect(send).not.toHaveBeenCalled();
   });
 
-  it("retries a recent paid confirmation from the reservation cron and skips the rest", async () => {
-    delete process.env.ADMIN_EMAIL;
-    send.mockResolvedValue({ data: { id: "email_1" }, error: null });
-    const recent = new Date().toISOString();
-    seedPaidOrder(db, "order-recent", recent);
-    seedPaidOrder(db, "order-old", new Date(Date.now() - 30 * 60 * 60 * 1000).toISOString());
-    seedPaidOrder(db, "order-before-cutoff", "2026-11-09T12:00:00.000Z");
-    seedPaidOrder(db, "order-sent", recent, recent);
-
-    const response = await releaseReservations(
-      new Request("http://localhost:3000/api/cron/release-reservations", {
-        headers: { authorization: `Bearer ${CRON_SECRET}` },
-      })
-    );
-    expect(response.status).toBe(200);
-    expect(send).toHaveBeenCalledTimes(1);
-    expect(db.rowsOf("orders").find((row) => row.id === "order-recent")?.confirmation_email_sent_at).toEqual(
-      expect.any(String)
-    );
-    expect(db.rowsOf("orders").find((row) => row.id === "order-old")?.confirmation_email_sent_at ?? null).toBeNull();
-    expect(
-      db.rowsOf("orders").find((row) => row.id === "order-before-cutoff")?.confirmation_email_sent_at ?? null
-    ).toBeNull();
-    expect(db.rowsOf("orders").find((row) => row.id === "order-sent")?.confirmation_email_sent_at).toBe(recent);
-  });
-
-  it("sends once when the reservation cron races verify on a paid unsent order", async () => {
-    delete process.env.ADMIN_EMAIL;
-    send.mockImplementation(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 20));
-      return { data: { id: "email_1" }, error: null };
-    });
-    seedPaidOrder(db, "order-1", new Date().toISOString());
-
-    const [cron, confirmed] = await Promise.all([
-      releaseReservations(
-        new Request("http://localhost:3000/api/cron/release-reservations", {
-          headers: { authorization: `Bearer ${CRON_SECRET}` },
-        })
-      ),
-      cardVerify(
-        new Request("http://localhost:3000/api/checkout/airwallex/verify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderId: "order-1" }),
-        })
-      ),
-    ]);
-
-    expect(cron.status).toBe(200);
-    expect(confirmed.status).toBe(200);
-    expect(send).toHaveBeenCalledTimes(1);
-  });
 });
 
 const confirmation = {

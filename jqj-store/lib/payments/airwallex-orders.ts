@@ -291,10 +291,6 @@ function isStockUnavailable(message: string | undefined) {
   return /stock|unavailable/i.test(message ?? "");
 }
 
-export const CONFIRMATION_RETRY_SINCE = "2026-11-10T00:00:00.000Z";
-const CONFIRMATION_RETRY_WINDOW_MS = 24 * 60 * 60 * 1000;
-const CONFIRMATION_RETRY_LIMIT = 20;
-
 export async function retryUnsentPaidConfirmation(supabase: SupabaseClient, orderId: string) {
   try {
     const { data, error } = await supabase
@@ -309,33 +305,6 @@ export async function retryUnsentPaidConfirmation(supabase: SupabaseClient, orde
     await sendOrderEmailsIfNeeded(supabase, orderId);
   } catch {
     console.error("[email] confirmation retry failed", orderId);
-  }
-}
-
-export async function retryRecentUnsentConfirmations(supabase: SupabaseClient) {
-  const earliest = Math.max(Date.parse(CONFIRMATION_RETRY_SINCE), Date.now() - CONFIRMATION_RETRY_WINDOW_MS);
-  const { data, error } = await supabase
-    .from("orders")
-    .select("id, paid_at, updated_at")
-    .eq("payment_status", "succeeded")
-    .is("confirmation_email_sent_at", null);
-  if (error) {
-    console.error("[email] confirmation retry failed");
-    return;
-  }
-
-  const due = ((data ?? []) as Array<{ id?: string; paid_at?: string | null; updated_at?: string | null }>)
-    .filter((row) => {
-      const paidAt = typeof row.paid_at === "string" ? Date.parse(row.paid_at) : NaN;
-      const updatedAt = typeof row.updated_at === "string" ? Date.parse(row.updated_at) : NaN;
-      const stamp = Number.isFinite(paidAt) ? paidAt : updatedAt;
-      return Number.isFinite(stamp) && stamp >= earliest;
-    })
-    .slice(0, CONFIRMATION_RETRY_LIMIT);
-
-  for (const row of due) {
-    if (!row.id) continue;
-    await retryUnsentPaidConfirmation(supabase, row.id);
   }
 }
 

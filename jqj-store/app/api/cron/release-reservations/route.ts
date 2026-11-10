@@ -1,10 +1,7 @@
 import { timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import {
-  releaseExpiredAirwallexReservations,
-  retryRecentUnsentConfirmations,
-} from "@/lib/payments/airwallex-orders";
+import { releaseExpiredAirwallexReservations } from "@/lib/payments/airwallex-orders";
 
 export const dynamic = "force-dynamic";
 
@@ -28,9 +25,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    const supabase = createAdminClient();
-    const summary = await releaseExpiredAirwallexReservations(supabase);
-    await retryRecentUnsentConfirmations(supabase);
+    const summary = await releaseExpiredAirwallexReservations(createAdminClient());
     return NextResponse.json(summary, noStore);
   } catch (error) {
     console.error("[cron-release-reservations]", error);
