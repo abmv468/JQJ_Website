@@ -12,9 +12,14 @@ export function generateStaticParams() {
   return products.map((p) => ({ slug: p.slug }));
 }
 
+function shareImage(images: string[] | undefined): string | undefined {
+  return images?.find((image) => image.trim().length > 0);
+}
+
 export function generateMetadata({ params }: { params: { slug: string } }) {
   const product = getProductBySlug(params.slug);
   const productPath = `/products/${params.slug}`;
+  const image = shareImage(product?.images);
 
   return {
     title: product?.name ?? "Product",
@@ -28,20 +33,15 @@ export function generateMetadata({ params }: { params: { slug: string } }) {
           url: productPath,
           title: product.name,
           description: product.description,
-          images: [
-            {
-              url: product.images[0],
-              alt: product.name,
-            },
-          ],
+          ...(image ? { images: [{ url: image, alt: product.name }] } : {}),
         }
       : undefined,
     twitter: product
       ? {
-          card: "summary_large_image",
+          card: image ? "summary_large_image" : "summary",
           title: product.name,
           description: product.description,
-          images: [product.images[0]],
+          ...(image ? { images: [image] } : {}),
         }
       : undefined,
   };
@@ -53,13 +53,14 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
 
   const related = getRelatedProducts(product);
   const categoryName = product.category === "bracelets" ? "Bracelets" : "Necklaces";
+  const images = product.images.filter((image) => image.trim().length > 0);
   const productSchema = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.name,
     description: product.description,
     sku: product.sku,
-    image: product.images.map((image) => absoluteUrl(image)),
+    ...(images.length > 0 ? { image: images.map((image) => absoluteUrl(image)) } : {}),
     category: categoryName,
     brand: {
       "@type": "Brand",

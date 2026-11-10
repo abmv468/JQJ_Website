@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { ChevronDown, Minus, Plus } from "lucide-react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import type { Product } from "@/data/products";
 import { useCart } from "@/context/CartContext";
+import ProductPlaceholder from "@/components/ui/ProductPlaceholder";
 import StarRating from "@/components/ui/StarRating";
 import ProductCard from "./ProductCard";
 import { getStockState, getVariantLabel } from "@/lib/product-stock";
@@ -143,7 +143,7 @@ export default function ProductDetail({
         slug: product.slug,
         name: product.name,
         price: product.price,
-        image: product.images[0],
+        image: product.images[0] ?? null,
         sku: selectedVariant?.sku ?? product.sku,
         size: selectedVariant?.size ?? (size || undefined),
         material: selectedVariant?.material ?? undefined,
@@ -166,10 +166,10 @@ export default function ProductDetail({
         {/* Gallery */}
         <div>
           <div className="relative aspect-square overflow-hidden bg-brand-card">
-            <Image
+            <ProductPlaceholder
               src={product.images[activeImage]}
+              name={product.name}
               alt={product.name}
-              fill
               priority
               sizes="(max-width: 1024px) 100vw, 50vw"
               className="object-cover"
@@ -186,10 +186,10 @@ export default function ProductDetail({
                     activeImage === i ? "border-brand-gold" : "border-brand-border"
                   }`}
                 >
-                  <Image
+                  <ProductPlaceholder
                     src={img}
+                    name={product.name}
                     alt={`${product.name} ${i + 1}`}
-                    fill
                     sizes="120px"
                     className="object-cover"
                   />

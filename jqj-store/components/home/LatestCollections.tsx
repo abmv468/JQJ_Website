@@ -1,7 +1,7 @@
 import Link from "next/link";
-import Image from "next/image";
 import { ArrowUpRight } from "lucide-react";
 import { products } from "@/data/products";
+import ProductPlaceholder from "@/components/ui/ProductPlaceholder";
 
 // Build "collection" cards from available product imagery.
 const collections = [
@@ -34,10 +34,10 @@ export default function LatestCollections() {
               className="group flex h-full flex-col rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-3 transition-[transform,border-color,background-color] duration-200 hover:-translate-y-1 hover:border-white/18 hover:bg-white/[0.05]"
             >
               <div className="relative aspect-[0.94] overflow-hidden rounded-[1.15rem] bg-brand-card">
-                <Image
+                <ProductPlaceholder
                   src={c.image}
+                  name={c.name}
                   alt={c.alt}
-                  fill
                   sizes="(max-width: 768px) 33vw, 14vw"
                   className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
                 />

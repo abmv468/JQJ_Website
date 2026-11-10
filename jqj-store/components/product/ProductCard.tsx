@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import type { Product } from "@/data/products";
 import { getStockState } from "@/lib/product-stock";
+import ProductPlaceholder from "@/components/ui/ProductPlaceholder";
 import StarRating from "@/components/ui/StarRating";
 import { useCurrency } from "@/context/CurrencyContext";
 
@@ -64,19 +64,20 @@ export default function ProductCard({
               Low stock
             </span>
           ) : null}
-          <Image
+          <ProductPlaceholder
             src={product.images[0]}
+            name={product.name}
             alt={product.name}
-            fill
             sizes={sizes}
             className={`rounded-[1.2rem] object-cover transition-[transform,opacity] duration-500 ${hoverImage ? "opacity-100 group-hover:scale-[1.04] group-hover:opacity-0" : "group-hover:scale-[1.04]"}`}
           />
           {hoverImage ? (
-            <Image
+            <ProductPlaceholder
               src={hoverImage}
+              name={product.name}
               alt={`${product.name} hover view`}
-              fill
               sizes={sizes}
+              hideOnError
               className="rounded-[1.2rem] object-cover opacity-0 transition-[transform,opacity] duration-500 group-hover:scale-[1.04] group-hover:opacity-100"
             />
           ) : null}

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
+import ProductPlaceholder from "@/components/ui/ProductPlaceholder";
 import { Minus, Plus, X } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -64,7 +64,13 @@ export default function CartPage() {
           {items.map((item) => (
             <li key={`${item.id}-${item.sku ?? ""}-${item.size ?? ""}-${item.material ?? ""}`} className="flex gap-5 py-6">
               <div className="relative h-28 w-28 shrink-0 overflow-hidden bg-brand-card">
-                <Image src={item.image} alt={item.name} fill sizes="112px" className="object-cover" />
+                <ProductPlaceholder
+                  src={item.image}
+                  name={item.name}
+                  alt={item.name}
+                  sizes="112px"
+                  className="object-cover"
+                />
               </div>
               <div className="flex flex-1 flex-col">
                 <div className="flex items-start justify-between">

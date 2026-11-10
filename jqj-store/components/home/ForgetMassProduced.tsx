@@ -1,6 +1,6 @@
 import Link from "next/link";
-import Image from "next/image";
 import { ArrowRight } from "lucide-react";
+import ProductPlaceholder from "@/components/ui/ProductPlaceholder";
 
 export default function ForgetMassProduced() {
   return (
@@ -53,13 +53,7 @@ export default function ForgetMassProduced() {
         </div>
 
         <div className="relative min-h-[380px]">
-          <Image
-            src="/products/lifestyle.webp"
-            alt="JQD Group artisan fitting a bracelet"
-            fill
-            sizes="(max-width: 768px) 100vw, 50vw"
-            className="object-cover"
-          />
+          <ProductPlaceholder decorative className="object-cover" />
           <div className="absolute inset-0 bg-gradient-to-l from-black/15 via-transparent to-black/50" />
           <div className="absolute bottom-6 left-6 right-6 max-w-sm rounded-[1.4rem] border border-white/12 bg-black/42 p-5 backdrop-blur-md">
             <p
