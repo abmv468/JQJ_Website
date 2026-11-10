@@ -72,8 +72,8 @@ describe("checkout customer validation", () => {
         email: expect.any(String),
         address: expect.any(String),
         city: expect.any(String),
-        postalCode: expect.any(String),
       });
+      expect(missingBody.fields.postalCode).toBeUndefined();
       expect(missingBody.fields.phone).toBeUndefined();
 
       const invalidEmail = await handler(
@@ -130,7 +130,42 @@ describe("checkout customer validation", () => {
     expect((await cod.json()).orderId).toEqual(expect.any(String));
   });
 
+  it("accepts a US address with no postal code and rejects a malformed one", async () => {
+    const { postalCode: _postalCode, ...usWithoutPostal } = checkoutCustomer;
+
+    const malformed = await postAirwallex(
+      request(
+        "/api/checkout/airwallex",
+        { ...usWithoutPostal, postalCode: "7870" },
+        `${REQUEST_ID}-bad-zip`
+      )
+    );
+    const malformedBody = await malformed.json();
+    expect(malformed.status).toBe(400);
+    expect(malformedBody.fields).toEqual({ postalCode: "Enter a valid postcode." });
+    expect(db.rowsOf("orders")).toHaveLength(0);
+    expect(createAirwallexPaymentIntent).not.toHaveBeenCalled();
+
+    const card = await postAirwallex(
+      request("/api/checkout/airwallex", usWithoutPostal, `${REQUEST_ID}-no-zip`)
+    );
+    expect(card.status).toBe(200);
+    expect(createAirwallexPaymentIntent).toHaveBeenCalled();
+
+    const cod = await postCod(
+      request("/api/checkout/cod", { ...usWithoutPostal, postalCode: "" }, `${REQUEST_ID}-empty-zip`)
+    );
+    expect(cod.status).toBe(200);
+    expect((await cod.json()).orderId).toEqual(expect.any(String));
+  });
+
   it("checks common postcode formats and does not require one for Hong Kong", () => {
+    const { postalCode: _postalCode, ...usWithoutPostal } = checkoutCustomer;
+    expect(validateCheckoutCustomer(usWithoutPostal).ok).toBe(true);
+    expect(validateCheckoutCustomer({ ...checkoutCustomer, postalCode: "" }).ok).toBe(true);
+    const malformed = validateCheckoutCustomer({ ...checkoutCustomer, postalCode: "7870" });
+    expect(malformed.ok).toBe(false);
+    if (!malformed.ok) expect(malformed.fields.postalCode).toBe("Enter a valid postcode.");
     expect(validateCheckoutCustomer({ ...checkoutCustomer, postalCode: "78701-1234" }).ok).toBe(true);
     expect(validateCheckoutCustomer({ ...checkoutCustomer, postalCode: "787011234" }).ok).toBe(true);
     expect(
@@ -167,7 +202,7 @@ describe("checkout customer validation", () => {
         country: "Singapore",
         postalCode: "",
       }).ok
-    ).toBe(false);
+    ).toBe(true);
     expect(
       validateCheckoutCustomer({
         ...checkoutCustomer,

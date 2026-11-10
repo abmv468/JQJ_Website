@@ -73,12 +73,14 @@ export function validateCheckoutCustomer(customer: CheckoutCustomerInput | null 
   if (!(source.city ?? "").trim()) fields.city = "Enter your city.";
 
   const country = (source.country ?? "").trim();
+  const postcode = readPostcode(source);
   if (!country) {
     fields.country = "Choose a country.";
-  } else if (!isValidPostcode(countryCode(country), readPostcode(source))) {
+  } else if (postcode && !isValidPostcode(countryCode(country), postcode)) {
     fields.postalCode = "Enter a valid postcode.";
   }
 
+  // Postal code is optional until the checkout form sends it.
   // Phone stays optional. The checkout form does not require it.
   if (Object.keys(fields).length > 0) return { ok: false as const, fields };
   return { ok: true as const };
