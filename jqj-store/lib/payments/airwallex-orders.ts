@@ -662,16 +662,84 @@ export async function applyAirwallexPaymentIntentStatus(
   }
 
   if (claimingPaid) {
-    // The order claim is the gate. NULL payment_status is unpaid in Postgres,
-    // so `<> 'succeeded'` alone would skip the row and leave it stuck.
-    const { data: claimedOrder, error: orderUpdateError } = await supabase
-      .from("orders")
-      .update(orderPatch)
-      .eq("id", order.id)
-      .or("payment_status.is.null,payment_status.neq.succeeded")
-      .select("id")
-      .maybeSingle();
-    if (orderUpdateError) throw orderUpdateError;
+    // Compare-and-set on the reservation flag and the payment_status we read.
+    // A restore that wins between this read and the write clears the flag, so
+    // the paid update matches 0 rows instead of marking a paid order with no stock.
+    const expectReserved = reReservedThisCall || order.inventory_reserved === true;
+    const alreadyRecordedPaid = order.payment_status === "succeeded";
+    let claimedOrder: { id: string } | null = null;
+    if (!alreadyRecordedPaid) {
+      let paidUpdate = supabase.from("orders").update(orderPatch).eq("id", order.id);
+      if (expectReserved) {
+        paidUpdate = paidUpdate.eq("inventory_reserved", true);
+        paidUpdate =
+          order.payment_status == null
+            ? paidUpdate.is("payment_status", null)
+            : paidUpdate.eq("payment_status", order.payment_status);
+      } else {
+        paidUpdate = paidUpdate.or("payment_status.is.null,payment_status.neq.succeeded");
+      }
+      const paidResult = await paidUpdate.select("id").maybeSingle();
+      if (paidResult.error) throw paidResult.error;
+      claimedOrder = paidResult.data;
+    }
+
+    if (!claimedOrder && expectReserved) {
+      const { data: freshOrder, error: freshError } = await supabase
+        .from("orders")
+        .select("id, status, fulfillment_status, payment_status, inventory_reserved, paid_at")
+        .eq("id", order.id)
+        .maybeSingle();
+      if (freshError) throw freshError;
+      const fresh = freshOrder as {
+        id: string;
+        status: string | null;
+        fulfillment_status: string | null;
+        payment_status: string | null;
+        inventory_reserved: boolean | null;
+        paid_at: string | null;
+      } | null;
+      const alreadyPaid = fresh?.payment_status === "succeeded" || fresh?.status === "paid";
+      if (fresh && !alreadyPaid && fresh.inventory_reserved !== true) {
+        const lines = await getOrderItemReservations(supabase, order.id);
+        let stockShort = lines.length === 0;
+        if (!stockShort) {
+          try {
+            await reserveOrderInventory(supabase, order.id, lines);
+          } catch (error) {
+            if (!isUnavailableStock(error)) throw error;
+            stockShort = true;
+          }
+        }
+        if (stockShort) {
+          const shortfall = lines.length ? await measureStockShortfall(supabase, lines) : [];
+          return flagPaymentAfterExpiry(supabase, {
+            order: { ...order, ...fresh },
+            payment,
+            paymentIntentId: input.paymentIntentId,
+            providerEventId: input.providerEventId,
+            providerEventCreatedAt: input.providerEventCreatedAt,
+            currentStatus,
+            now,
+            shortfall,
+          });
+        }
+        const retryPatch = { ...orderPatch };
+        delete retryPatch.inventory_reserved;
+        let retryUpdate = supabase
+          .from("orders")
+          .update(retryPatch)
+          .eq("id", order.id)
+          .eq("inventory_reserved", true);
+        retryUpdate =
+          fresh.payment_status == null
+            ? retryUpdate.is("payment_status", null)
+            : retryUpdate.eq("payment_status", fresh.payment_status);
+        const retry = await retryUpdate.select("id").maybeSingle();
+        if (retry.error) throw retry.error;
+        claimedOrder = retry.data;
+      }
+    }
 
     if (!claimedOrder) {
       const { data: currentOrder, error: rereadError } = await supabase
