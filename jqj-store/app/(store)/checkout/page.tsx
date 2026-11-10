@@ -302,7 +302,7 @@ export default function CheckoutPage() {
         <form onSubmit={handleSubmit} className="order-2 lg:order-1">
           <div className="mb-8 flex flex-wrap items-center gap-4 border border-brand-border p-4 sm:gap-6 sm:p-5">
             <div className="flex items-center gap-2 text-xs text-brand-muted">
-              <Truck className="h-4 w-4 text-brand-gold" /> Express — Tracked delivery
+              <Truck className="h-4 w-4 text-brand-gold" /> Standard shipping · Tracked delivery
             </div>
             <div className="flex items-center gap-2 text-xs text-brand-muted">
               <CreditCard className="h-4 w-4 text-brand-gold" /> Secure payment

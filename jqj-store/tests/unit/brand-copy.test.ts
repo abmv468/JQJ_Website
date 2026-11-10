@@ -12,7 +12,7 @@ import {
 import { products } from "@/data/products";
 
 const BANNED =
-  /\b(?:hand-crafted|handcrafted|hand-finished|hand-made|hand made|handmade|craftsmanship|artisanal|artisan|atelier|crafted|craft)\b|worldwide|\bUPS\b/i;
+  /\b(?:hand-crafted|handcrafted|hand-finished|hand-made|hand made|handmade|craftsmanship|artisanal|artisan|atelier|crafted|craft|express)\b|worldwide|\bUPS\b/i;
 
 function walkTs(dir: string): string[] {
   const absolute = path.resolve(process.cwd(), dir);
