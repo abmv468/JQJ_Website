@@ -32,9 +32,6 @@ export interface OrderEmailData {
 const BRAND = "JQD Group";
 const GOLD = "#BB9D7B";
 
-/** Used when EMAIL_FROM is unset or blank. EMAIL_FROM overrides this. */
-export const DEFAULT_ORDER_EMAIL_FROM = "orders@jqdgroup.com";
-
 function itemsTable(items: OrderEmailItem[], currency: SupportedCurrency): string {
   return items
     .map(
@@ -97,9 +94,13 @@ function buildHtml(data: OrderEmailData, heading: string): string {
   </div>`;
 }
 
-function senderAddress(): string {
+function senderAddress(): string | null {
   const from = process.env.EMAIL_FROM?.trim();
-  return from || DEFAULT_ORDER_EMAIL_FROM;
+  return from || null;
+}
+
+function logMissingSender(orderId: string) {
+  console.error("[email] EMAIL_FROM is not set", orderId);
 }
 
 const EMAIL_ADDRESS = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
@@ -156,6 +157,7 @@ function failureFromResult(result: unknown): unknown | null {
 interface OutboundMail {
   orderId: string;
   label: string;
+  from: string;
   to: string;
   subject: string;
   html?: string;
@@ -169,8 +171,8 @@ async function deliver(mail: OutboundMail): Promise<boolean> {
   try {
     const resend = new Resend(apiKey);
     const payload = mail.html
-      ? { from: senderAddress(), to: mail.to, subject: mail.subject, html: mail.html }
-      : { from: senderAddress(), to: mail.to, subject: mail.subject, text: mail.text ?? "" };
+      ? { from: mail.from, to: mail.to, subject: mail.subject, html: mail.html }
+      : { from: mail.from, to: mail.to, subject: mail.subject, text: mail.text ?? "" };
     const failure = failureFromResult(await resend.emails.send(payload));
     if (failure) {
       logSendFailure(mail.orderId, mail.label, failure);
@@ -185,6 +187,12 @@ async function deliver(mail: OutboundMail): Promise<boolean> {
 
 export async function sendOrderEmails(data: OrderEmailData): Promise<boolean> {
   try {
+    const from = senderAddress();
+    if (!from) {
+      logMissingSender(data.orderId);
+      return false;
+    }
+
     if (!process.env.RESEND_API_KEY?.trim()) {
       console.warn("[email] RESEND_API_KEY missing — skipping order emails");
       return false;
@@ -193,6 +201,7 @@ export async function sendOrderEmails(data: OrderEmailData): Promise<boolean> {
     const customerSent = await deliver({
       orderId: data.orderId,
       label: "order confirmation",
+      from,
       to: data.customerEmail,
       subject: `Your ${BRAND} order ${data.orderId}`,
       html: buildHtml(data, "Thank you for your order"),
@@ -203,6 +212,7 @@ export async function sendOrderEmails(data: OrderEmailData): Promise<boolean> {
       await deliver({
         orderId: data.orderId,
         label: "order notification",
+        from,
         to: adminEmail,
         subject: `New order ${data.orderId} — ${formatPrice(data.total, { currency: data.currency })}`,
         html: buildHtml(data, "New order received"),
@@ -262,12 +272,19 @@ export async function sendInventoryExceptionAlert(input: {
 }): Promise<void> {
   console.error("[inventory] paid order has no stock; manual review required", input.orderId);
   try {
+    const from = senderAddress();
+    if (!from) {
+      logMissingSender(input.orderId);
+      return;
+    }
+
     const adminEmail = process.env.ADMIN_EMAIL?.trim();
     if (!process.env.RESEND_API_KEY?.trim() || !adminEmail) return;
 
     await deliver({
       orderId: input.orderId,
       label: "inventory exception",
+      from,
       to: adminEmail,
       subject: `Manual review required: order ${input.orderId} was paid without stock`,
       text: [

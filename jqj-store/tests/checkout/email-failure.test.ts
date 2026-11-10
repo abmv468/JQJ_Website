@@ -200,9 +200,9 @@ describe("Resend failures stay off the order path", () => {
     vi.mocked(retrieveAirwallexPaymentIntent).mockReset();
     process.env.RESEND_API_KEY = "re_live_secretvalue";
     process.env.ADMIN_EMAIL = "admin@example.com";
+    process.env.EMAIL_FROM = "from@example.com";
     process.env.AIRWALLEX_WEBHOOK_SECRET = SECRET;
     process.env.CRON_SECRET = CRON_SECRET;
-    delete process.env.EMAIL_FROM;
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     vi.stubGlobal(
@@ -635,6 +635,48 @@ describe("Resend failures stay off the order path", () => {
 
     expect(matched).toEqual([dbStamp]);
     expect(db.rowsOf("orders")[0].confirmation_email_sent_at ?? null).toBeNull();
+  });
+
+  it("returns a paid webhook success when EMAIL_FROM is unset and leaves the claim clear", async () => {
+    delete process.env.EMAIL_FROM;
+    seedHeldOrder(db);
+
+    const response = await webhook(signedWebhook("evt_missing_from"));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ received: true });
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      status: "paid",
+      payment_status: "succeeded",
+    });
+    expect(db.rowsOf("orders")[0].confirmation_email_sent_at ?? null).toBeNull();
+    expect(send).not.toHaveBeenCalled();
+    expect(vi.mocked(console.error)).toHaveBeenCalledWith("[email] EMAIL_FROM is not set", "order-1");
+    expect(loggedText()).not.toContain("from@example.com");
+  });
+
+  it("returns a paid verify success when EMAIL_FROM is blank and leaves the claim clear", async () => {
+    process.env.EMAIL_FROM = "   ";
+    seedHeldOrder(db);
+    vi.mocked(retrieveAirwallexPaymentIntent).mockResolvedValue(succeededIntent());
+
+    const response = await cardVerify(
+      new Request("http://localhost:3000/api/checkout/airwallex/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: "order-1", refresh: true }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      orderId: "order-1",
+      succeeded: true,
+      paymentStatus: "succeeded",
+    });
+    expect(db.rowsOf("orders")[0].confirmation_email_sent_at ?? null).toBeNull();
+    expect(send).not.toHaveBeenCalled();
+    expect(vi.mocked(console.error)).toHaveBeenCalledWith("[email] EMAIL_FROM is not set", "order-1");
   });
 });
 

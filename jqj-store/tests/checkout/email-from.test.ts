@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST as codCheckout } from "@/app/api/checkout/cod/route";
-import { DEFAULT_ORDER_EMAIL_FROM, sendInventoryExceptionAlert, sendOrderEmails } from "@/lib/email";
+import { sendInventoryExceptionAlert, sendOrderEmails } from "@/lib/email";
 import { checkoutCustomer, checkoutItem, createCheckoutDb, setActiveDb } from "../helpers/memory-db";
 
 const STORE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -70,7 +70,7 @@ const orderMail = {
   },
 };
 
-describe("EMAIL_FROM default", () => {
+describe("EMAIL_FROM", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -89,35 +89,30 @@ describe("EMAIL_FROM default", () => {
     );
   });
 
-  it("sends from the store address when EMAIL_FROM is unset or blank", async () => {
-    expect(DEFAULT_ORDER_EMAIL_FROM.toLowerCase().includes(RETIRED_SHOP)).toBe(false);
-    expect(DEFAULT_ORDER_EMAIL_FROM).toBe("orders@jqdgroup.com");
-
-    await expect(sendOrderEmails(orderMail)).resolves.toBe(true);
-    expect(send).toHaveBeenCalledWith(
-      expect.objectContaining({ from: DEFAULT_ORDER_EMAIL_FROM, to: orderMail.customerEmail })
-    );
-    expect(send).toHaveBeenCalledWith(
-      expect.objectContaining({ from: DEFAULT_ORDER_EMAIL_FROM, to: "admin@example.com" })
-    );
+  it("sends nothing and logs EMAIL_FROM when it is unset or blank", async () => {
+    await expect(sendOrderEmails(orderMail)).resolves.toBe(false);
+    expect(send).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledWith("[email] EMAIL_FROM is not set", orderMail.orderId);
     expect(fetch).not.toHaveBeenCalled();
 
     send.mockClear();
+    vi.mocked(console.error).mockClear();
     process.env.EMAIL_FROM = "   ";
-    await expect(sendOrderEmails(orderMail)).resolves.toBe(true);
-    expect(send).toHaveBeenCalledWith(expect.objectContaining({ from: DEFAULT_ORDER_EMAIL_FROM }));
+    await expect(sendOrderEmails(orderMail)).resolves.toBe(false);
+    expect(send).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledWith("[email] EMAIL_FROM is not set", orderMail.orderId);
   });
 
-  it("lets EMAIL_FROM override the store address", async () => {
-    process.env.EMAIL_FROM = "orders@example.com";
+  it("sends from exactly the configured EMAIL_FROM", async () => {
+    process.env.EMAIL_FROM = "from@example.com";
     await expect(sendOrderEmails(orderMail)).resolves.toBe(true);
     expect(send.mock.calls.map((call) => call[0]?.from)).toEqual([
-      "orders@example.com",
-      "orders@example.com",
+      "from@example.com",
+      "from@example.com",
     ]);
   });
 
-  it("sends the inventory-exception alert from the store address", async () => {
+  it("skips the inventory-exception alert when EMAIL_FROM is unset", async () => {
     await expect(
       sendInventoryExceptionAlert({
         orderId: "order-email",
@@ -126,16 +121,25 @@ describe("EMAIL_FROM default", () => {
         currency: "USD",
       })
     ).resolves.toBeUndefined();
-    expect(send).toHaveBeenCalledWith(
-      expect.objectContaining({
-        from: DEFAULT_ORDER_EMAIL_FROM,
-        to: "admin@example.com",
-      })
-    );
+    expect(send).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledWith("[email] EMAIL_FROM is not set", "order-email");
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("still confirms a COD checkout and sends from the store address", async () => {
+  it("sends the inventory-exception alert from exactly EMAIL_FROM", async () => {
+    process.env.EMAIL_FROM = "from@example.com";
+    await sendInventoryExceptionAlert({
+      orderId: "order-email",
+      customerEmail: "buyer@example.com",
+      totalAmount: 115,
+      currency: "USD",
+    });
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({ from: "from@example.com", to: "admin@example.com" })
+    );
+  });
+
+  it("confirms a COD checkout without sending when EMAIL_FROM is unset", async () => {
     const db = createCheckoutDb();
     setActiveDb(db);
 
@@ -153,13 +157,14 @@ describe("EMAIL_FROM default", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
-      orderId: expect.any(String),
-    });
+    const body = await response.json();
+    expect(body).toMatchObject({ orderId: expect.any(String) });
     expect(db.rowsOf("orders")).toHaveLength(1);
     expect(db.rowsOf("orders")[0].inventory_reserved).toBe(true);
+    expect(db.rowsOf("orders")[0].confirmation_email_sent_at ?? null).toBeNull();
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
-    expect(send).toHaveBeenCalledWith(expect.objectContaining({ from: DEFAULT_ORDER_EMAIL_FROM }));
+    expect(send).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledWith("[email] EMAIL_FROM is not set", body.orderId);
     expect(fetch).not.toHaveBeenCalled();
   });
 

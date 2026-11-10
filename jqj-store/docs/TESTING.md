@@ -38,7 +38,7 @@ npm run test:e2e
 - Airwallex checkout: empty cart, non-USD, short stock, a reserved order priced from the database (flat $15 shipping), and a restore when payment creation throws.
 - Airwallex return/verify: success keeps the hold, a remote failure or cancellation restores it once, a still-pending intent does not, and missing, unknown, mismatched, or invalid input does not change another order.
 - Webhook HMAC: valid signature, tampered body, bad signature, missing headers, stale timestamp.
-- Cash on delivery: server price plus $15 shipping plus $20 fee, one reservation, the same idempotency key returns the same order, and a failed save restores stock. No `RESEND_API_KEY` means no email request. A blank `EMAIL_FROM` sends as `DEFAULT_ORDER_EMAIL_FROM`. A thrown, rejected, or `{ error }` Resend result still returns a saved COD order and a paid card/webhook transition.
+- Cash on delivery: server price plus $15 shipping plus $20 fee, one reservation, the same idempotency key returns the same order, and a failed save restores stock. No `RESEND_API_KEY` means no email request. A blank `EMAIL_FROM` logs the variable name and sends nothing. A thrown, rejected, or `{ error }` Resend result still returns a saved COD order and a paid card/webhook transition.
 - Browser: add to cart, card checkout through a stubbed SDK, failed return, and cash on delivery. No live payment page.
 - Unpaid Airwallex reservations: a failed retry releases stock, a failed order is not reused, `GET /api/cron/release-reservations` expires stale holds, and a late capture re-reserves or sets `inventory_exception`.
 
