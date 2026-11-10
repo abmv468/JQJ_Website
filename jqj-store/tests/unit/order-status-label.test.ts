@@ -22,7 +22,10 @@ const KNOWN_STATUSES = [
   [" Refunded ", "Refunded"],
 ] as const;
 
-const RAW_BACKEND_STATUSES = ["failed_fulfillment", "pending_payment"] as const;
+const RAW_BACKEND_STATUSES = [
+  ["failed_fulfillment", "failed_fulfillment"],
+  ["pending_payment", "pending_payment"],
+] as const;
 
 describe("formatOrderStatusLabel", () => {
   it("flags a succeeded inventory_exception, including the payment_failed fulfillment pair", () => {
@@ -38,7 +41,8 @@ describe("formatOrderStatusLabel", () => {
     expect(presentation.treatment).toBe("attention");
     expect(presentation.className).toBe(ORDER_STATUS_ATTENTION_CLASS);
     expect(presentation.showDropdown).toBe(true);
-    expect(getOrderStatusOptions("inventory_exception").length).toBeGreaterThan(0);
+    // Deliberately non-actionable until the backend accepts status moves for inventory_exception (BE-018).
+    expect(getOrderStatusOptions(presentation.selectStatus)).toEqual(["paid"]);
   });
 
   it("flags inventory_exception with payment_failed and does not call it Paid", () => {
@@ -56,14 +60,21 @@ describe("formatOrderStatusLabel", () => {
     expect(presentation.showDropdown).toBe(true);
   });
 
-  it.each(RAW_BACKEND_STATUSES)("renders backend status %s raw", (status) => {
+  it("requires the exact rendered labels for failed_fulfillment and pending_payment", () => {
+    expect(RAW_BACKEND_STATUSES).toEqual([
+      ["failed_fulfillment", "failed_fulfillment"],
+      ["pending_payment", "pending_payment"],
+    ]);
+  });
+
+  it.each(RAW_BACKEND_STATUSES)("renders backend status %s as %s", (status, label) => {
     const presentation = getAdminOrderStatusPresentation({
       status,
       paymentStatus: "succeeded",
     });
 
-    expect(formatOrderStatusLabel(status)).toBe(status);
-    expect(presentation.label).toBe(status);
+    expect(formatOrderStatusLabel(status)).toBe(label);
+    expect(presentation.label).toBe(label);
     expect(presentation.label).not.toContain("Paid");
     expect(presentation.flagged).toBe(false);
     expect(presentation.treatment).toBe("neutral");
