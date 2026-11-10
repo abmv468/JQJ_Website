@@ -6,7 +6,7 @@ export const DELIVERY_RANGE =
 export const DELIVERY_SHORT = "Tracked delivery · typically 7–12 days after dispatch";
 
 // BRAND v4.2, verbatim once compiled
-// Do not merge before #16 is on main. Identical to the WEB-004 announcement string.
+// Identical to the WEB-004 announcement string.
 export const FREE_SHIPPING_OVER_250 = "Free shipping on orders over $250";
 
 // BRAND v4.2, verbatim once compiled
