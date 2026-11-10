@@ -1,6 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
+import type { AirwallexHostedCheckoutProps } from "@/lib/payments/airwallex-wallet";
 
 const CART_KEY = "JQD-cart";
+
+declare global {
+  interface Window {
+    __awxRedirectArgs?: AirwallexHostedCheckoutProps;
+  }
+}
 
 async function fillCheckout(page: Page) {
   await page.getByPlaceholder("Email", { exact: true }).fill("buyer@example.com");
@@ -25,6 +32,10 @@ async function stubExternalHosts(page: Page) {
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
+    const savedArgs = sessionStorage.getItem("__awxRedirectArgs");
+    if (savedArgs) {
+      window.__awxRedirectArgs = JSON.parse(savedArgs);
+    }
     const store: { type: string; env?: string; intent_id?: string }[] = JSON.parse(
       sessionStorage.getItem("aw-calls") ?? "[]"
     );
@@ -35,6 +46,8 @@ test.beforeEach(async ({ page }) => {
         return {
           payments: {
             redirectToCheckout: async (props) => {
+              window.__awxRedirectArgs = props;
+              sessionStorage.setItem("__awxRedirectArgs", JSON.stringify(props));
               store.push({ type: "redirect", intent_id: props.intent_id });
               sessionStorage.setItem("aw-calls", JSON.stringify(store));
               window.location.assign(props.successUrl);
@@ -104,6 +117,7 @@ test("card checkout redirects through the stubbed Airwallex SDK and clears the c
 
   await page.goto("/checkout");
   await fillCheckout(page);
+  await page.getByRole("main").getByRole("combobox").selectOption("United States");
   await page.getByRole("button", { name: "Continue to Secure Payment" }).click();
 
   await expect(page.getByRole("heading", { name: "Thank you for your order" })).toBeVisible();
@@ -123,6 +137,16 @@ test("card checkout redirects through the stubbed Airwallex SDK and clears the c
       { type: "redirect", intent_id: "int_e2e" },
     ])
   );
+  const redirectArgs = await page.evaluate(() => window.__awxRedirectArgs);
+  expect(redirectArgs?.country_code).toBe("US");
+  expect(redirectArgs?.applePayRequestOptions).toEqual({
+    countryCode: "HK",
+    totalPriceLabel: "Jewellery Quintessential",
+  });
+  expect(redirectArgs?.googlePayRequestOptions).toEqual({
+    countryCode: "HK",
+    merchantInfo: { merchantName: "Jewellery Quintessential" },
+  });
 });
 
 test("a failed Airwallex return keeps the cart and shows support copy", async ({ page }) => {

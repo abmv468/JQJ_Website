@@ -10,7 +10,6 @@ export interface AirwallexHostedCheckoutProps {
   currency: string;
   successUrl: string;
   failUrl?: string;
-  cancelUrl?: string;
   /** Shopper shipping country. This is not the merchant country. */
   country_code?: string;
   applePayRequestOptions: {
