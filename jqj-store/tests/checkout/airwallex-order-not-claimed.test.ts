@@ -238,4 +238,44 @@ describe("Airwallex webhook order_not_claimed", () => {
     expect(db.rowsOf("orders")[0].payment_status).toBe("requires_payment_method");
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
   });
+
+  it("hides the driver message when storing the webhook event fails", async () => {
+    const secretMessage = "driver-secret-insert-xyz";
+    db.failWhen = (table, op) =>
+      table === "payment_webhook_events" && op === "insert"
+        ? dbError(secretMessage, "08006")
+        : null;
+
+    const response = await POST(signed(successEvent("evt_insert")));
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body).toEqual({ error: "Internal error" });
+    expect(JSON.stringify(body)).not.toContain(secretMessage);
+  });
+
+  it("hides the driver message when loading a duplicate webhook event fails", async () => {
+    const secretMessage = "driver-secret-select-xyz";
+    db.seed("payment_webhook_events", [
+      {
+        id: "evt-row",
+        provider: "airwallex",
+        provider_event_id: "evt_dup_lookup",
+        event_name: "payment_intent.succeeded",
+        payload: {},
+        status: "received",
+      },
+    ]);
+    db.failWhen = (table, op) =>
+      table === "payment_webhook_events" && op === "select"
+        ? dbError(secretMessage, "08006")
+        : null;
+
+    const response = await POST(signed(successEvent("evt_dup_lookup")));
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body).toEqual({ error: "Internal error" });
+    expect(JSON.stringify(body)).not.toContain(secretMessage);
+  });
 });

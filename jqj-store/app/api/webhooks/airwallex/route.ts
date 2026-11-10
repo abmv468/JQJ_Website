@@ -100,7 +100,11 @@ export async function POST(req: Request) {
 
   if (insertEventError) {
     if ((insertEventError as { code?: string }).code !== "23505") {
-      return NextResponse.json({ error: insertEventError.message }, { status: 500 });
+      console.error("[airwallex-webhook] internal error", {
+        webhookEventId: event.id,
+        errorCode: (insertEventError as { code?: string }).code ?? null,
+      });
+      return NextResponse.json({ error: "Internal error" }, { status: 500 });
     }
 
     const { data: existingEvent, error: existingEventError } = await supabase
@@ -110,7 +114,11 @@ export async function POST(req: Request) {
       .eq("provider_event_id", event.id)
       .maybeSingle();
     if (existingEventError) {
-      return NextResponse.json({ error: existingEventError.message }, { status: 500 });
+      console.error("[airwallex-webhook] internal error", {
+        webhookEventId: event.id,
+        errorCode: (existingEventError as { code?: string }).code ?? null,
+      });
+      return NextResponse.json({ error: "Internal error" }, { status: 500 });
     }
 
     if (existingEvent?.status === "processed" || existingEvent?.status === "ignored") {
