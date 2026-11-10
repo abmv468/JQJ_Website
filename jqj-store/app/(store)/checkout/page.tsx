@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
+import ProductPlaceholder from "@/components/ui/ProductPlaceholder";
 import { ChevronLeft, CreditCard, Truck } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -418,7 +418,13 @@ export default function CheckoutPage() {
             {items.map((item) => (
               <li key={`${item.id}-${item.sku ?? ""}-${item.size ?? ""}-${item.material ?? ""}`} className="flex items-center gap-4">
                 <div className="relative h-16 w-16 shrink-0 overflow-hidden bg-brand-card">
-                  <Image src={item.image} alt={item.name} fill sizes="64px" className="object-cover" />
+                  <ProductPlaceholder
+                    src={item.image}
+                    name={item.name}
+                    alt={item.name}
+                    sizes="64px"
+                    className="object-cover"
+                  />
                   <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-brand-gold text-[10px] font-semibold text-black">
                     {item.quantity}
                   </span>

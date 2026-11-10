@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
+import ProductPlaceholder from "@/components/ui/ProductPlaceholder";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
 import { formatOrderStatusLabel, hasPartialRefund, isFullyRefunded } from "@/lib/order-lifecycle";
@@ -348,6 +349,18 @@ export default function AccountPage() {
     setAddressMessage("Default address updated.");
   }
 
+  function resolveOrderImage(line: OrderItemRow): string | null {
+    const meta = line.line_item_meta;
+    const productSlug = getMetaString(meta, "product_slug");
+    const stored = getMetaString(meta, "image").trim();
+    const matchedProduct =
+      (line.product_id ? productsById[line.product_id] : undefined) ||
+      (productSlug ? productsBySlug[productSlug] : undefined) ||
+      productsByName[line.product_name.toLowerCase()];
+    const catalog = matchedProduct?.images?.find((src) => src.trim())?.trim() ?? "";
+    return catalog || stored || null;
+  }
+
   function reorder(order: OrderRow) {
     let added = 0;
     order.order_items.forEach((line) => {
@@ -355,7 +368,6 @@ export default function AccountPage() {
       const productSlug = getMetaString(meta, "product_slug");
       const cartItemId = getMetaString(meta, "cart_item_id");
       const size = getMetaString(meta, "size");
-      const image = getMetaString(meta, "image");
 
       const matchedProduct =
         (line.product_id ? productsById[line.product_id] : undefined) ||
@@ -372,7 +384,7 @@ export default function AccountPage() {
           slug,
           name: matchedProduct?.name || line.product_name,
           price: Number(matchedProduct?.price ?? line.price_at_purchase),
-          image: matchedProduct?.images?.[0] || image || "/products/lifestyle.webp",
+          image: resolveOrderImage(line),
           size: size || undefined,
         },
         line.quantity
@@ -585,7 +597,20 @@ export default function AccountPage() {
                       <tbody>
                         {order.order_items.map((item) => (
                           <tr key={item.id} className="border-b border-brand-border/40">
-                            <td className="p-3">{item.product_name}</td>
+                            <td className="p-3">
+                              <div className="flex items-center gap-3">
+                                <div className="relative h-12 w-12 shrink-0 overflow-hidden bg-brand-card">
+                                  <ProductPlaceholder
+                                    src={resolveOrderImage(item)}
+                                    name={item.product_name}
+                                    alt={item.product_name}
+                                    sizes="48px"
+                                    className="object-cover"
+                                  />
+                                </div>
+                                <span>{item.product_name}</span>
+                              </div>
+                            </td>
                             <td className="p-3">{item.quantity}</td>
                             <td className="p-3 text-right">{formatFromUsd(item.price_at_purchase)}</td>
                             <td className="p-3 text-right">{formatFromUsd(item.price_at_purchase * item.quantity)}</td>

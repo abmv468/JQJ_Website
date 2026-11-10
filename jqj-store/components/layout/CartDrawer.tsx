@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
+import ProductPlaceholder from "@/components/ui/ProductPlaceholder";
 import { X, Minus, Plus } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -53,10 +53,10 @@ export default function CartDrawer() {
               {items.map((item) => (
                 <li key={`${item.id}-${item.sku ?? ""}-${item.size ?? ""}-${item.material ?? ""}`} className="flex gap-4">
                   <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-brand bg-brand-card">
-                    <Image
+                    <ProductPlaceholder
                       src={item.image}
+                      name={item.name}
                       alt={item.name}
-                      fill
                       className="object-cover"
                       sizes="80px"
                     />
