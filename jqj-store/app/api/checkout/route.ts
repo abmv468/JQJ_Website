@@ -1,6 +1,8 @@
+import { randomBytes } from "crypto";
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { resolveCheckoutSiteUrl } from "@/lib/checkout-site-url";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { convertUsdToCurrency, normalizeCurrency, toStripeCurrency } from "@/lib/currency";
@@ -57,6 +59,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
     }
 
+    let siteUrl: string;
+    try {
+      siteUrl = resolveCheckoutSiteUrl();
+    } catch (error) {
+      const reference = randomBytes(4).toString("hex");
+      console.error("[checkout]", reference, error);
+      return NextResponse.json(
+        { error: "Something went wrong. Please try again.", reference },
+        { status: 500, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
     const shippingAmount = items.length ? SHIPPING_FLAT : 0;
     const selectedCurrency = normalizeCurrency(currency);
     const stripeCurrency = toStripeCurrency(selectedCurrency);
@@ -70,7 +84,6 @@ export async function POST(req: Request) {
     }
 
     const stripe = getStripe();
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
     const userId = await getAuthenticatedUserId();
 
     const line_items = validation.resolved.map((line) => ({

@@ -1,8 +1,9 @@
-import { randomUUID } from "crypto";
+import { randomBytes, randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveCheckoutSiteUrl } from "@/lib/checkout-site-url";
 import { normalizeCurrency, type SupportedCurrency } from "@/lib/currency";
 import {
   fetchInventoryBySlugs,
@@ -124,7 +125,17 @@ export async function POST(req: Request) {
     const userId = await getAuthenticatedUserId();
     const customerName = `${customer.firstName} ${customer.lastName ?? ""}`.trim();
     const requestId = asUuid(idempotencyKey) ?? randomUUID();
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    let siteUrl: string;
+    try {
+      siteUrl = resolveCheckoutSiteUrl();
+    } catch (error) {
+      const reference = randomBytes(4).toString("hex");
+      console.error("[airwallex-checkout]", reference, error);
+      return NextResponse.json(
+        { error: "Something went wrong. Please try again.", reference },
+        { status: 500, headers: { "Cache-Control": "no-store" } }
+      );
+    }
     const returnUrl = `${siteUrl}/order-confirmation?provider=airwallex`;
 
     supabase = createAdminClient();
