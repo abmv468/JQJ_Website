@@ -12,12 +12,29 @@ type AttentionRow = {
   id: string;
   created_at: string | null;
   total_amount: number | string | null;
+  refunded_amount?: number | string | null;
   currency: string | null;
   status: string | null;
   sales_channel: string | null;
   payment_status: string | null;
   fulfillment_status: string | null;
 };
+
+function money(value: unknown) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value.trim());
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function refundCoversCapturedPayment(order: AttentionRow, paymentAmount: unknown) {
+  const captured = money(paymentAmount) ?? money(order.total_amount);
+  if (captured == null) return false;
+  const refunded = money(order.refunded_amount) ?? 0;
+  return refunded >= captured;
+}
 
 function attentionReason(row: AttentionRow) {
   if (isProtectedOrder(row)) return PROTECTED_ORDER_ALERT_EVENT;
@@ -36,7 +53,7 @@ export async function GET(req: Request) {
 
     const supabase = createAdminClient();
     const columns =
-      "id, created_at, total_amount, currency, status, sales_channel, payment_status, fulfillment_status";
+      "id, created_at, total_amount, refunded_amount, currency, status, sales_channel, payment_status, fulfillment_status";
     const listed = supabase
       .from("orders")
       .select(columns)
@@ -46,7 +63,7 @@ export async function GET(req: Request) {
       .limit(PAGE_LIMIT + 1);
     const protectedByPayment = supabase
       .from("payments")
-      .select(`orders!inner(${columns})`)
+      .select(`amount, orders!inner(${columns})`)
       .eq("status", "succeeded");
     const [byOrder, byPayment] = await Promise.all([listed, protectedByPayment]);
     if (byOrder.error) throw byOrder.error;
@@ -54,9 +71,13 @@ export async function GET(req: Request) {
 
     const merged = new Map<string, AttentionRow>();
     for (const row of (byOrder.data ?? []) as AttentionRow[]) merged.set(row.id, row);
-    for (const row of (byPayment.data ?? []) as Array<{ orders?: AttentionRow | AttentionRow[] | null }>) {
+    for (const row of (byPayment.data ?? []) as Array<{
+      amount?: number | string | null;
+      orders?: AttentionRow | AttentionRow[] | null;
+    }>) {
       const order = embeddedOrder(row.orders);
       if (!order || !isProtectedOrder(order)) continue;
+      if (refundCoversCapturedPayment(order, row.amount)) continue;
       merged.set(order.id, order);
     }
     const rows = [...merged.values()].sort((left, right) =>

@@ -52,6 +52,7 @@ function seedOrder(
     payment_provider?: string;
     sales_channel?: string;
     customer_email?: string;
+    refunded_amount?: number;
   }
 ) {
   db.seed("orders", [
@@ -64,6 +65,7 @@ function seedOrder(
       fulfillment_status: "payment_failed",
       inventory_reserved: false,
       total_amount: 115,
+      refunded_amount: row.refunded_amount ?? 0,
       currency: "USD",
       customer_email: row.customer_email ?? "buyer@example.com",
       customer_name: "Ada Lovelace",
@@ -242,6 +244,61 @@ describe("GET /api/admin/orders/needs-attention", () => {
         fulfillment_status: "payment_failed",
         reason: PROTECTED_ORDER_ALERT_EVENT,
       },
+    ]);
+  });
+
+  it("lists a protected payment until the refund covers the captured amount", async () => {
+    seedOrder(db, {
+      id: "order-open",
+      status: "cancelled",
+      payment_status: "requires_payment_method",
+      refunded_amount: 0,
+      created_at: "2026-11-10T08:00:00.000Z",
+    });
+    seedPayment(db, "order-open");
+    seedOrder(db, {
+      id: "order-partial",
+      status: "cancelled",
+      payment_status: "requires_payment_method",
+      refunded_amount: 20,
+      created_at: "2026-11-10T09:00:00.000Z",
+    });
+    seedPayment(db, "order-partial");
+    seedOrder(db, {
+      id: "order-full",
+      status: "cancelled",
+      payment_status: "requires_payment_method",
+      refunded_amount: 115,
+      created_at: "2026-11-10T10:00:00.000Z",
+    });
+    seedPayment(db, "order-full");
+    seedOrder(db, {
+      id: "order-null-amount",
+      status: "cancelled",
+      payment_status: "requires_payment_method",
+      refunded_amount: 115,
+      created_at: "2026-11-10T11:00:00.000Z",
+    });
+    seedPayment(db, "order-null-amount");
+    db.rowsOf("payments").find((row) => row.order_id === "order-null-amount")!.amount = null;
+    seedOrder(db, {
+      id: "order-null-partial",
+      status: "cancelled",
+      payment_status: "requires_payment_method",
+      refunded_amount: 20,
+      created_at: "2026-11-10T12:00:00.000Z",
+    });
+    seedPayment(db, "order-null-partial");
+    db.rowsOf("payments").find((row) => row.order_id === "order-null-partial")!.amount = null;
+
+    const response = await GET(request("Bearer admin-token"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.orders.map((order: { id: string }) => order.id)).toEqual([
+      "order-null-partial",
+      "order-partial",
+      "order-open",
     ]);
   });
 
