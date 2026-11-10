@@ -120,6 +120,43 @@ describe("reaper claim versus a later success", () => {
     });
   });
 
+  it("does not call restore when a payment row has already succeeded", async () => {
+    db.rowsOf("payments")[0].status = "succeeded";
+
+    await releaseExpiredAirwallexReservations(db as never);
+
+    expect(db.rpcCalls.filter((call) => call.fn === "restore_order_inventory")).toHaveLength(0);
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
+  });
+
+  it("re-reserves when restore wins between the paid read and the paid write", async () => {
+    db.rowsOf("orders")[0].payment_status = "abandoned";
+    db.rowsOf("orders")[0].status = "failed";
+    db.rowsOf("orders")[0].fulfillment_status = "payment_failed";
+    let injected = false;
+    db.failWhen = (table, op) => {
+      if (!injected && table === "orders" && op === "update") {
+        injected = true;
+        db.rowsOf("orders")[0].inventory_reserved = false;
+        db.rowsOf("products")[0].stock_count = Number(db.rowsOf("products")[0].stock_count) + 1;
+      }
+      return null;
+    };
+
+    const response = await webhook(signedWebhook());
+
+    expect(response.status).toBe(200);
+    expect(injected).toBe(true);
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      status: "paid",
+      payment_status: "succeeded",
+      fulfillment_status: "paid",
+      inventory_reserved: true,
+    });
+    expect(db.rpcCalls.filter((call) => call.fn === "reserve_order_inventory")).toHaveLength(1);
+  });
+
   it("restores stock when the claimed order is still unpaid", async () => {
     await releaseExpiredAirwallexReservations(db as never);
 
