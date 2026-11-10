@@ -480,6 +480,7 @@ class Query implements PromiseLike<QueryResult> {
           throw dbError(`relation "${field.name}" does not exist`, "42P01");
         }
         for (const child of parseSelect(field.nested)) {
+          if (child.nested || child.name === "*") continue;
           if (!childColumns.includes(child.name)) {
             throw dbError(`column ${field.name}.${child.name} does not exist`, "42703");
           }

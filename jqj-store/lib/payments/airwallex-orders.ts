@@ -36,6 +36,7 @@ interface PaymentRow {
 interface OrderRow {
   id: string;
   status: string | null;
+  sales_channel: string | null;
   fulfillment_status: string | null;
   payment_status: string | null;
   inventory_reserved: boolean | null;
@@ -105,6 +106,42 @@ export function reportPaymentAfterExpiryUnfulfilled(input: {
     orderId: input.orderId,
     paymentIntentId: input.paymentIntentId,
     shortfall: input.shortfall,
+  });
+}
+
+/** Stable event for a terminal payment on a cancelled or test order. Ids only. */
+export const PAYMENT_ON_PROTECTED_ORDER_EVENT = "airwallex.payment_on_protected_order";
+
+export type ProtectedOrderReason = "cancelled" | "test";
+
+export function isProtectedOrder(order: {
+  status?: string | null;
+  sales_channel?: string | null;
+}) {
+  const status = (order.status ?? "").trim().toLowerCase();
+  const channel = (order.sales_channel ?? "").trim().toLowerCase();
+  return status === "cancelled" || channel === "test";
+}
+
+export function protectedOrderReason(order: {
+  status?: string | null;
+  sales_channel?: string | null;
+}): ProtectedOrderReason {
+  return (order.status ?? "").trim().toLowerCase() === "cancelled" ? "cancelled" : "test";
+}
+
+export function reportPaymentOnProtectedOrder(input: {
+  orderId: string;
+  paymentIntentId: string;
+  status: string;
+  reason: ProtectedOrderReason;
+}) {
+  console.error("[airwallex-orders] payment_on_protected_order", {
+    event: PAYMENT_ON_PROTECTED_ORDER_EVENT,
+    orderId: input.orderId,
+    paymentIntentId: input.paymentIntentId,
+    status: input.status,
+    reason: input.reason,
   });
 }
 
@@ -512,6 +549,24 @@ export async function applyAirwallexPaymentIntentStatus(
   const payment = paymentData as unknown as PaymentRow;
   const currentStatus = normalizeAirwallexPaymentStatus(payment.status);
 
+  const { data: protectedRow, error: protectedError } = await supabase
+    .from("orders")
+    .select("id, status, sales_channel")
+    .eq("id", payment.order_id)
+    .maybeSingle();
+  if (protectedError) throw protectedError;
+  if (protectedRow && isProtectedOrder(protectedRow)) {
+    if (isSuccessfulPaymentStatus(input.nextStatus) || isTerminalFailedPaymentStatus(input.nextStatus)) {
+      reportPaymentOnProtectedOrder({
+        orderId: protectedRow.id,
+        paymentIntentId: input.paymentIntentId,
+        status: input.nextStatus,
+        reason: protectedOrderReason(protectedRow),
+      });
+    }
+    return { applied: false, reason: "protected_order" as const, orderId: protectedRow.id };
+  }
+
   if (isSuccessfulPaymentStatus(currentStatus)) {
     if (!isSuccessfulPaymentStatus(input.nextStatus)) {
       return { applied: false, reason: "already_succeeded" as const, orderId: payment.order_id };
@@ -546,7 +601,7 @@ export async function applyAirwallexPaymentIntentStatus(
   const { data: orderData, error: orderError } = await supabase
     .from("orders")
     .select(
-      "id, status, fulfillment_status, payment_status, inventory_reserved, paid_at, updated_at, total_amount, refunded_amount"
+      "id, status, sales_channel, fulfillment_status, payment_status, inventory_reserved, paid_at, updated_at, total_amount, refunded_amount"
     )
     .eq("id", payment.order_id)
     .single();
