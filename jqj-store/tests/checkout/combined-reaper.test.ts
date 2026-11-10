@@ -98,7 +98,7 @@ describe("combined reservation reaper", () => {
     const original = db.rpc.bind(db);
     db.rpc = async (fn, args) => {
       if (fn === "restore_order_inventory") {
-        return { data: null, error: dbError("driver-restore-secret", "XX000") };
+        return { data: null, error: { message: "driver-restore-secret", code: "XX000" } };
       }
       return original(fn, args ?? {});
     };
@@ -298,7 +298,7 @@ describe("combined reservation reaper", () => {
     const original = db.rpc.bind(db);
     db.rpc = async (fn, args) => {
       if (fn === "restore_order_inventory" && args?.p_order_id === "order-bad") {
-        return { data: null, error: dbError("driver-secret-xyz", "XX000") };
+        return { data: null, error: { message: "driver-secret-xyz", code: "XX000" } };
       }
       return original(fn, args ?? {});
     };

@@ -283,7 +283,10 @@ describe("Airwallex checkout idempotency", () => {
     expect(paidOrderWrites(db)).toHaveLength(1);
     expect(paidPaymentWrites(db)).toHaveLength(1);
     expect(sendOrderEmails).toHaveBeenCalledTimes(1);
-    expect(reserves(db)).toHaveLength(1);
+    // The failed return releases the hold. The later success takes that stock back.
+    expect(reserves(db)).toHaveLength(2);
+    expect(db.rowsOf("orders")[0].inventory_reserved).toBe(true);
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
   });
 
   it("does not open a second order when a new idempotency key still belongs to the same payment intent", async () => {

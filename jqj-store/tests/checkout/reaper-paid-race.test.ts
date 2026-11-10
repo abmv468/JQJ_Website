@@ -2,7 +2,10 @@ import { createHmac } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST as webhook } from "@/app/api/webhooks/airwallex/route";
 import { sendOrderEmails } from "@/lib/email";
-import { releaseExpiredAirwallexReservations } from "@/lib/payments/airwallex-orders";
+import {
+  PAID_CLAIM_LOST_EVENT,
+  releaseExpiredAirwallexReservations,
+} from "@/lib/payments/airwallex-orders";
 import { createCheckoutDb, setActiveDb, type MemoryDb } from "../helpers/memory-db";
 
 vi.mock("@/lib/email", () => ({
@@ -155,6 +158,52 @@ describe("reaper claim versus a later success", () => {
       inventory_reserved: true,
     });
     expect(db.rpcCalls.filter((call) => call.fn === "reserve_order_inventory")).toHaveLength(1);
+  });
+
+  it("fails the webhook when the reaper claims before the paid write, then pays on redelivery", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    let injected = false;
+    db.failWhen = (table, op) => {
+      if (!injected && table === "orders" && op === "update") {
+        injected = true;
+        db.rowsOf("orders")[0].payment_status = "abandoned";
+        db.rowsOf("orders")[0].status = "failed";
+        db.rowsOf("orders")[0].fulfillment_status = "payment_failed";
+      }
+      return null;
+    };
+
+    const first = await webhook(signedWebhook());
+
+    expect(first.status).toBeGreaterThanOrEqual(500);
+    expect(injected).toBe(true);
+    expect(db.rowsOf("payment_webhook_events")[0].status).not.toBe("processed");
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      payment_status: "abandoned",
+      inventory_reserved: true,
+    });
+    expect(db.rowsOf("orders")[0].status).not.toBe("paid");
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
+    expect(errors.mock.calls.some((call) => call[0] === "[airwallex-orders] paid_claim_lost")).toBe(true);
+    const lost = errors.mock.calls.find((call) => call[0] === "[airwallex-orders] paid_claim_lost");
+    expect(lost?.[1]).toEqual({ event: PAID_CLAIM_LOST_EVENT, orderId: "order-race" });
+
+    db.failWhen = null;
+    await releaseExpiredAirwallexReservations(db as never);
+    expect(db.rowsOf("products")[0].stock_count).toBe(5);
+    expect(db.rowsOf("orders")[0].inventory_reserved).toBe(false);
+
+    const retry = await webhook(signedWebhook());
+
+    expect(retry.status).toBe(200);
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      status: "paid",
+      payment_status: "succeeded",
+      fulfillment_status: "paid",
+      inventory_reserved: true,
+    });
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
+    errors.mockRestore();
   });
 
   it("restores stock when the claimed order is still unpaid", async () => {

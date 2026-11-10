@@ -153,6 +153,13 @@ describe("payment succeeds after the reservation expired", () => {
     seedLine(db, { id: "item-1", orderId: "order-expired", productId: "prod-amethyst", quantity: 1 });
     seedPayment(db, "order-expired", "int_expired");
 
+    const probe = await db.rpc("reserve_order_inventory", {
+      p_order_id: "order-expired",
+      order_items: [{ product_id: "prod-amethyst", variant_id: null, quantity: 1 }],
+    });
+    expect(probe.error).toEqual({ message: "Product stock unavailable", code: "P0001" });
+    expect(probe.error instanceof Error).toBe(false);
+
     const response = await webhook(signedWebhook(successEvent("evt_short")));
     const body = await response.json();
 
@@ -263,6 +270,46 @@ describe("payment succeeds after the reservation expired", () => {
     expect(alertCalls(errorSpy)).toHaveLength(1);
     expect(sendOrderEmails).not.toHaveBeenCalled();
     expect(db.rowsOf("order_refunds")).toHaveLength(0);
+  });
+
+  it("re-reserves a released order whose payment status is failed", async () => {
+    db.rowsOf("products")[0].stock_count = 5;
+    seedExpiredOrder(db);
+    db.rowsOf("orders")[0].payment_status = "failed";
+    seedLine(db, { id: "item-1", orderId: "order-expired", productId: "prod-amethyst", quantity: 1 });
+    seedPayment(db, "order-expired", "int_expired");
+
+    const response = await webhook(signedWebhook(successEvent("evt_failed_hold")));
+
+    expect(response.status).toBe(200);
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      status: "paid",
+      payment_status: "succeeded",
+      fulfillment_status: "paid",
+      inventory_reserved: true,
+    });
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
+    expect(reserves(db)).toHaveLength(1);
+  });
+
+  it("flags a released failed order when the stock is gone", async () => {
+    db.rowsOf("products")[0].stock_count = 0;
+    seedExpiredOrder(db);
+    db.rowsOf("orders")[0].payment_status = "failed";
+    seedLine(db, { id: "item-1", orderId: "order-expired", productId: "prod-amethyst", quantity: 1 });
+    seedPayment(db, "order-expired", "int_expired");
+
+    const response = await webhook(signedWebhook(successEvent("evt_failed_short")));
+
+    expect(response.status).toBe(200);
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      status: "inventory_exception",
+      payment_status: "succeeded",
+      fulfillment_status: "payment_failed",
+      inventory_reserved: false,
+    });
+    expect(db.rowsOf("products")[0].stock_count).toBe(0);
+    expect(sendOrderEmails).not.toHaveBeenCalled();
   });
 
   it("leaves a reservation that has not expired on the normal paid path", async () => {

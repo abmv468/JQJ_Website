@@ -114,12 +114,19 @@ export class MemoryDb {
       }
       return {
         data: null,
-        error: dbError(`function ${fn} does not exist`, "42883"),
+        error: { message: `function ${fn} does not exist`, code: "42883" },
       };
     } catch (error) {
+      // PostgREST returns RAISE EXCEPTION as a plain { message, code } object.
+      // Postgres uses P0001 when the function does not set an error code.
+      const message = error instanceof Error ? error.message : String(error);
+      const code =
+        error && typeof error === "object" && "code" in error && typeof error.code === "string"
+          ? error.code
+          : "P0001";
       return {
         data: null,
-        error: error instanceof Error ? (error as DbError) : dbError(String(error)),
+        error: { message, code },
       };
     }
   }
