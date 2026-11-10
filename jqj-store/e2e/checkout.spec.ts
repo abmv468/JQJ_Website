@@ -133,11 +133,16 @@ test("a legacy session link does not call retired card verify", async ({ page })
   });
 
   await page.goto("/order-confirmation?session_id=cs_test_x");
+  await expect(page.getByRole("heading", { name: "This order link has expired" })).toBeVisible();
   await expect(
     page.getByText(
-      "This order link is no longer available. Please check your confirmation email or contact us."
+      "This order link is no longer active. Your order details are in your confirmation email — or contact us at support@jqdgroup.com and we'll be glad to help."
     )
   ).toBeVisible();
+  await expect(page.getByRole("link", { name: "support@jqdgroup.com" })).toHaveAttribute(
+    "href",
+    "mailto:support@jqdgroup.com"
+  );
   await expect(page.getByRole("heading", { name: "Payment was not completed" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Continue Shopping" })).toHaveAttribute("href", "/new");
   expect(verifyHits).toEqual([]);

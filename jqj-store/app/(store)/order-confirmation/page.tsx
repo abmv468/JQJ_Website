@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import { EXPIRED_ORDER_LINK_HEADING, SUPPORT_EMAIL, supportMailto } from "@/lib/support";
 
 function Confirmation() {
   const params = useSearchParams();
@@ -106,11 +107,16 @@ function Confirmation() {
   if (status === "unavailable") {
     return (
       <div className="text-center">
-        {/* awaiting BRAND */}
-        <h1 className="font-heading text-2xl uppercase tracking-wider2">Order link</h1>
-        {/* awaiting BRAND */}
+        <h1 className="font-heading text-2xl uppercase tracking-wider2">
+          {EXPIRED_ORDER_LINK_HEADING}
+        </h1>
         <p className="mt-3 text-sm text-brand-muted">
-          This order link is no longer available. Please check your confirmation email or contact us.
+          This order link is no longer active. Your order details are in your confirmation email — or
+          contact us at{" "}
+          <a className="text-brand-gold underline" href={supportMailto()}>
+            {SUPPORT_EMAIL}
+          </a>{" "}
+          and we&apos;ll be glad to help.
         </p>
         <div className="mt-8 flex justify-center gap-4">
           <Link href="/new" className="btn-secondary">Continue Shopping</Link>

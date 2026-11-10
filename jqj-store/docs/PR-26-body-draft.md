@@ -62,11 +62,11 @@ More than 50 lines, or a quantity outside 1–99, returns 400 before any databas
 
 **For WEB.** The checkout page sends `shippingCountry: form.country` and refetches when `form.country` changes. It does not render `lines`. WEB-011 can use them. The page change is fetch and display wiring only.
 
-## Copy awaiting BRAND sign-off (do not merge as final)
+## Copy
 
-There is no `SUPPORT_EMAIL` constant or config in the repo, so the legacy session page does not link an address and does not hardcode one. The heading `Order link` and the sentence are marked `awaiting BRAND`:
+Copy from BRAND, 16:46 HKT. BRAND reports support@jqdgroup.com as Owner-confirmed (14:34 HKT, via CPO). The Owner should confirm it at merge.
 
-`This order link is no longer available. Please check your confirmation email or contact us.`
+The unavailable order link uses heading `This order link has expired` and body `This order link is no longer active. Your order details are in your confirmation email — or contact us at support@jqdgroup.com and we'll be glad to help.` The address comes from `SUPPORT_EMAIL` in `lib/support.ts` and is a `mailto:` link. Continue Shopping still goes to `/new`.
 
 ## COD fee
 
