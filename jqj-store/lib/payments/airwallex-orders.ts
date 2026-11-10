@@ -138,6 +138,7 @@ export function reportPaidClaimLost(orderId: string) {
 
 /** Stable event for a terminal payment on a cancelled or test order. Ids only. */
 export const PAYMENT_ON_PROTECTED_ORDER_EVENT = "airwallex.payment_on_protected_order";
+export const PROTECTED_ORDER_ALERT_EVENT = "payment_on_protected_order";
 
 export type ProtectedOrderReason = "cancelled" | "test";
 
@@ -668,7 +669,7 @@ export async function applyAirwallexPaymentIntentStatus(
         console.error(
           JSON.stringify({
             tag: "jqd_alert",
-            event: PAYMENT_ON_PROTECTED_ORDER_EVENT,
+            event: PROTECTED_ORDER_ALERT_EVENT,
             orderId: protectedRow.id,
           })
         );

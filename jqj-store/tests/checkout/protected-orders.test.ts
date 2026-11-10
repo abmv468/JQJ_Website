@@ -5,7 +5,10 @@ import { POST as verify } from "@/app/api/checkout/airwallex/verify/route";
 import { POST as webhook } from "@/app/api/webhooks/airwallex/route";
 import { sendOrderEmails } from "@/lib/email";
 import { retrieveAirwallexPaymentIntent } from "@/lib/payments/airwallex";
-import { PAYMENT_ON_PROTECTED_ORDER_EVENT } from "@/lib/payments/airwallex-orders";
+import {
+  PAYMENT_ON_PROTECTED_ORDER_EVENT,
+  PROTECTED_ORDER_ALERT_EVENT,
+} from "@/lib/payments/airwallex-orders";
 import { createCheckoutDb, setActiveDb, type MemoryDb } from "../helpers/memory-db";
 
 vi.mock("@/lib/email", () => ({
@@ -174,7 +177,7 @@ describe("protected cancelled and test orders", () => {
     expect(closedOrderAlerts(errorSpy)).toEqual([
       {
         tag: "jqd_alert",
-        event: PAYMENT_ON_PROTECTED_ORDER_EVENT,
+        event: PROTECTED_ORDER_ALERT_EVENT,
         orderId: "order-cancelled",
       },
     ]);
@@ -241,7 +244,7 @@ describe("protected cancelled and test orders", () => {
     expect(closedOrderAlerts(errorSpy)).toEqual([
       {
         tag: "jqd_alert",
-        event: PAYMENT_ON_PROTECTED_ORDER_EVENT,
+        event: PROTECTED_ORDER_ALERT_EVENT,
         orderId: "order-test",
       },
     ]);
@@ -294,7 +297,7 @@ describe("protected cancelled and test orders", () => {
     expect(closedOrderAlerts(errorSpy)).toEqual([
       {
         tag: "jqd_alert",
-        event: PAYMENT_ON_PROTECTED_ORDER_EVENT,
+        event: PROTECTED_ORDER_ALERT_EVENT,
         orderId: "order-cancelled",
       },
     ]);
