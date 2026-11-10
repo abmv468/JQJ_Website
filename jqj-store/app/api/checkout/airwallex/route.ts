@@ -4,6 +4,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeCurrency, type SupportedCurrency } from "@/lib/currency";
+import { computeShippingUsd } from "@/lib/shipping";
 import {
   fetchInventoryBySlugs,
   reserveStockForOrder,
@@ -26,7 +27,6 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const SHIPPING_FLAT = 15;
 const PHASE_ONE_CURRENCY: SupportedCurrency = "USD";
 
 const UUID_REGEX =
@@ -171,7 +171,6 @@ export async function POST(req: Request) {
       );
     }
 
-    const shippingAmount = items.length ? SHIPPING_FLAT : 0;
     const userId = await getAuthenticatedUserId();
     const customerName = `${customer.firstName} ${customer.lastName ?? ""}`.trim();
     const clientRequestId = asUuid(idempotencyKey);
@@ -187,11 +186,18 @@ export async function POST(req: Request) {
     const validation = validateCheckoutItems(items, inventoryBySlug);
 
     let subtotal = 0;
+    let shippingAmount = 0;
     if (validation.ok) {
       resolvedItems = validation.resolved;
       subtotal = resolvedItems.reduce(
         (sum, line) => sum + line.product.price * line.requestedQuantity,
         0
+      );
+      shippingAmount = computeShippingUsd(
+        resolvedItems.map((line) => ({
+          unitPriceUsd: line.product.price,
+          quantity: line.requestedQuantity,
+        }))
       );
     }
     const total = subtotal + shippingAmount;
