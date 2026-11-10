@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/checkout/airwallex/route";
 import { createAirwallexPaymentIntent } from "@/lib/payments/airwallex";
-import { computeShippingUsd } from "@/lib/shipping";
 import {
   checkoutCustomer,
   checkoutItem,
@@ -154,14 +153,13 @@ describe("POST /api/checkout/airwallex", () => {
   });
 
   it.each([
-    { usd: 249.99 },
-    { usd: 250 },
-    { usd: 499.98 },
+    { usd: 249.99, shipping: 15 },
+    { usd: 250, shipping: 0 },
+    { usd: 499.98, shipping: 0 },
   ])(
-    "sends Airwallex subtotal + helper shipping for a USD $usd catalog price and ignores the client total",
-    async ({ usd }) => {
+    "sends Airwallex subtotal + $shipping shipping for a USD $usd catalog price and ignores the client total",
+    async ({ usd, shipping }) => {
       db.rowsOf("products")[0].price = usd;
-      const shipping = computeShippingUsd([{ unitPriceUsd: usd, quantity: 1 }]);
 
       const response = await POST(
         request({
@@ -175,7 +173,6 @@ describe("POST /api/checkout/airwallex", () => {
       );
 
       expect(response.status).toBe(200);
-      expect(shipping).toBe(usd >= 250 ? 0 : 15);
       const amount = usd + shipping;
       expect(createAirwallexPaymentIntent).toHaveBeenCalledWith(
         expect.objectContaining({ amount, currency: "USD" })

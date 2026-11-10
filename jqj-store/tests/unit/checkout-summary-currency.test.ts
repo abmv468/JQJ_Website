@@ -10,7 +10,7 @@ import {
   type CheckoutSummary,
 } from "@/lib/checkout-currency";
 import { createAirwallexPaymentIntent } from "@/lib/payments/airwallex";
-import { SHIPPING_FLAT_USD, computeShippingUsd } from "@/lib/shipping";
+import { computeShippingUsd } from "@/lib/shipping";
 import { formatPrice } from "@/lib/utils";
 import {
   checkoutCustomer,
@@ -281,8 +281,8 @@ describe("checkout summary charge currency", () => {
   });
 
   it.each([
-    { usd: 200, shipping: SHIPPING_FLAT_USD },
-    { usd: 249.99, shipping: SHIPPING_FLAT_USD },
+    { usd: 200, shipping: 15 },
+    { usd: 249.99, shipping: 15 },
     { usd: 250, shipping: 0 },
     { usd: 300, shipping: 0 },
   ])(
@@ -322,8 +322,8 @@ describe("checkout summary charge currency", () => {
   it("renders flat USD shipping under $250 and free USD shipping at and above $250", () => {
     displayCurrency.value = "EUR";
     const cases = [
-      { price: 200, shipping: SHIPPING_FLAT_USD },
-      { price: 249.99, shipping: SHIPPING_FLAT_USD },
+      { price: 200, shipping: 15 },
+      { price: 249.99, shipping: 15 },
       { price: 250, shipping: 0 },
       { price: 300, shipping: 0 },
     ];
