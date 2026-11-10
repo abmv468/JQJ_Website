@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
+import { RETURNS_DAYS } from "@/lib/policy";
 
 export const metadata: Metadata = {
   title: "Returns, Resizes & Exchanges",
@@ -21,8 +22,8 @@ export default function ReturnsPage() {
         {
           title: "Eligibility Window",
           bullets: [
-            "Return requests must be submitted within 14 days of delivery.",
-            "Exchange or resize requests should be submitted within 30 days of delivery.",
+            `Return requests must be submitted within ${RETURNS_DAYS} days of delivery.`,
+            `Exchange or resize requests for bracelets should be submitted within ${RETURNS_DAYS} days of delivery.`,
             "Items must be unused, unaltered, and returned with original packaging.",
           ],
         },
@@ -41,7 +42,7 @@ export default function ReturnsPage() {
             "Email our returns team with your order number and reason for the request. If approved, we will provide next steps and return instructions.",
           ],
           bullets: [
-            "Customers are responsible for return shipping unless the item arrived damaged or incorrect.",
+            "Customers pay return shipping unless the item arrived damaged or incorrect.",
             "Use a trackable shipping service and keep proof of shipment until the return is processed.",
           ],
         },

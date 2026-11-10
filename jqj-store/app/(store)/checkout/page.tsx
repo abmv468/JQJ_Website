@@ -7,6 +7,7 @@ import { ChevronLeft, CreditCard, Truck } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
 import { createClient } from "@/lib/supabase/client";
+import { fetchWithTimeout } from "@/lib/availability-client";
 import { computeShippingUsd } from "@/lib/shipping";
 import { formatPrice } from "@/lib/utils";
 
@@ -193,16 +194,32 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (!payloadItems.length) return;
+    const controller = new AbortController();
+    let cancelled = false;
     setCheckingStock(true);
-    fetch("/api/products/availability", {
+    fetchWithTimeout("/api/products/availability", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ items: payloadItems }),
+      signal: controller.signal,
     })
-      .then((response) => response.json())
-      .then((data) => setStockErrors(data.errors ?? []))
-      .catch(() => setStockErrors([]))
-      .finally(() => setCheckingStock(false));
+      .then(async (response) => {
+        if (!response.ok) throw new Error(String(response.status));
+        return response.json();
+      })
+      .then((data) => {
+        if (!cancelled) setStockErrors(data.errors ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setStockErrors([]);
+      })
+      .finally(() => {
+        if (!cancelled) setCheckingStock(false);
+      });
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
   }, [payloadItems]);
 
   function update(field: keyof typeof form, value: string) {

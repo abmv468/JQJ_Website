@@ -15,23 +15,26 @@ export function generateStaticParams() {
 export function generateMetadata({ params }: { params: { slug: string } }) {
   const product = getProductBySlug(params.slug);
   const productPath = `/products/${params.slug}`;
+  const description =
+    product?.metaDescription ??
+    product?.description ??
+    "Explore natural stone jewellery from Jewellery Quintessential · 極氣.";
+  const imageAlt = product?.imageAlt ?? product?.name;
 
   return {
     title: product?.name ?? "Product",
-    description:
-      product?.description ??
-      "Explore handcrafted natural stone jewelry from JQD Group.",
+    description,
     alternates: { canonical: productPath },
     openGraph: product
       ? {
           type: "website",
           url: productPath,
           title: product.name,
-          description: product.description,
+          description,
           images: [
             {
               url: product.images[0],
-              alt: product.name,
+              alt: imageAlt,
             },
           ],
         }
@@ -40,7 +43,7 @@ export function generateMetadata({ params }: { params: { slug: string } }) {
       ? {
           card: "summary_large_image",
           title: product.name,
-          description: product.description,
+          description,
           images: [product.images[0]],
         }
       : undefined,
@@ -70,9 +73,6 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
       url: absoluteUrl(`/products/${product.slug}`),
       priceCurrency: "USD",
       price: product.price.toFixed(2),
-      availability: product.inStock
-        ? "https://schema.org/InStock"
-        : "https://schema.org/OutOfStock",
       itemCondition: "https://schema.org/NewCondition",
     },
   };

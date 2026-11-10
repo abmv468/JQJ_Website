@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Minus, Plus, X } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
+import { fetchWithTimeout } from "@/lib/availability-client";
 
 export default function CartPage() {
   const { items, updateQuantity, removeItem, subtotal } = useCart();
@@ -30,16 +31,32 @@ export default function CartPage() {
 
   useEffect(() => {
     if (!payloadItems.length) return;
+    const controller = new AbortController();
+    let cancelled = false;
     setStockLoading(true);
-    fetch("/api/products/availability", {
+    fetchWithTimeout("/api/products/availability", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ items: payloadItems }),
+      signal: controller.signal,
     })
-      .then((response) => response.json())
-      .then((data) => setStockErrors(data.errors ?? []))
-      .catch(() => setStockErrors([]))
-      .finally(() => setStockLoading(false));
+      .then(async (response) => {
+        if (!response.ok) throw new Error(String(response.status));
+        return response.json();
+      })
+      .then((data) => {
+        if (!cancelled) setStockErrors(data.errors ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setStockErrors([]);
+      })
+      .finally(() => {
+        if (!cancelled) setStockLoading(false);
+      });
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
   }, [payloadItems]);
 
   if (items.length === 0) {

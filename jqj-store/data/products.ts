@@ -1,6 +1,6 @@
 export type CategorySlug = "bracelets" | "necklaces" | "rings" | "earrings";
 
-export type ProductTag = "new" | "limited" | "top-rated" | "restocked" | "sale";
+export type ProductTag = "new" | "limited" | "restocked" | "sale";
 
 export interface Product {
   id: string;
@@ -13,33 +13,23 @@ export interface Product {
   category: CategorySlug;
   images: string[];
   hoverImage?: string;
+  imageAlt?: string;
+  metaDescription?: string;
   inStock: boolean;
-  stockCount: number;
+  /** Live counts come from Supabase. Catalog rows must not set this. */
+  stockCount?: number;
   lowStockThreshold?: number;
   variants?: Array<{
     size?: string;
     material?: string;
     sku: string;
-    stockCount: number;
+    stockCount?: number;
   }>;
-  rating: number;
-  reviewCount: number;
   tags: ProductTag[];
   stone: string;
   features: string[];
   specs: Record<string, string>;
 }
-
-// Stone filters used on listing pages and the home "Shop by Stone" section.
-export const stones = [
-  "Sodalite",
-  "Tiger Eye",
-  "Carnelian",
-  "Tourmaline",
-  "Aquamarine",
-  "Amethyst",
-  "Lapis Lazuli",
-] as const;
 
 export const categories: { slug: CategorySlug; name: string }[] = [
   { slug: "bracelets", name: "Bracelets" },
@@ -48,51 +38,51 @@ export const categories: { slug: CategorySlug; name: string }[] = [
   { slug: "earrings", name: "Earrings" },
 ];
 
-const baseFeatures = [
+const braceletFeatures = [
   "Tailored for your preferred fit",
   "Natural gemstones selected for color and character",
-  "Complimentary first resize for new customers",
-  "Crafted in our atelier with museum-inspired design values",
+  "Designed in Hong Kong",
 ];
+
+const necklaceFeatures = ["Designed in Hong Kong", "Sterling silver"];
 
 export const products: Product[] = [
   {
     id: "red-leopard-jasper-iii",
-    name: "Red Leopard Skin Jasper Bracelet III (6mm)",
+    name: "Red Leopard Skin Jasper Cube Bracelet",
     slug: "red-leopard-skin-jasper-bracelet-iii",
     description:
-      "Grounded and expressive, this Red Leopard Skin Jasper bracelet pairs warm, naturally patterned stone with a hand-finished silver clasp. A timeless profile, crafted one piece at a time.",
+      "Cut into clean cubes, Red Leopard Skin Jasper shows its natural spotted pattern in warm reds, rose, cream and earthy browns, so no two beads look quite alike. Small dark spacers sit between the stones, and a single silver-tone cube with an engraved mark adds a quiet point of light to the strand. Designed in Hong Kong with materials sourced from around the world, it is a considered piece for everyday wear, and arrives gift-ready.",
+    metaDescription:
+      "Red Leopard Skin Jasper Cube Bracelet by Jewellery Quintessential · 極氣: patterned jasper cubes with one silver-tone accent, designed in Hong Kong.",
     price: 599.99,
-    compareAtPrice: 699.99,
+    compareAtPrice: null,
     sku: "JQJ-RLSJ-III",
     category: "bracelets",
-    images: [
-      "/products/red-leopard-skin-jasper-bracelet-iii-2.jpg",
-      "/products/red-leopard-skin-jasper-bracelet-hover.jpg",
-      "/products/pearl-silver-necklace-v-2.jpg",
-      "/products/JQJ-Group-—-Natural-Stone-Jewelry-with-Cultural-Craft_Photoshoot_Vintage-Sunwashed-Film_2026-06-29_1x.png",
-    ],
-    hoverImage: "/products/red-leopard-skin-jasper-bracelet-hover.jpg",
+    images: ["/products/red-leopard-jasper-bracelet.webp"],
+    hoverImage: "/products/red-leopard-jasper-bracelet.webp",
+    imageAlt:
+      "Red Leopard Skin Jasper cube bead bracelet with small dark spacers and one engraved silver-tone cube, on a black background.",
     inStock: true,
-    stockCount: 12,
     lowStockThreshold: 5,
     variants: [
-      { size: "Small", material: "Sterling Silver", sku: "JQJ-RLSJ-III-S-SS", stockCount: 4 },
-      { size: "Medium", material: "Sterling Silver", sku: "JQJ-RLSJ-III-M-SS", stockCount: 5 },
-      { size: "Large", material: "Sterling Silver", sku: "JQJ-RLSJ-III-L-SS", stockCount: 3 },
+      { size: "Small", material: "Silver-tone", sku: "JQJ-RLSJ-III-S-SS" },
+      { size: "Medium", material: "Silver-tone", sku: "JQJ-RLSJ-III-M-SS" },
+      { size: "Large", material: "Silver-tone", sku: "JQJ-RLSJ-III-L-SS" },
     ],
-    rating: 4.8,
-    reviewCount: 28,
-    tags: ["top-rated", "sale"],
-    stone: "Carnelian",
-    features: baseFeatures,
+    tags: [],
+    stone: "Red Leopard Skin Jasper",
+    features: [
+      "Designed in Hong Kong",
+      "Natural stones selected for colour and character",
+    ],
     specs: {
-      Color: "Red",
-      "Bead Size": "6mm",
-      "Bead Shape": "Round",
       Stone: "Red Leopard Skin Jasper",
-      Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      "Bead Shape": "Cube",
+      Accent: "One silver-tone cube with an engraved mark",
+      Spacers: "Small dark spacers",
+      Care: "Keep dry. Store separately. Wipe with a soft cloth.",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -105,26 +95,19 @@ export const products: Product[] = [
     compareAtPrice: null,
     sku: "JQJ-TOURM-I",
     category: "bracelets",
-    images: [
-      "/products/raw-brown-tourmaline-bracelet-i-2.jpg",
-      "/products/raw-brown-tourmaline-bracelet-i-3.jpg",
-      "/products/brown-tourmaline-bracelet.webp",
-    ],
+    images: ["/products/brown-tourmaline-bracelet.webp"],
     inStock: true,
-    stockCount: 8,
     lowStockThreshold: 5,
-    rating: 4.7,
-    reviewCount: 19,
     tags: ["new"],
-    stone: "Tourmaline",
-    features: baseFeatures,
+    stone: "Brown Tourmaline",
+    features: braceletFeatures,
     specs: {
       Color: "Brown",
       "Bead Size": "8-10mm",
       "Bead Shape": "Irregular",
-      Stone: "Raw Brown Tourmaline",
+      Stone: "Brown Tourmaline",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -137,22 +120,19 @@ export const products: Product[] = [
     compareAtPrice: null,
     sku: "JQJ-SOD-VIII",
     category: "bracelets",
-    images: ["/products/sodalite-bracelet-viii-1.jpg", "/products/sodalite-bracelet.webp"],
+    images: ["/products/sodalite-bracelet.webp"],
     inStock: true,
-    stockCount: 15,
     lowStockThreshold: 5,
-    rating: 4.9,
-    reviewCount: 41,
-    tags: ["top-rated"],
+    tags: [] as ProductTag[],
     stone: "Sodalite",
-    features: baseFeatures,
+    features: braceletFeatures,
     specs: {
       Color: "Blue",
       "Bead Size": "4mm",
       "Bead Shape": "Round",
       Stone: "Sodalite",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -165,22 +145,19 @@ export const products: Product[] = [
     compareAtPrice: null,
     sku: "JQJ-AMETH-XV",
     category: "bracelets",
-    images: ["/products/amethyst-bracelet-xv-1.jpg", "/products/amethyst-bracelet.webp"],
+    images: ["/products/amethyst-bracelet.webp"],
     inStock: true,
-    stockCount: 20,
     lowStockThreshold: 5,
-    rating: 4.6,
-    reviewCount: 33,
     tags: ["new", "limited"],
     stone: "Amethyst",
-    features: baseFeatures,
+    features: braceletFeatures,
     specs: {
       Color: "Purple",
       "Bead Size": "5mm",
       "Bead Shape": "Round",
       Stone: "Amethyst",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -193,22 +170,19 @@ export const products: Product[] = [
     compareAtPrice: 499.99,
     sku: "JQJ-SIL-IV",
     category: "bracelets",
-    images: ["/products/silver-bracelet-iv-2.jpg", "/products/silver-bracelet.webp"],
+    images: ["/products/silver-bracelet.webp"],
     inStock: true,
-    stockCount: 9,
     lowStockThreshold: 5,
-    rating: 4.8,
-    reviewCount: 26,
     tags: ["restocked", "sale"],
-    stone: "Tiger Eye",
-    features: baseFeatures,
+    stone: "Hematite",
+    features: braceletFeatures,
     specs: {
       Color: "Silver",
       "Bead Size": "4mm",
       "Bead Shape": "Round",
-      Stone: "Hematite Silver",
+      Stone: "Hematite",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -221,22 +195,19 @@ export const products: Product[] = [
     compareAtPrice: null,
     sku: "JQJ-LABR-V",
     category: "bracelets",
-    images: ["/products/labradorite-bracelet-v-1.jpg", "/products/labradorite-bracelet.webp"],
+    images: ["/products/labradorite-bracelet.webp"],
     inStock: true,
-    stockCount: 6,
     lowStockThreshold: 5,
-    rating: 4.9,
-    reviewCount: 22,
     tags: ["limited"],
-    stone: "Lapis Lazuli",
-    features: baseFeatures,
+    stone: "Labradorite",
+    features: braceletFeatures,
     specs: {
       Color: "Gray",
       "Bead Size": "8mm",
       "Bead Shape": "Round",
       Stone: "Labradorite",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -244,30 +215,27 @@ export const products: Product[] = [
     name: "Blue Lace Agate Silver Pendant",
     slug: "blue-lace-agate-silver-pendant",
     description:
-      "A polished blue lace agate point set in silver and suspended on a fine box chain. Calm, elegant, and designed for effortless daily styling.",
+      "A slender flat bar of blue lace agate, capped at each end in sterling silver, hangs from a diamond-shaped bail on a sterling silver curb chain. Available in 45 cm or 55 cm.",
     price: 249.99,
     compareAtPrice: null,
     sku: "JQJ-BLAPEN",
     category: "necklaces",
-    images: ["/products/blue-lace-agate-silver-pendant-1.jpg", "/products/blue-lace-agate-pendant.webp"],
+    images: ["/products/blue-lace-agate-pendant.webp"],
     inStock: true,
-    stockCount: 18,
     lowStockThreshold: 5,
     variants: [
-      { size: "45cm", material: "Sterling Silver", sku: "JQJ-BLAPEN-45-SS", stockCount: 7 },
-      { size: "55cm", material: "Sterling Silver", sku: "JQJ-BLAPEN-55-SS", stockCount: 8 },
-      { size: "55cm", material: "Gold Vermeil", sku: "JQJ-BLAPEN-55-GV", stockCount: 3 },
+      { size: "45cm", material: "Sterling Silver", sku: "JQJ-BLAPEN-45-SS" },
+      { size: "55cm", material: "Sterling Silver", sku: "JQJ-BLAPEN-55-SS" },
+      { size: "55cm", material: "Gold Vermeil", sku: "JQJ-BLAPEN-55-GV" },
     ],
-    rating: 4.7,
-    reviewCount: 14,
     tags: ["new"],
-    stone: "Aquamarine",
-    features: baseFeatures,
+    stone: "Blue Lace Agate",
+    features: necklaceFeatures,
     specs: {
-      "Chain Length": "55cm",
+      "Chain Length": "45 cm or 55 cm",
       Stone: "Blue Lace Agate",
-      Metal: "Sterling Silver",
-      Origin: "Hand-made",
+      Metal: "Sterling silver",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -275,25 +243,22 @@ export const products: Product[] = [
     name: "Labradorite Silver Pendant",
     slug: "labradorite-silver-pendant",
     description:
-      "A faceted labradorite baton framed in silver with a shifting inner glow. Each angle reveals a different tone for a subtle statement.",
+      "A slender bar of labradorite with angled ends and a soft blue sheen, capped top and bottom in sterling silver, on a diamond-shaped bail and sterling silver curb chain. 55 cm.",
     price: 279.99,
     compareAtPrice: null,
     sku: "JQJ-LABPEN",
     category: "necklaces",
-    images: ["/products/labradorite-silver-pendant-1.jpg", "/products/labradorite-pendant.webp"],
+    images: ["/products/labradorite-pendant.webp"],
     inStock: true,
-    stockCount: 11,
     lowStockThreshold: 5,
-    rating: 4.8,
-    reviewCount: 17,
     tags: ["restocked"],
-    stone: "Lapis Lazuli",
-    features: baseFeatures,
+    stone: "Labradorite",
+    features: necklaceFeatures,
     specs: {
-      "Chain Length": "55cm",
+      "Chain Length": "55 cm",
       Stone: "Labradorite",
-      Metal: "Sterling Silver",
-      Origin: "Hand-made",
+      Metal: "Sterling silver",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -301,32 +266,43 @@ export const products: Product[] = [
     name: "Pearl - Silver Necklace V (7mm)",
     slug: "pearl-silver-necklace-v",
     description:
-      "Freshwater pearls are paired with silver-tone hematite for a contemporary interpretation of a classic strand, balancing softness with modern structure.",
+      "7 mm freshwater pearls with silver-tone hematite spacers. 45 cm.",
     price: 980.0,
     compareAtPrice: null,
     sku: "JQJ-PEARL-V",
     category: "necklaces",
-    images: [
-      "/products/pearl-silver-necklace-v-1.jpg",
-      "/products/pearl-silver-necklace-v-2.jpg",
-      "/products/pearl-silver-necklace.webp",
-    ],
+    images: ["/products/pearl-silver-necklace.webp"],
     inStock: true,
-    stockCount: 5,
     lowStockThreshold: 5,
-    rating: 4.9,
-    reviewCount: 9,
-    tags: ["limited", "top-rated"],
-    stone: "Tiger Eye",
-    features: baseFeatures,
+    tags: ["limited"],
+    stone: "Freshwater Pearl",
+    features: necklaceFeatures,
     specs: {
-      "Bead Size": "7mm",
+      "Bead Size": "7 mm",
+      "Chain Length": "45 cm",
       Stone: "Freshwater Pearl",
-      Metal: "Sterling Silver",
-      Origin: "Hand-made",
+      Spacers: "Hematite",
+      Origin: "Designed in Hong Kong",
     },
   },
 ];
+
+/** Unique, non-empty stone names. Pass a category when the listing is category-scoped. */
+export function getStoneFilters(
+  list: readonly Pick<Product, "stone" | "category">[] = products,
+  category?: CategorySlug
+): string[] {
+  return Array.from(
+    new Set(
+      list
+        .filter((product) => (category ? product.category === category : true))
+        .map((product) => product.stone.trim())
+        .filter((stone) => stone.length > 0)
+    )
+  ).sort((a, b) => a.localeCompare(b, "en"));
+}
+
+export const stones: string[] = getStoneFilters();
 
 export function getProductBySlug(slug: string): Product | undefined {
   return products.find((p) => p.slug === slug);

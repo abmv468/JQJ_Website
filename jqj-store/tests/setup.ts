@@ -1,4 +1,7 @@
+import React from "react";
 import { afterEach, vi } from "vitest";
+
+(globalThis as typeof globalThis & { React: typeof React }).React = React;
 
 vi.mock("@/lib/supabase/admin", async () => {
   const { getActiveDb } = await import("./helpers/memory-db");

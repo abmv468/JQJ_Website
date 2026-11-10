@@ -2,6 +2,8 @@
 // Supabase catalog used by checkout and admin matches the statically generated pages.
 // Usage: npm run db:seed:generate   (needs Node 22.18+ to import the .ts catalog directly)
 import { writeFileSync } from "node:fs";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { categories, products } from "../data/products.ts";
 
 const outputUrl = new URL("../supabase/seed.sql", import.meta.url);
@@ -14,6 +16,37 @@ const number = (value) => {
   if (!Number.isFinite(Number(value))) throw new Error(`Invalid number: ${value}`);
   return String(Number(value));
 };
+
+// products.stock_count and product_variants.stock_count default to 0
+// (20261022000000_store_baseline.sql). Leaving the column out still inserts 0.
+// The storefront catalog no longer carries stockCount, so seed main's counts
+// (d632761) unless a catalog row sets one explicitly.
+const MAIN_PRODUCT_STOCK = {
+  "red-leopard-skin-jasper-bracelet-iii": 12,
+  "raw-brown-tourmaline-bracelet-i": 8,
+  "sodalite-bracelet-viii": 15,
+  "amethyst-bracelet-xv": 20,
+  "silver-bracelet-iv": 9,
+  "labradorite-bracelet-v": 6,
+  "blue-lace-agate-silver-pendant": 18,
+  "labradorite-silver-pendant": 11,
+  "pearl-silver-necklace-v": 5,
+};
+
+const MAIN_VARIANT_STOCK = {
+  "JQJ-RLSJ-III-S-SS": 4,
+  "JQJ-RLSJ-III-M-SS": 5,
+  "JQJ-RLSJ-III-L-SS": 3,
+  "JQJ-BLAPEN-45-SS": 7,
+  "JQJ-BLAPEN-55-SS": 8,
+  "JQJ-BLAPEN-55-GV": 3,
+};
+
+function catalogStock(value, fallback, label) {
+  if (value !== null && value !== undefined) return number(value);
+  if (fallback === undefined) throw new Error(`Missing main stock for ${label}`);
+  return number(fallback);
+}
 
 const textArray = (values) =>
   values?.length ? `array[${values.map(text).join(", ")}]::text[]` : "'{}'::text[]";
@@ -28,55 +61,62 @@ function assertUnique(label, values) {
   }
 }
 
-const categorySlugs = new Set(categories.map((category) => category.slug));
-for (const product of products) {
-  if (!categorySlugs.has(product.category)) {
-    throw new Error(`Product ${product.slug} uses unknown category ${product.category}`);
+export function renderCatalogSeed(catalog = { categories, products }) {
+  const categoryList = catalog.categories;
+  const productList = catalog.products;
+
+  const categorySlugs = new Set(categoryList.map((category) => category.slug));
+  for (const product of productList) {
+    if (!categorySlugs.has(product.category)) {
+      throw new Error(`Product ${product.slug} uses unknown category ${product.category}`);
+    }
   }
-}
-assertUnique("product slug", products.map((product) => product.slug));
-assertUnique(
-  "SKU",
-  products.flatMap((product) => [product.sku, ...(product.variants ?? []).map((variant) => variant.sku)]).filter(Boolean)
-);
+  assertUnique(
+    "product slug",
+    productList.map((product) => product.slug)
+  );
+  assertUnique(
+    "SKU",
+    productList
+      .flatMap((product) => [product.sku, ...(product.variants ?? []).map((variant) => variant.sku)])
+      .filter(Boolean)
+  );
 
-const categoryRows = categories.map((category) => `  (${text(category.name)}, ${text(category.slug)})`);
+  const categoryRows = categoryList.map((category) => `  (${text(category.name)}, ${text(category.slug)})`);
 
-const productRows = products.map((product) =>
-  [
-    text(product.name),
-    text(product.slug),
-    text(product.description),
-    text(product.sku ?? null),
-    number(product.price),
-    number(product.compareAtPrice ?? null),
-    `(select id from public.categories where slug = ${text(product.category)})`,
-    textArray(product.images),
-    product.inStock ? "true" : "false",
-    number(product.stockCount),
-    number(product.lowStockThreshold ?? 5),
-    number(product.rating),
-    number(product.reviewCount),
-    textArray(product.tags),
-    text(product.stone),
-    textArray(product.features),
-    json(product.specs),
-  ].join(", ")
-);
-
-const variantRows = products.flatMap((product) =>
-  (product.variants ?? []).map((variant) =>
+  const productRows = productList.map((product) =>
     [
-      `(select id from public.products where slug = ${text(product.slug)})`,
-      text(variant.size ?? null),
-      text(variant.material ?? null),
-      text(variant.sku),
-      number(variant.stockCount),
+      text(product.name),
+      text(product.slug),
+      text(product.description),
+      text(product.sku ?? null),
+      number(product.price),
+      number(product.compareAtPrice ?? null),
+      `(select id from public.categories where slug = ${text(product.category)})`,
+      textArray(product.images),
+      product.inStock ? "true" : "false",
+      catalogStock(product.stockCount, MAIN_PRODUCT_STOCK[product.slug], product.slug),
+      number(product.lowStockThreshold ?? 5),
+      textArray(product.tags),
+      text(product.stone),
+      textArray(product.features),
+      json(product.specs),
     ].join(", ")
-  )
-);
+  );
 
-const sql = `-- JQD store — catalog seed.
+  const variantRows = productList.flatMap((product) =>
+    (product.variants ?? []).map((variant) =>
+      [
+        `(select id from public.products where slug = ${text(product.slug)})`,
+        text(variant.size ?? null),
+        text(variant.material ?? null),
+        text(variant.sku),
+        catalogStock(variant.stockCount, MAIN_VARIANT_STOCK[variant.sku], variant.sku),
+      ].join(", ")
+    )
+  );
+
+  return `-- JQD store — catalog seed.
 -- Generated by scripts/generate-catalog-seed.mjs from data/products.ts; do not edit by hand.
 -- Run after the migrations in supabase/migrations.
 --
@@ -91,7 +131,7 @@ on conflict (slug) do update set name = excluded.name;
 
 insert into public.products (
   name, slug, description, sku, price, compare_at_price, category_id, images,
-  in_stock, stock_count, low_stock_threshold, rating, review_count, tags, stone,
+  in_stock, stock_count, low_stock_threshold, tags, stone,
   features, specs
 ) values
 ${productRows.map((row) => `  (${row})`).join(",\n")}
@@ -104,8 +144,6 @@ on conflict (slug) do update set
   category_id = excluded.category_id,
   images = excluded.images,
   low_stock_threshold = excluded.low_stock_threshold,
-  rating = excluded.rating,
-  review_count = excluded.review_count,
   tags = excluded.tags,
   stone = excluded.stone,
   features = excluded.features,
@@ -124,8 +162,17 @@ on conflict (sku) do update set
 }
 commit;
 `;
+}
 
-writeFileSync(outputUrl, sql);
-console.log(
-  `Wrote supabase/seed.sql: ${categories.length} categories, ${products.length} products, ${variantRows.length} variants`
-);
+const isDirectRun =
+  Boolean(process.argv[1]) &&
+  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
+
+if (isDirectRun) {
+  const sql = renderCatalogSeed();
+  writeFileSync(outputUrl, sql);
+  const variantCount = products.reduce((count, product) => count + (product.variants?.length ?? 0), 0);
+  console.log(
+    `Wrote supabase/seed.sql: ${categories.length} categories, ${products.length} products, ${variantCount} variants`
+  );
+}
