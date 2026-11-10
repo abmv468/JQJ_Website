@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
+import { BRAND_NAME } from "@/lib/brand";
 
 export const metadata: Metadata = {
   title: "Natural Stone Jewelry Care",
   description:
-    "Learn how to clean, store, and care for natural stone jewelry and hand-finished pieces from JQD Group.",
+    `Learn how to clean, store, and care for natural stone jewelry and hand-finished pieces from ${BRAND_NAME}.`,
   alternates: { canonical: "/care" },
 };
 

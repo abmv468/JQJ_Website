@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
+import { BRAND_HASHTAG, LEGAL_ENTITY } from "@/lib/brand";
 
 const columns = [
   {
@@ -26,7 +27,7 @@ const columns = [
     ],
   },
   {
-    title: "#JQDGroup",
+    title: BRAND_HASHTAG,
     links: [
       { label: "Our Story", href: "/story" },
       { label: "Privacy Policy", href: "/privacy" },
@@ -138,7 +139,7 @@ export default function Footer() {
             className="text-[11px] uppercase text-white/60"
             style={{ letterSpacing: "0.18em" }}
           >
-            © {new Date().getFullYear()} — JQD Group
+            © {new Date().getFullYear()} — {LEGAL_ENTITY}
           </p>
           <p className="text-center text-xs text-white/56">
             Hand-finished natural stone pieces designed for everyday ritual.

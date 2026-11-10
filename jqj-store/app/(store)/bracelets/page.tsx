@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import CollectionView from "@/components/product/CollectionView";
 import { getProductsByCategory } from "@/data/products";
+import { BRAND_NAME } from "@/lib/brand";
 
 export function generateMetadata({
   searchParams,
@@ -16,7 +17,7 @@ export function generateMetadata({
     alternates: { canonical: "/bracelets" },
     robots: isFiltered ? { index: false, follow: true } : undefined,
     openGraph: {
-      title: "Natural Stone Bracelets | JQD Group",
+      title: `Natural Stone Bracelets | ${BRAND_NAME}`,
       description:
         "Explore hand-finished natural stone bracelets crafted for everyday wear, thoughtful gifting, and a personal fit.",
       url: "/bracelets",
@@ -41,7 +42,7 @@ export default function BraceletsPage({
         {
           title: "Natural stone bracelets for everyday wear",
           paragraphs: [
-            "JQD Group bracelets are selected for natural color, texture, and a presence that works with everyday dressing. Each piece is hand-finished to highlight the individual character of its stones rather than flatten it into a uniform look.",
+            `${BRAND_NAME} bracelets are selected for natural color, texture, and a presence that works with everyday dressing. Each piece is hand-finished to highlight the individual character of its stones rather than flatten it into a uniform look.`,
             "Choose a smaller bead profile for a quieter stack, or a more substantial stone when you want a single piece to carry the outfit. Natural variation in tone and pattern is part of the material, so every bracelet has its own character.",
           ],
           links: [

@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
+import { BRAND_NAME, SUPPORT_EMAIL } from "@/lib/brand";
 
 export const metadata: Metadata = {
   title: "Bracelet Wrist Size Guide",
   description:
-    "Measure your wrist and choose a close, everyday, or relaxed bracelet fit before ordering natural stone jewelry from JQD Group.",
+    `Measure your wrist and choose a close, everyday, or relaxed bracelet fit before ordering natural stone jewelry from ${BRAND_NAME}.`,
   alternates: { canonical: "/measure" },
 };
 
@@ -17,8 +18,8 @@ export default function MeasurePage() {
       contactDetails={[
         {
           label: "Sizing Help",
-          value: "support@jqdgroup.com",
-          href: "mailto:support@jqdgroup.com",
+          value: SUPPORT_EMAIL,
+          href: `mailto:${SUPPORT_EMAIL}`,
         },
       ]}
       sections={[

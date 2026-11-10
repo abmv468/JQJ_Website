@@ -1,11 +1,12 @@
 import PolicyPage from "@/components/trust/PolicyPage";
 import type { Metadata } from "next";
+import { BRAND_NAME, SUPPORT_EMAIL } from "@/lib/brand";
 import { jsonLd } from "@/lib/seo";
 
 export const metadata = {
   title: "Jewelry FAQs",
   description:
-    "Answers about JQD Group orders, payment, shipping, returns, resizing, natural stone jewelry care, and repairs.",
+    `Answers about ${BRAND_NAME} orders, payment, shipping, returns, resizing, natural stone jewelry care, and repairs.`,
   alternates: { canonical: "/faqs" },
 };
 
@@ -114,7 +115,7 @@ export default function FaqsPage() {
         intro="Find quick answers about ordering, shipping, returns, and product care."
         effectiveDate="January 1, 2026"
         contactDetails={[
-          { label: "Need Help", value: "support@jqdgroup.com", href: "mailto:support@jqdgroup.com" },
+          { label: "Need Help", value: SUPPORT_EMAIL, href: `mailto:${SUPPORT_EMAIL}` },
         ]}
         sections={faqSections.map((section) => ({
           title: section.title,

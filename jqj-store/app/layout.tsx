@@ -2,6 +2,16 @@ import type { Metadata } from "next";
 import { Instrument_Sans, Manrope } from "next/font/google";
 import "./globals.css";
 import { CurrencyProvider } from "@/context/CurrencyContext";
+import {
+  BRAND_NAME,
+  BRAND_NAME_FULL,
+  BRAND_NAME_ZH,
+  BRAND_OG_IMAGE_ALT,
+  BRAND_HOME_DESCRIPTION,
+  BRAND_SOCIAL_TITLE,
+  BRAND_TITLE_DEFAULT,
+  BRAND_TITLE_TEMPLATE,
+} from "@/lib/brand";
 import { absoluteUrl, jsonLd, siteUrl } from "@/lib/seo";
 
 const heading = Instrument_Sans({
@@ -19,35 +29,31 @@ const body = Manrope({
 export const metadata: Metadata = {
   metadataBase: siteUrl,
   title: {
-    default: "JQD Group | Natural Stone Jewelry with Cultural Craft",
-    template: "%s | JQD Group",
+    default: BRAND_TITLE_DEFAULT,
+    template: BRAND_TITLE_TEMPLATE,
   },
-  description:
-    "Handcrafted bracelets and necklaces inspired by Eastern cultural heritage, museum collaborations, and natural gemstone artistry.",
-  icons: { icon: "/JQD-logo.png" },
+  description: BRAND_HOME_DESCRIPTION,
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     locale: "en_US",
     url: "/",
-    siteName: "JQD Group",
-    title: "JQD Group | Natural Stone Jewelry with Cultural Craft",
-    description:
-      "Handcrafted bracelets and necklaces inspired by Eastern cultural heritage, museum collaborations, and natural gemstone artistry.",
+    siteName: BRAND_NAME,
+    title: BRAND_SOCIAL_TITLE,
+    description: BRAND_HOME_DESCRIPTION,
     images: [
       {
         url: "/products/hero-image.jpg",
         width: 1200,
         height: 630,
-        alt: "JQD Group natural stone jewelry",
+        alt: BRAND_OG_IMAGE_ALT,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "JQD Group | Natural Stone Jewelry with Cultural Craft",
-    description:
-      "Handcrafted bracelets and necklaces inspired by Eastern cultural heritage, museum collaborations, and natural gemstone artistry.",
+    title: BRAND_SOCIAL_TITLE,
+    description: BRAND_HOME_DESCRIPTION,
     images: ["/products/hero-image.jpg"],
   },
   robots: {
@@ -71,7 +77,8 @@ export default function RootLayout({
   const organizationSchema = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: "JQD Group",
+    name: BRAND_NAME,
+    alternateName: [BRAND_NAME_ZH, BRAND_NAME_FULL],
     url: absoluteUrl(),
     logo: absoluteUrl("/JQD-logo.png"),
   };
@@ -79,7 +86,8 @@ export default function RootLayout({
   const websiteSchema = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: "JQD Group",
+    name: BRAND_NAME,
+    alternateName: BRAND_NAME_ZH,
     url: absoluteUrl(),
   };
 

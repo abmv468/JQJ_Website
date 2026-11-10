@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
+import { BRAND_NAME, SUPPORT_EMAIL } from "@/lib/brand";
 
 export const metadata: Metadata = {
   title: "Jewelry Repairs",
   description:
-    "Request support for a JQD Group jewelry repair, including how to share photos, order details, and available service options.",
+    `Request support for a ${BRAND_NAME} jewelry repair, including how to share photos, order details, and available service options.`,
   alternates: { canonical: "/repair" },
 };
 
@@ -17,8 +18,8 @@ export default function RepairPage() {
       contactDetails={[
         {
           label: "Repair Support",
-          value: "support@jqdgroup.com",
-          href: "mailto:support@jqdgroup.com",
+          value: SUPPORT_EMAIL,
+          href: `mailto:${SUPPORT_EMAIL}`,
         },
       ]}
       sections={[

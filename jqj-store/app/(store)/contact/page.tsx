@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
+import { BRAND_NAME, SUPPORT_EMAIL } from "@/lib/brand";
 
 export const metadata: Metadata = {
   title: "Contact Us",
   description:
-    "Contact JQD Group for help with natural stone jewelry orders, sizing, shipping, returns, repairs, and product questions.",
+    `Contact ${BRAND_NAME} for help with natural stone jewelry orders, sizing, shipping, returns, repairs, and product questions.`,
   alternates: { canonical: "/contact" },
 };
 
@@ -15,7 +16,7 @@ export default function ContactPage() {
       intro="Our support team is available to help with orders, product questions, and post-purchase care."
       effectiveDate="January 1, 2026"
       contactDetails={[
-        { label: "Customer Care", value: "support@jqdgroup.com", href: "mailto:support@jqdgroup.com" },
+        { label: "Customer Care", value: SUPPORT_EMAIL, href: `mailto:${SUPPORT_EMAIL}` },
         { label: "Phone", value: "Available on request via email support." },
         { label: "Mailing Address", value: "Available upon verified order-related request." },
         { label: "Support Hours", value: "Monday-Friday, 9:00 AM-5:00 PM (UTC+8)." },
@@ -40,7 +41,7 @@ export default function ContactPage() {
         {
           title: "Business and Press Inquiries",
           paragraphs: [
-            "For wholesale, collaborations, media, or partnerships, contact us at press@jqdgroup.com and include your company details and request summary.",
+            `For wholesale, collaborations, media, or partnerships, contact us at ${SUPPORT_EMAIL} and include your company details and request summary.`,
           ],
         },
       ]}

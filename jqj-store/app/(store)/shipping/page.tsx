@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
+import { BRAND_NAME, SUPPORT_EMAIL } from "@/lib/brand";
 
 export const metadata: Metadata = {
   title: "Shipping Policy",
   description:
-    "Review JQD Group order processing, delivery timing, tracking, international duties, and shipping support.",
+    `Review ${BRAND_NAME} order processing, delivery timing, tracking, international duties, and shipping support.`,
   alternates: { canonical: "/shipping" },
 };
 
@@ -15,7 +16,7 @@ export default function ShippingPage() {
       intro="We aim to dispatch every order quickly and provide reliable tracking so you can shop with confidence."
       effectiveDate="January 1, 2026"
       contactDetails={[
-        { label: "Shipping Support", value: "shipping@jqdgroup.com", href: "mailto:shipping@jqdgroup.com" },
+        { label: "Shipping Support", value: SUPPORT_EMAIL, href: `mailto:${SUPPORT_EMAIL}` },
       ]}
       sections={[
         {

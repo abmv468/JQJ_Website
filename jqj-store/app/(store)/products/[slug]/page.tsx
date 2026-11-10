@@ -6,6 +6,7 @@ import {
 } from "@/data/products";
 import ProductDetail from "@/components/product/ProductDetail";
 import type { Metadata } from "next";
+import { BRAND_NAME } from "@/lib/brand";
 import { absoluteUrl, jsonLd } from "@/lib/seo";
 
 export function generateStaticParams() {
@@ -20,7 +21,7 @@ export function generateMetadata({ params }: { params: { slug: string } }) {
     title: product?.name ?? "Product",
     description:
       product?.description ??
-      "Explore handcrafted natural stone jewelry from JQD Group.",
+      `Explore handcrafted natural stone jewelry from ${BRAND_NAME}.`,
     alternates: { canonical: productPath },
     openGraph: product
       ? {
@@ -63,7 +64,7 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
     category: categoryName,
     brand: {
       "@type": "Brand",
-      name: "JQD Group",
+      name: BRAND_NAME,
     },
     offers: {
       "@type": "Offer",
