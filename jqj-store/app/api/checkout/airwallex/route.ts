@@ -22,6 +22,7 @@ import {
   applyAirwallexPaymentIntentStatus,
   findAirwallexPaymentByIntent,
   releaseExpiredAirwallexReservations,
+  releaseOrderReservation,
   upsertAirwallexPaymentIntent,
 } from "@/lib/payments/airwallex-orders";
 
@@ -487,24 +488,27 @@ export async function POST(req: Request) {
       }
     );
   } catch (error) {
-    if (supabase && orderId && reservedStock && resolvedItems.length) {
+    let reservationStillHeld = false;
+    if (supabase && orderId) {
       try {
-        await restoreStockForOrder(supabase, orderId, resolvedItems);
-      } catch (restoreError) {
-        console.error("[airwallex-checkout] failed to restore stock after error", restoreError);
-        return NextResponse.json(
-          {
-            error:
-              restoreError instanceof Error
-                ? restoreError.message
-                : "Checkout failed and inventory restore could not complete",
-          },
-          { status: 500 }
+        await releaseOrderReservation(
+          supabase,
+          orderId,
+          reservedStock
+            ? resolvedItems.map((line) => ({
+                product_id: line.product.id,
+                variant_id: line.variant?.id ?? null,
+                quantity: line.requestedQuantity,
+              }))
+            : undefined
         );
+      } catch {
+        reservationStillHeld = true;
+        console.error("[airwallex-checkout] reservation release failed", { orderId });
       }
     }
 
-    if (supabase && orderId) {
+    if (supabase && orderId && !reservationStillHeld) {
       const { error: markFailedError } = await supabase
         .from("orders")
         .update({
@@ -515,6 +519,7 @@ export async function POST(req: Request) {
           updated_at: new Date().toISOString(),
         })
         .eq("id", orderId)
+        .eq("inventory_reserved", false)
         .or("payment_status.is.null,payment_status.neq.succeeded");
       if (markFailedError) {
         console.error("[airwallex-checkout] failed to mark order as failed", markFailedError);
