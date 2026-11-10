@@ -431,15 +431,52 @@ describe("Airwallex reservation release", () => {
     await expect(response.json()).resolves.toEqual({ error: "Reservation release failed" });
   });
 
-  it("re-reserves when a payment succeeds between the Airwallex read and the release", async () => {
+  it("does not restore stock when payment succeeds before the release runs", async () => {
     seedHeldOrder(db, { id: "order-race", createdAt: hoursAgo(2), stock: 4 });
     const original = db.rpc.bind(db);
+    let restoreResult: { data: unknown; error: unknown } | undefined;
     db.rpc = async (fn, args) => {
       if (fn === "restore_order_inventory" && args?.p_order_id === "order-race") {
         const order = db.rowsOf("orders").find((row) => row.id === "order-race");
         if (order) order.payment_status = "succeeded";
       }
-      return original(fn, args ?? {});
+      const result = await original(fn, args ?? {});
+      if (fn === "restore_order_inventory" && args?.p_order_id === "order-race") {
+        restoreResult = result;
+      }
+      return result;
+    };
+
+    const response = await releaseReservations(cronRequest());
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      paid: 0,
+      released: 0,
+      errors: [{ orderId: "order-race", message: "Order is paid; inventory not restored" }],
+    });
+    expect(restoreResult?.error).toBeNull();
+    expect(restoreResult?.data).toEqual([
+      { success: false, was_reserved: true, message: "Order is paid; inventory not restored" },
+    ]);
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      status: "pending",
+      payment_status: "succeeded",
+      fulfillment_status: "pending_payment",
+      inventory_reserved: true,
+    });
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
+  });
+
+  it("re-reserves when a payment succeeds after an unpaid release returns", async () => {
+    seedHeldOrder(db, { id: "order-after", createdAt: hoursAgo(2), stock: 4 });
+    const original = db.rpc.bind(db);
+    db.rpc = async (fn, args) => {
+      const result = await original(fn, args ?? {});
+      if (fn === "restore_order_inventory" && args?.p_order_id === "order-after") {
+        const order = db.rowsOf("orders").find((row) => row.id === "order-after");
+        if (order) order.payment_status = "succeeded";
+      }
+      return result;
     };
 
     const response = await releaseReservations(cronRequest());
