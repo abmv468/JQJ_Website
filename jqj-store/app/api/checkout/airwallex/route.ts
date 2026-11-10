@@ -3,6 +3,11 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  isValidSingleEmail,
+  normalizeSingleEmail,
+  SINGLE_EMAIL_FIELD_MESSAGE,
+} from "@/lib/email-address";
 import { normalizeCurrency, type SupportedCurrency } from "@/lib/currency";
 import { computeShippingUsd } from "@/lib/shipping";
 import {
@@ -102,7 +107,17 @@ export async function POST(req: Request) {
     if (!items?.length) {
       return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
     }
-    if (!customer?.email || !customer?.firstName || !customer?.address || !customer?.city) {
+    const customerEmail = normalizeSingleEmail(typeof customer?.email === "string" ? customer.email : "");
+    if (!isValidSingleEmail(customerEmail)) {
+      return NextResponse.json(
+        {
+          error: "Check the highlighted fields.",
+          fields: { email: SINGLE_EMAIL_FIELD_MESSAGE },
+        },
+        { status: 400 }
+      );
+    }
+    if (!customer?.firstName || !customer?.address || !customer?.city) {
       return NextResponse.json(
         { error: "Missing required customer checkout details" },
         { status: 400 }
@@ -190,7 +205,7 @@ export async function POST(req: Request) {
           tax_amount: 0,
           currency: selectedCurrency,
           shipping_address: shippingAddress,
-          customer_email: customer.email,
+          customer_email: customerEmail,
           customer_name: customerName,
           sales_channel: "website",
         })
@@ -242,7 +257,7 @@ export async function POST(req: Request) {
       merchantOrderId: orderId,
       returnUrl: `${returnUrl}&order_id=${encodeURIComponent(orderId)}`,
       customer: {
-        email: customer.email,
+        email: customerEmail,
         firstName: customer.firstName,
         lastName: customer.lastName,
         phone: customer.phone,
@@ -280,7 +295,7 @@ export async function POST(req: Request) {
         subtotal_amount: subtotal,
         shipping_amount: shippingAmount,
         total_amount: total,
-        customer_email: customer.email,
+        customer_email: customerEmail,
         customer_name: customerName,
         shipping_address: shippingAddress,
         updated_at: new Date().toISOString(),

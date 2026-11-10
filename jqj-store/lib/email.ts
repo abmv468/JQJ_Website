@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { isValidSingleEmail, normalizeSingleEmail } from "./email-address";
 import { formatPrice } from "./utils";
 import { type SupportedCurrency } from "./currency";
 
@@ -93,10 +94,37 @@ function buildHtml(data: OrderEmailData, heading: string): string {
   </div>`;
 }
 
+function readAdminAddress(): string | null {
+  const raw = process.env.ADMIN_EMAIL;
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  if (!isValidSingleEmail(raw)) {
+    console.error("[email] skipped send, invalid env", "ADMIN_EMAIL");
+    return null;
+  }
+  return normalizeSingleEmail(raw);
+}
+
+function readFromAddress(): string | null {
+  const raw = process.env.EMAIL_FROM;
+  if (typeof raw !== "string" || !isValidSingleEmail(raw)) {
+    console.error("[email] skipped send, invalid env", "EMAIL_FROM");
+    return null;
+  }
+  return normalizeSingleEmail(raw);
+}
+
 export async function sendOrderEmails(data: OrderEmailData): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM || "orders@danvapes.shop";
-  const adminEmail = process.env.ADMIN_EMAIL;
+  const from = readFromAddress();
+  const adminEmail = readAdminAddress();
+  const customerEmail = normalizeSingleEmail(
+    typeof data.customerEmail === "string" ? data.customerEmail : ""
+  );
+  const customerEmailOk = isValidSingleEmail(customerEmail);
+
+  if (!customerEmailOk) {
+    console.error("[email] skip", data.orderId, "invalid_recipient");
+  }
 
   if (!apiKey) {
     console.warn("[email] RESEND_API_KEY missing — skipping order emails");
@@ -106,14 +134,16 @@ export async function sendOrderEmails(data: OrderEmailData): Promise<void> {
   const resend = new Resend(apiKey);
 
   try {
-    await resend.emails.send({
-      from,
-      to: data.customerEmail,
-      subject: `Your ${BRAND} order ${data.orderId}`,
-      html: buildHtml(data, "Thank you for your order"),
-    });
+    if (customerEmailOk && from) {
+      await resend.emails.send({
+        from,
+        to: customerEmail,
+        subject: `Your ${BRAND} order ${data.orderId}`,
+        html: buildHtml(data, "Thank you for your order"),
+      });
+    }
 
-    if (adminEmail) {
+    if (adminEmail && from) {
       await resend.emails.send({
         from,
         to: adminEmail,
