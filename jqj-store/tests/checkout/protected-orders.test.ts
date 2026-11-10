@@ -204,12 +204,34 @@ describe("protected cancelled and test orders", () => {
       payment_status: "requires_payment_method",
       fulfillment_status: "pending_payment",
     });
+    expect(db.rowsOf("payments")[0]).toMatchObject({
+      status: "requires_payment_method",
+      amount: 115,
+    });
     expect(stockMoves(db)).toHaveLength(0);
     expect(sendOrderEmails).not.toHaveBeenCalled();
     expect(hookCalls(errorSpy)[0][1]).toMatchObject({
       status: "failed",
       reason: "cancelled",
     });
+  });
+
+  it("does not record a protected success when the amount is not finite", async () => {
+    seedOrder(db, { id: "order-cancelled", status: "cancelled" });
+    const event = paymentEvent("evt_bad_amount", "order-cancelled", "int_order-cancelled", "SUCCEEDED");
+    event.data.object.amount = "not-a-number" as unknown as number;
+
+    const response = await webhook(signedWebhook(event));
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body).toEqual({ error: "Internal error" });
+    expect(db.rowsOf("payments")[0]).toMatchObject({
+      status: "requires_payment_method",
+      amount: 115,
+    });
+    expect(db.rowsOf("orders")[0].status).toBe("cancelled");
+    expect(closedOrderAlerts(errorSpy)).toHaveLength(0);
   });
 
   it("ignores succeeded and failed webhooks for a test order that is still pending", async () => {

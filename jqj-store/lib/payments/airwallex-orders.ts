@@ -638,7 +638,12 @@ export async function applyAirwallexPaymentIntentStatus(
   if (protectedError) throw protectedError;
   if (protectedRow && isProtectedOrder(protectedRow)) {
     if (isSuccessfulPaymentStatus(input.nextStatus)) {
-      const amount = input.amount == null ? toNumber(payment.amount) : toNumber(input.amount);
+      const amountSource = input.amount == null ? payment.amount : input.amount;
+      const parsedAmount = Number(amountSource);
+      if (!Number.isFinite(parsedAmount)) {
+        throw new Error("Payment amount is not a finite number");
+      }
+      const amount = parsedAmount;
       const { data: recorded, error: recordError } = await supabase
         .from("payments")
         .update({
@@ -1065,7 +1070,7 @@ export async function applyAirwallexRefundEvent(
   if (transitionedToSettled) {
     const { data: orderData, error: orderError } = await supabase
       .from("orders")
-      .select("id, total_amount, refunded_amount")
+      .select("id, status, sales_channel, total_amount, refunded_amount")
       .eq("id", paymentData.order_id)
       .single();
     if (orderError) throw orderError;
@@ -1074,15 +1079,23 @@ export async function applyAirwallexRefundEvent(
     const currentRefundedAmount = toNumber(orderData.refunded_amount);
     const nextRefundedAmount = Math.min(totalAmount, currentRefundedAmount + refundAmount);
     const fullyRefunded = totalAmount > 0 && nextRefundedAmount >= totalAmount;
+    const orderPatch: {
+      refunded_amount: number;
+      updated_at: string;
+      status?: string;
+      fulfillment_status?: string;
+    } = {
+      refunded_amount: nextRefundedAmount,
+      updated_at: now,
+    };
+    if (!isProtectedOrder(orderData)) {
+      orderPatch.status = fullyRefunded ? "refunded" : "paid";
+      orderPatch.fulfillment_status = fullyRefunded ? "refunded" : "paid";
+    }
 
     const { error: updateOrderError } = await supabase
       .from("orders")
-      .update({
-        refunded_amount: nextRefundedAmount,
-        status: fullyRefunded ? "refunded" : "paid",
-        fulfillment_status: fullyRefunded ? "refunded" : "paid",
-        updated_at: now,
-      })
+      .update(orderPatch)
       .eq("id", paymentData.order_id);
     if (updateOrderError) throw updateOrderError;
 
