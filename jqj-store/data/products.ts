@@ -51,17 +51,12 @@ export const categories: { slug: CategorySlug; name: string }[] = [
 const sharedFeatures = [
   "Tailored for your preferred fit",
   "Natural gemstones selected for color and character",
-  "Crafted in our atelier with museum-inspired design values",
   "Designed in Hong Kong",
 ];
 
 const braceletResizeFeature = "Complimentary first resize for new customers";
 
-const necklaceFeatures = [
-  "Designed in Hong Kong",
-  "Sterling silver",
-  "Crafted in our atelier with museum-inspired design values",
-];
+const necklaceFeatures = ["Designed in Hong Kong", "Sterling silver"];
 
 const baseFeatures = [...sharedFeatures, braceletResizeFeature];
 
@@ -71,7 +66,7 @@ export const products: Product[] = [
     name: "Red Leopard Skin Jasper Bracelet III (6mm)",
     slug: "red-leopard-skin-jasper-bracelet-iii",
     description:
-      "Grounded and expressive, this Red Leopard Skin Jasper bracelet pairs warm, naturally patterned stone with a hand-finished silver clasp. A timeless profile, crafted one piece at a time.",
+      "Grounded and expressive, this Red Leopard Skin Jasper bracelet pairs warm, naturally patterned stone. A timeless profile, crafted one piece at a time.",
     price: 599.99,
     compareAtPrice: 699.99,
     sku: "JQJ-RLSJ-III",
