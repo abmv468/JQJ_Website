@@ -3,6 +3,11 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createHash } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  isValidSingleEmail,
+  normalizeSingleEmail,
+  SINGLE_EMAIL_FIELD_MESSAGE,
+} from "@/lib/email-address";
 import { sendOrderEmails } from "@/lib/email";
 import { normalizeCurrency } from "@/lib/currency";
 import {
@@ -13,6 +18,7 @@ import {
   type CheckoutItemInput,
 } from "@/lib/inventory";
 import { computeShippingUsd } from "@/lib/shipping";
+
 export const dynamic = "force-dynamic";
 
 const COD_FEE = 20;
@@ -63,6 +69,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
     }
 
+    const customerEmail = normalizeSingleEmail(typeof customer?.email === "string" ? customer.email : "");
+    if (!isValidSingleEmail(customerEmail)) {
+      return NextResponse.json(
+        {
+          error: "Check the highlighted fields.",
+          fields: { email: SINGLE_EMAIL_FIELD_MESSAGE },
+        },
+        { status: 400 }
+      );
+    }
+
     const selectedCurrency = normalizeCurrency(currency);
     const customerName = `${customer.firstName} ${customer.lastName}`.trim();
     const userId = await getAuthenticatedUserId();
@@ -97,7 +114,7 @@ export async function POST(req: Request) {
       createHash("sha256")
         .update(
           JSON.stringify({
-            customerEmail: customer.email,
+            customerEmail,
             items: items.map((item) => ({
               slug: item.slug,
               quantity: item.quantity,
@@ -200,7 +217,7 @@ export async function POST(req: Request) {
           tax_amount: 0,
           currency: selectedCurrency,
           shipping_address: shippingAddress,
-          customer_email: customer.email,
+          customer_email: customerEmail,
           customer_name: customerName,
         })
         .eq("id", targetOrderId)
@@ -246,7 +263,7 @@ export async function POST(req: Request) {
             tax_amount: 0,
             currency: selectedCurrency,
             shipping_address: shippingAddress,
-            customer_email: customer.email,
+            customer_email: customerEmail,
             customer_name: customerName,
             stripe_session_id: codSessionId,
           })
@@ -344,7 +361,7 @@ export async function POST(req: Request) {
     await sendOrderEmails({
       orderId,
       customerName,
-      customerEmail: customer.email,
+      customerEmail,
       items: validation.resolved.map((line) => ({
         name:
           line.product.name +
