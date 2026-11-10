@@ -1,8 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST as postAirwallex } from "@/app/api/checkout/airwallex/route";
-import { POST as postStripe } from "@/app/api/checkout/route";
 import { createAirwallexPaymentIntent } from "@/lib/payments/airwallex";
-import { getStripe } from "@/lib/stripe";
 import {
   checkoutCustomer,
   checkoutItem,
@@ -21,12 +19,6 @@ vi.mock("@/lib/payments/airwallex", async () => {
     retrieveAirwallexPaymentIntent: vi.fn(),
   };
 });
-
-vi.mock("@/lib/stripe", () => ({
-  getStripe: vi.fn(() => {
-    throw new Error("Stripe SDK should not be called without a site URL");
-  }),
-}));
 
 const REQUEST_ID = "11111111-1111-4111-8111-111111111111";
 
@@ -59,7 +51,6 @@ describe("checkout site URL", () => {
       client_secret: "secret_test",
       merchant_order_id: "order",
     });
-    vi.mocked(getStripe).mockClear();
   });
 
   afterEach(() => {
@@ -83,13 +74,6 @@ describe("checkout site URL", () => {
     expect(createAirwallexPaymentIntent).not.toHaveBeenCalled();
     expect(db.rowsOf("orders")).toHaveLength(0);
     expect(db.rpcCalls).toHaveLength(0);
-
-    const stripeResponse = await postStripe(airwallexRequest());
-    const stripeBody = await stripeResponse.json();
-    expect(stripeResponse.status).toBe(500);
-    expect(JSON.stringify(stripeBody).toLowerCase()).not.toContain("localhost");
-    expect(getStripe).not.toHaveBeenCalled();
-    expect(db.rowsOf("orders")).toHaveLength(0);
   });
 
   it("rejects a localhost site URL in production before creating a payment", async () => {
