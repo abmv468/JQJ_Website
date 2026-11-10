@@ -39,7 +39,7 @@ export default function NewPage({
   return (
     <CollectionView
       title="New Arrivals"
-      subtitle="Our latest releases and restocks, shaped by natural stones, cultural motifs and contemporary design."
+      subtitle="Our latest releases and restocks, shaped by gemstone energy, cultural motifs, and contemporary design."
       products={ordered}
       initialStone={searchParams.stone}
       initialTag={searchParams.tag}

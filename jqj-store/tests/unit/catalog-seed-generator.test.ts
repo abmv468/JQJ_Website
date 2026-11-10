@@ -138,16 +138,70 @@ describe("catalog seed generator", () => {
     const variants = assertRows(sql, "product_variants", VARIANT_NOT_NULL);
 
     const stockIndex = products.columns.indexOf("stock_count");
+    const slugIndex = products.columns.indexOf("slug");
+    const skuIndex = variants.columns.indexOf("sku");
+    const variantStockIndex = variants.columns.indexOf("stock_count");
     const thresholdIndex = products.columns.indexOf("low_stock_threshold");
-    const productStocks = products.rows.map((row) => row[stockIndex]);
-    const variantStocks = variants.rows.map((row) => row[row.length - 1]);
-    expect(productStocks.every((value) => /^\d+$/.test(value) && value !== "0")).toBe(true);
-    expect(variantStocks.every((value) => /^\d+$/.test(value) && value !== "0")).toBe(true);
-    expect(productStocks.every((value) => value === "0")).toBe(false);
-    expect(variantStocks.every((value) => value === "0")).toBe(false);
+    expect(stockIndex).toBeGreaterThanOrEqual(0);
+    expect(variantStockIndex).toBeGreaterThanOrEqual(0);
+
+    const productStockBySlug = Object.fromEntries(
+      products.rows.map((row) => [unquote(row[slugIndex]), row[stockIndex]])
+    );
+    const variantStockBySku = Object.fromEntries(
+      variants.rows.map((row) => [unquote(row[skuIndex]), row[variantStockIndex]])
+    );
+
+    expect(products.rows.map((row) => unquote(row[slugIndex]))).toEqual([
+      "red-leopard-skin-jasper-bracelet-iii",
+      "raw-brown-tourmaline-bracelet-i",
+      "sodalite-bracelet-viii",
+      "amethyst-bracelet-xv",
+      "silver-bracelet-iv",
+      "labradorite-bracelet-v",
+      "blue-lace-agate-silver-pendant",
+      "labradorite-silver-pendant",
+      "pearl-silver-necklace-v",
+    ]);
+    expect(products.rows.map((row) => row[stockIndex])).toEqual([
+      "12",
+      "8",
+      "15",
+      "20",
+      "9",
+      "6",
+      "18",
+      "11",
+      "5",
+    ]);
+    expect(variants.rows.map((row) => unquote(row[skuIndex]))).toEqual([
+      "JQJ-RLSJ-III-S-SS",
+      "JQJ-RLSJ-III-M-SS",
+      "JQJ-RLSJ-III-L-SS",
+      "JQJ-BLAPEN-45-SS",
+      "JQJ-BLAPEN-55-SS",
+      "JQJ-BLAPEN-55-GV",
+    ]);
+    expect(variants.rows.map((row) => row[variantStockIndex])).toEqual([
+      "4",
+      "5",
+      "3",
+      "7",
+      "8",
+      "3",
+    ]);
+    for (const value of Object.values(productStockBySlug)) {
+      expect(value).toMatch(/^[1-9]\d*$/);
+    }
+    for (const value of Object.values(variantStockBySku)) {
+      expect(value).toMatch(/^[1-9]\d*$/);
+    }
     expect(products.rows.every((row) => row[thresholdIndex] === "5")).toBe(true);
-    expect(sql).toContain("'JQJ-BLAPEN-55-GV', 3");
-    expect(sql).toContain("599.99, null");
     expect(seedBefore).toContain("'JQJ-BLAPEN-55-GV', 3");
   });
 });
+
+function unquote(value: string): string {
+  if (value.startsWith("'") && value.endsWith("'")) return value.slice(1, -1);
+  return value;
+}

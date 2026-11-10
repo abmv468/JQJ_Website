@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -15,29 +18,36 @@ vi.mock("next/link", () => ({
   default: ({ children }: { children?: ReactNode }) => createElement("a", null, children),
 }));
 
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const SURFACES = ["components/product/ProductCard.tsx", "components/product/ProductDetail.tsx"];
+
 function renderProduct(node: ReactNode) {
   return renderToStaticMarkup(
     createElement(CurrencyProvider, null, createElement(CartProvider, null, node))
   );
 }
 
-function expectNoRatingUi(html: string) {
+function expectNoRatingUi(html: string, sourcePath: string) {
+  const source = readFileSync(path.join(root, sourcePath), "utf8");
+  expect(source).not.toMatch(/StarRating/);
+  expect(source).not.toMatch(/lucide-react[^;]*\bStar\b/);
   expect(html).not.toMatch(/★|☆/);
-  expect(html).not.toMatch(/aria-label="[^"]*rating/i);
+  expect(html).not.toMatch(/lucide-star\b/);
+  expect(html).not.toMatch(/aria-label="[^"]*(rating|out of 5)/i);
   expect(html).not.toMatch(/\breviews?\b/i);
-  expect(html).not.toMatch(/reviewCount|StarRating/i);
 }
 
 describe("catalog product cards and detail hide ratings", () => {
   const product = products[0];
 
-  it("renders ProductCard without stars or review text", () => {
-    expectNoRatingUi(renderProduct(createElement(ProductCard, { product })));
+  it("renders ProductCard without a star icon or rating label", () => {
+    expectNoRatingUi(renderProduct(createElement(ProductCard, { product })), SURFACES[0]);
   });
 
-  it("renders ProductDetail without stars or review text", () => {
+  it("renders ProductDetail without a star icon or rating label", () => {
     expectNoRatingUi(
-      renderProduct(createElement(ProductDetail, { product, related: [] }))
+      renderProduct(createElement(ProductDetail, { product, related: [] })),
+      SURFACES[1]
     );
   });
 });

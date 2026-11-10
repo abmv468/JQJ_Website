@@ -1,6 +1,7 @@
 import { loadStoreSchema, type StoreSchema } from "./schema";
 
-export interface DbError extends Error {
+export interface DbError {
+  message: string;
   code?: string;
 }
 
@@ -40,9 +41,23 @@ export function getActiveDb() {
 }
 
 export function dbError(message: string, code?: string): DbError {
-  const error = new Error(message) as DbError;
-  error.code = code;
-  return error;
+  return { message, code };
+}
+
+function asDbError(error: unknown): DbError {
+  if (
+    error &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof (error as { message: unknown }).message === "string"
+  ) {
+    const code = "code" in error ? (error as { code?: unknown }).code : undefined;
+    return {
+      message: (error as { message: string }).message,
+      ...(typeof code === "string" ? { code } : {}),
+    };
+  }
+  return dbError(String(error));
 }
 
 export class MemoryDb {
@@ -110,7 +125,7 @@ export class MemoryDb {
     } catch (error) {
       return {
         data: null,
-        error: error instanceof Error ? (error as DbError) : dbError(String(error)),
+        error: asDbError(error),
       };
     }
   }
@@ -337,7 +352,7 @@ class Query implements PromiseLike<QueryResult> {
     } catch (error) {
       return {
         data: null,
-        error: error instanceof Error ? (error as DbError) : dbError(String(error)),
+        error: asDbError(error),
         count: null,
       };
     }
