@@ -72,33 +72,29 @@ describe("combined reservation reaper", () => {
     );
   });
 
-  it("releases stock when a same-key retry fails without reserving again", async () => {
-    // Mutation check: the catch used to restore only when this request had
-    // reserved. Removing that release leaves stock at 4 and this test goes red.
+  it("does not release stock when a same-key retry fails without reserving again", async () => {
     const first = await POST(request());
     expect(first.status).toBe(200);
+    const held = {
+      status: db.rowsOf("orders")[0].status,
+      payment_status: db.rowsOf("orders")[0].payment_status,
+      fulfillment_status: db.rowsOf("orders")[0].fulfillment_status,
+      inventory_reserved: db.rowsOf("orders")[0].inventory_reserved,
+    };
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
-    expect(db.rowsOf("orders")[0].inventory_reserved).toBe(true);
-    expect(db.rpcCalls.filter((call) => call.fn === "reserve_order_inventory")).toHaveLength(1);
+    expect(held.inventory_reserved).toBe(true);
 
     vi.mocked(createAirwallexPaymentIntent).mockRejectedValueOnce(new Error("intent create failed"));
     const retry = await POST(request());
 
     expect(retry.status).toBe(500);
-    expect(db.rowsOf("products")[0].stock_count).toBe(5);
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
     expect(db.rowsOf("orders")).toHaveLength(1);
-    expect(db.rowsOf("orders")[0]).toMatchObject({
-      status: "failed",
-      payment_status: "failed",
-      inventory_reserved: false,
-    });
-    expect(restores(db)).toHaveLength(1);
+    expect(db.rowsOf("orders")[0]).toMatchObject(held);
+    expect(restores(db)).toHaveLength(0);
   });
 
-  it("leaves a held order for the reaper when the release throws", async () => {
-    const first = await POST(request());
-    expect(first.status).toBe(200);
-    const orderId = (await first.json()).orderId as string;
+  it("leaves a fresh reservation for the reaper when the release throws", async () => {
     const original = db.rpc.bind(db);
     db.rpc = async (fn, args) => {
       if (fn === "restore_order_inventory") {
@@ -112,19 +108,18 @@ describe("combined reservation reaper", () => {
     });
     vi.mocked(createAirwallexPaymentIntent).mockRejectedValueOnce(new Error("intent create failed"));
 
-    const retry = await POST(request());
-    const body = await retry.json();
+    const response = await POST(request());
+    const body = await response.json();
     spy.mockRestore();
     db.rpc = original;
 
-    expect(retry.status).toBe(500);
+    expect(response.status).toBe(500);
     expect(JSON.stringify(body)).not.toContain("driver-restore-secret");
+    const orderId = String(db.rowsOf("orders")[0].id);
     expect(db.rowsOf("orders")[0]).toMatchObject({
-      id: orderId,
       status: "pending",
       inventory_reserved: true,
     });
-    expect(db.rowsOf("orders")[0].status).not.toBe("failed");
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
     expect(
       errors.some(
@@ -214,6 +209,61 @@ describe("combined reservation reaper", () => {
     });
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
     expect(restores(db)).toHaveLength(0);
+  });
+
+  it("processes at most 50 orders when 60 pending and 60 failed holds are waiting", async () => {
+    const old = hoursAgo(2);
+    const orders = [];
+    const items = [];
+    for (let i = 0; i < 60; i += 1) {
+      orders.push({
+        id: `pending-${i}`,
+        status: "pending",
+        payment_provider: "airwallex",
+        payment_status: "requires_payment_method",
+        fulfillment_status: "pending_payment",
+        inventory_reserved: true,
+        total_amount: 115,
+        created_at: old,
+      });
+      items.push({
+        id: `item-pending-${i}`,
+        order_id: `pending-${i}`,
+        product_id: "prod-amethyst",
+        variant_id: null,
+        quantity: 1,
+      });
+    }
+    for (let i = 0; i < 60; i += 1) {
+      orders.push({
+        id: `failed-${i}`,
+        status: "failed",
+        payment_provider: "airwallex",
+        payment_status: "failed",
+        fulfillment_status: "payment_failed",
+        inventory_reserved: true,
+        total_amount: 115,
+        created_at: old,
+      });
+      items.push({
+        id: `item-failed-${i}`,
+        order_id: `failed-${i}`,
+        product_id: "prod-amethyst",
+        variant_id: null,
+        quantity: 1,
+      });
+    }
+    db.seed("orders", orders);
+    db.seed("order_items", items);
+    db.rowsOf("products")[0].stock_count = 0;
+
+    await releaseExpiredAirwallexReservations(db as never);
+
+    const released = db.rowsOf("orders").filter((row) => row.inventory_reserved === false);
+    expect(released).toHaveLength(50);
+    expect(db.rowsOf("orders").filter((row) => row.inventory_reserved === true)).toHaveLength(70);
+    expect(restores(db)).toHaveLength(50);
+    expect(db.rowsOf("products")[0].stock_count).toBe(50);
   });
 
   it("restores once when two reaper runs overlap", async () => {

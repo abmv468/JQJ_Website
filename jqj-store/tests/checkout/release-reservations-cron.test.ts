@@ -78,6 +78,18 @@ describe("GET /api/cron/release-reservations", () => {
     expect(db.rpcCalls.filter((call) => call.fn === "restore_order_inventory")).toHaveLength(0);
   });
 
+  it("returns 401 when CRON_SECRET is only whitespace", async () => {
+    const secret = "   ";
+    process.env.CRON_SECRET = secret;
+
+    const response = await GET(cronRequest(`Bearer ${secret}`));
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
+    expect(db.rpcCalls.filter((call) => call.fn === "restore_order_inventory")).toHaveLength(0);
+  });
+
   it("returns 401 when the Authorization header is missing", async () => {
     const response = await GET(cronRequest());
 
