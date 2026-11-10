@@ -4,7 +4,7 @@ import PolicyPage from "@/components/trust/PolicyPage";
 export const metadata: Metadata = {
   title: "Natural Stone Jewelry Care",
   description:
-    "Natural stones and sterling silver keep their finish with simple care.",
+    "Learn how to clean, store, and care for natural stone jewelry and hand-finished pieces from JQD Group.",
   alternates: { canonical: "/care" },
 };
 
@@ -12,7 +12,7 @@ export default function CarePage() {
   return (
     <PolicyPage
       title="Jewelry Care"
-      intro="Natural stones and sterling silver keep their finish with simple care."
+      intro="Natural stones and hand-finished pieces deserve a little care. These simple habits help preserve their finish and character."
       effectiveDate="July 28, 2026"
       sections={[
         {

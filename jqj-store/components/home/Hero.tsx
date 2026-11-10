@@ -35,6 +35,11 @@ export default function Hero() {
             <p className="mt-5 px-2 font-heading text-[11px] uppercase tracking-[0.18em] text-brand-gold-light sm:mt-6 sm:px-0 sm:text-sm sm:tracking-[0.22em]">
               Inspired by Eastern heritage and modern craftsmanship
             </p>
+            <p className="mx-auto mt-6 max-w-3xl text-[15px] leading-7 text-white/74 sm:mt-7 sm:text-lg">
+              Hand-finished bracelets and necklaces shaped by Eastern heritage,
+              museum-inspired restraint, and the quiet character of natural
+              gemstones.
+            </p>
 
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Link href="/new" className="btn-gold">

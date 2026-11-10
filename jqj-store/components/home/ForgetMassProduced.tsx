@@ -12,19 +12,26 @@ export default function ForgetMassProduced() {
             className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(24,76,82,0.22),transparent_40%),radial-gradient(circle_at_bottom_right,rgba(187,157,123,0.14),transparent_30%)]"
           />
           <div className="relative max-w-xl">
-            <h2 className="font-heading text-3xl font-light leading-tight text-white sm:text-4xl">
+            <p className="eyebrow">From the atelier</p>
+            <h2 className="mt-4 font-heading text-3xl font-light leading-tight text-white sm:text-4xl">
               Considered, not mass-produced.
             </h2>
             <p className="mt-6 text-sm leading-7 text-white/68">
               Each design begins in Hong Kong, with natural stones and materials sourced from around the world, chosen for colour, character and finish.
             </p>
             <p className="mt-4 text-sm leading-7 text-white/68">
+              We design from the idea that jewelry can carry meaning. In our
+              family atelier, each piece is hand-finished with natural gemstones
+              selected for energy, tone, and character.
+            </p>
+            <p className="mt-4 text-sm leading-7 text-white/68">
               Rooted in cultural symbolism and made for modern wear, every design
               is crafted to feel personal, balanced, and enduring.
             </p>
-            <div className="mt-8 grid gap-3 sm:grid-cols-2">
+            <div className="mt-8 grid gap-3 sm:grid-cols-3">
               {[
                 ["Family-run", "Since 2015"],
+                ["Hand-finished", "Tailored fit"],
                 ["Natural stones", "Selected one by one"],
               ].map(([label, value]) => (
                 <div
@@ -58,7 +65,13 @@ export default function ForgetMassProduced() {
           />
           <div className="absolute inset-0 bg-gradient-to-l from-black/15 via-transparent to-black/50" />
           <div className="absolute bottom-6 left-6 right-6 max-w-sm rounded-[1.4rem] border border-white/12 bg-black/42 p-5 backdrop-blur-md">
-            <p className="text-sm leading-6 text-white/82">
+            <p
+              className="text-[10px] uppercase text-brand-gold/80"
+              style={{ letterSpacing: "0.18em" }}
+            >
+              Hand-finished
+            </p>
+            <p className="mt-2 text-sm leading-6 text-white/82">
               Each piece is balanced, fitted, and finished to feel collected
               rather than mass-made.
             </p>

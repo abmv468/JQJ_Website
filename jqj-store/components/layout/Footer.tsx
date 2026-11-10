@@ -141,7 +141,7 @@ export default function Footer() {
             © {new Date().getFullYear()} JQD Group · Jewellery Quintessential
           </p>
           <p className="text-center text-xs text-white/56">
-            Natural stone jewellery, designed in Hong Kong since 2015.
+            Natural stone jewellery, designed in Hong Kong since 2015. Hand-finished natural stone pieces designed for everyday ritual.
           </p>
         </div>
       </div>

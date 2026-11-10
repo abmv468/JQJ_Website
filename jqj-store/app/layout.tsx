@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     template: "%s | JQD Group",
   },
   description:
-    "Jewellery Quintessential · 極氣: natural stone and sterling silver jewellery designed in Hong Kong since 2015, with museum collaborations.",
+    "Jewellery Quintessential · 極氣: natural stone and sterling silver jewellery designed in Hong Kong since 2015, with museum collaborations. Handcrafted bracelets and necklaces inspired by Eastern cultural heritage, museum collaborations, and natural gemstone artistry.",
   icons: { icon: "/JQD-logo.png" },
   alternates: { canonical: "/" },
   openGraph: {
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     siteName: "JQD Group",
     title: "JQD Group | Natural Stone Jewelry with Cultural Craft",
     description:
-      "Jewellery Quintessential · 極氣: natural stone and sterling silver jewellery designed in Hong Kong since 2015, with museum collaborations.",
+      "Jewellery Quintessential · 極氣: natural stone and sterling silver jewellery designed in Hong Kong since 2015, with museum collaborations. Handcrafted bracelets and necklaces inspired by Eastern cultural heritage, museum collaborations, and natural gemstone artistry.",
     images: [
       {
         url: "/products/hero-image.jpg",
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "JQD Group | Natural Stone Jewelry with Cultural Craft",
     description:
-      "Jewellery Quintessential · 極氣: natural stone and sterling silver jewellery designed in Hong Kong since 2015, with museum collaborations.",
+      "Jewellery Quintessential · 極氣: natural stone and sterling silver jewellery designed in Hong Kong since 2015, with museum collaborations. Handcrafted bracelets and necklaces inspired by Eastern cultural heritage, museum collaborations, and natural gemstone artistry.",
     images: ["/products/hero-image.jpg"],
   },
   robots: {
