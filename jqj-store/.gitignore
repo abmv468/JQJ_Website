@@ -24,3 +24,8 @@ npm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# tests
+/playwright-report/
+/test-results/
+/blob-report/

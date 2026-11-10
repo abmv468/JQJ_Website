@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "next lint --max-warnings 0 --dir app --dir components --dir lib --dir context --dir data --dir scripts --dir tests --dir e2e --file middleware.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
     "db:seed:generate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/generate-catalog-seed.mjs"
   },
   "dependencies": {
@@ -23,6 +26,7 @@
     "tailwind-merge": "^2.5.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.49.1",
     "@types/node": "^20.16.11",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.0",
@@ -31,6 +35,7 @@
     "eslint-config-next": "14.2.15",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.13",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.9"
   }
 }

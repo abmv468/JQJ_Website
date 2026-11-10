@@ -22,6 +22,9 @@ npm run dev                        # http://localhost:3000
 | `npm run build` | Production build (TypeScript + lint checks) |
 | `npm run start` | Serve the production build |
 | `npm run lint` | ESLint |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm test` | Vitest checkout, inventory, and schema contract tests |
+| `npm run test:e2e` | Playwright checkout smoke (build with fake env first; see `docs/TESTING.md`) |
 | `npm run db:seed:generate` | Regenerate `supabase/seed.sql` from `data/products.ts` |
 
 ## Pages
