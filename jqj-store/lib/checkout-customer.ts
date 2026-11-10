@@ -89,8 +89,16 @@ function postcodeRequiredForCountry(country: string) {
 
 const POSTCODE_CHARSET = /^[A-Za-z0-9 -]{0,12}$/;
 
-function readPostcode(customer: CheckoutCustomerInput) {
-  return (customer.postalCode ?? customer.postcode ?? customer.zip ?? customer.postal_code ?? "").trim();
+function readPostcode(
+  customer: CheckoutCustomerInput
+): { ok: true; value: string } | { ok: false } {
+  const record = customer as Record<string, unknown>;
+  const raw = [record.postalCode, record.postcode, record.zip, record.postal_code].find(
+    (value) => value !== undefined && value !== null
+  );
+  if (raw === undefined) return { ok: true, value: "" };
+  if (typeof raw !== "string") return { ok: false };
+  return { ok: true, value: raw.trim() };
 }
 
 function isValidPostcode(code: string, postcode: string) {
@@ -122,8 +130,9 @@ export function validateCheckoutCustomer(customer: CheckoutCustomerInput | null 
   if (!(source.city ?? "").trim()) fields.city = "Enter your city.";
 
   const country = (source.country ?? "").trim();
-  const postcode = readPostcode(source);
-  if (!POSTCODE_CHARSET.test(postcode)) {
+  const parsedPostcode = readPostcode(source);
+  const postcode = parsedPostcode.ok ? parsedPostcode.value : "";
+  if (!parsedPostcode.ok || !POSTCODE_CHARSET.test(postcode)) {
     fields.postalCode = "Enter a valid postcode.";
   }
   if (!country) {

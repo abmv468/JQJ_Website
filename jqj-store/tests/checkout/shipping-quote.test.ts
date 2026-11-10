@@ -187,6 +187,14 @@ describe("POST /api/checkout/quote", () => {
     expect(tooLargeBody).toEqual({ error: "Enter a quantity from 1 to 99." });
     expect(tooLargeBody.fields).toBeUndefined();
 
+    for (const quantity of ["5", [5]]) {
+      const rejected = await postQuote(
+        quoteRequest({ items: [checkoutItem({ quantity })] })
+      );
+      expect(rejected.status).toBe(400);
+      expect(await rejected.json()).toEqual({ error: "Enter a quantity from 1 to 99." });
+    }
+
     const badJson = await postQuote(
       new Request("http://localhost:3000/api/checkout/quote", {
         method: "POST",

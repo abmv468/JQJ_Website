@@ -313,6 +313,29 @@ describe("checkout customer validation", () => {
     expect(db.rowsOf("orders")).toHaveLength(3);
     expect(createAirwallexPaymentIntent).toHaveBeenCalledTimes(1);
   });
+
+  it.each(routes)(
+    "%s rejects a non-string postcode and stores null as an empty string",
+    async (_name, handler, path) => {
+      for (const postalCode of [78701, ["78701"], { code: "78701" }]) {
+        const rejected = await handler(
+          request(path, { ...checkoutCustomer, postalCode }, `${REQUEST_ID}-${path}-type`)
+        );
+        expect(rejected.status).toBe(400);
+        expect((await rejected.json()).fields).toEqual({ postalCode: "Enter a valid postcode." });
+      }
+      expect(db.rowsOf("orders")).toHaveLength(0);
+      expect(createAirwallexPaymentIntent).not.toHaveBeenCalled();
+
+      const accepted = await handler(
+        request(path, { ...checkoutCustomer, postalCode: null }, `${REQUEST_ID}-${path}-null`)
+      );
+      expect(accepted.status).toBe(200);
+      expect(db.rowsOf("orders").at(-1)?.shipping_address).toEqual(
+        expect.objectContaining({ postal_code: "" })
+      );
+    }
+  );
 });
 
 function emailFixture(postalCode: string): OrderEmailData {

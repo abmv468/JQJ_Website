@@ -51,8 +51,13 @@ export async function POST(req: Request) {
     for (const entry of items) {
       if (!entry || typeof entry !== "object") return invalidRequest();
       const item = entry as Record<string, unknown>;
-      const quantity = Number(item.quantity);
-      if (!Number.isInteger(quantity) || quantity < 1 || quantity > MAX_QUOTE_QUANTITY) {
+      const quantity = item.quantity;
+      if (
+        typeof quantity !== "number" ||
+        !Number.isInteger(quantity) ||
+        quantity < 1 ||
+        quantity > MAX_QUOTE_QUANTITY
+      ) {
         return NextResponse.json({ error: "Enter a quantity from 1 to 99." }, { status: 400 });
       }
       parsed.push({
