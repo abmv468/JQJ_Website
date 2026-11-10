@@ -5,7 +5,7 @@ export interface DbError extends Error {
 }
 
 export interface QueryFilter {
-  op: "eq" | "neq" | "in" | "lt" | "is" | "or";
+  op: "eq" | "neq" | "in" | "lt" | "gte" | "is" | "or";
   column: string;
   value: unknown;
 }
@@ -314,6 +314,11 @@ class Query implements PromiseLike<QueryResult> {
 
   lt(column: string, value: unknown) {
     this.filters.push({ op: "lt", column, value });
+    return this;
+  }
+
+  gte(column: string, value: unknown) {
+    this.filters.push({ op: "gte", column, value });
     return this;
   }
 
@@ -632,6 +637,7 @@ function matches(row: Row, filters: QueryFilter[]): boolean {
     if (filter.op === "in") return Array.isArray(filter.value) && filter.value.includes(value);
     if (filter.op === "is") return value === filter.value || (filter.value === null && value == null);
     if (filter.op === "lt") return String(value ?? "") < String(filter.value ?? "");
+    if (filter.op === "gte") return String(value ?? "") >= String(filter.value ?? "");
     return false;
   });
 }

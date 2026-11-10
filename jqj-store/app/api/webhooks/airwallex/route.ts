@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  sendUnmatchedPaymentAlert,
+  type UnmatchedPaymentAlertInput,
+} from "@/lib/email";
+import {
   normalizeAirwallexPaymentStatus,
   verifyAirwallexWebhookSignature,
 } from "@/lib/payments/airwallex";
@@ -10,6 +14,7 @@ import {
   findAirwallexPaymentByIntent,
   upsertAirwallexPaymentIntent,
 } from "@/lib/payments/airwallex-orders";
+import { claimNullRowAlert } from "@/lib/payments/unmatched-payment-alert";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +30,37 @@ interface AirwallexWebhookEvent {
 function truncateError(input: string, maxLength = 1000) {
   if (input.length <= maxLength) return input;
   return `${input.slice(0, maxLength - 3)}...`;
+}
+
+function paymentAmount(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && /^-?\d+(\.\d+)?$/.test(value)) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function paymentCurrency(value: unknown) {
+  if (typeof value !== "string" || !/^[A-Za-z]{3}$/.test(value)) return null;
+  return value.toUpperCase();
+}
+
+function updatedRowCount(data: unknown) {
+  return Array.isArray(data) ? data.length : 0;
+}
+
+async function notifyUnmatchedPayment(alert: UnmatchedPaymentAlertInput) {
+  try {
+    await sendUnmatchedPaymentAlert(alert);
+  } catch {
+    console.error("[airwallex-webhook] unmatched payment alert failed", {
+      orderId: alert.orderId,
+      merchantOrderId: alert.merchantOrderId,
+      paymentIntentId: alert.paymentIntentId,
+      webhookEventId: alert.webhookEventId,
+    });
+  }
 }
 
 export async function POST(req: Request) {
@@ -174,8 +210,16 @@ export async function POST(req: Request) {
           merchantOrderId,
           paymentIntentId,
         });
+        const alert: UnmatchedPaymentAlertInput = {
+          orderId: typeof failedOrderId === "string" ? failedOrderId : null,
+          merchantOrderId,
+          paymentIntentId,
+          webhookEventId: event.id,
+          amount: paymentAmount(object.amount),
+          currency: paymentCurrency(object.currency),
+        };
         if (webhookRowId) {
-          const { error: markFailedError } = await supabase
+          const { data: transitioned, error: markFailedError } = await supabase
             .from("payment_webhook_events")
             .update({
               status: "failed",
@@ -184,8 +228,30 @@ export async function POST(req: Request) {
               order_id: failedOrderId,
               payment_id: linkedPaymentId,
             })
-            .eq("id", webhookRowId);
+            .eq("id", webhookRowId)
+            .neq("status", "failed")
+            .select("id");
           if (markFailedError) throw markFailedError;
+          // Returning rows are the ones this conditional update changed.
+          if (updatedRowCount(transitioned) === 1) {
+            await notifyUnmatchedPayment(alert);
+          }
+        } else {
+          // No stored row, so the conditional UPDATE cannot dedupe this alert.
+          // An event id is remembered in this process. Without one, alert once
+          // per invocation and say so in the log.
+          const decision = claimNullRowAlert(event.id || null);
+          if (decision.dedupe === "once_per_invocation") {
+            console.error(
+              "[airwallex-webhook] unmatched payment has no stored event row; alerting once for this invocation",
+              {
+                orderId: alert.orderId,
+                merchantOrderId: alert.merchantOrderId,
+                paymentIntentId: alert.paymentIntentId,
+              }
+            );
+          }
+          if (decision.alert) await notifyUnmatchedPayment(alert);
         }
         return NextResponse.json({ received: true, failed: true });
       }
