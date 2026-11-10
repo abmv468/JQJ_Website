@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendOrderEmails } from "@/lib/email";
 import { normalizeCurrency } from "@/lib/currency";
+import { reserveOrderInventory } from "@/lib/inventory";
 import {
   AIRWALLEX_PROVIDER,
   isPendingPaymentStatus,
@@ -78,6 +79,34 @@ const PAYMENT_STATUS_WEIGHT: Record<InternalPaymentStatus, number> = {
   abandoned: 40,
   succeeded: 50,
 };
+
+/**
+ * Stable event for BE-018's unmatched-payment alert. The payload is the order
+ * id, the payment intent id, and the stock shortfall. It has no customer PII
+ * and no secrets.
+ */
+export const PAYMENT_AFTER_EXPIRY_UNFULFILLED_EVENT =
+  "airwallex.payment_after_expiry_unfulfilled";
+
+export interface PaymentAfterExpiryShortfall {
+  productId: string;
+  variantId: string | null;
+  requested: number;
+  available: number;
+}
+
+export function reportPaymentAfterExpiryUnfulfilled(input: {
+  orderId: string;
+  paymentIntentId: string;
+  shortfall: PaymentAfterExpiryShortfall[];
+}) {
+  console.error("[airwallex-orders] payment_after_expiry_unfulfilled", {
+    event: PAYMENT_AFTER_EXPIRY_UNFULFILLED_EVENT,
+    orderId: input.orderId,
+    paymentIntentId: input.paymentIntentId,
+    shortfall: input.shortfall,
+  });
+}
 
 const REFUND_STATUS_WEIGHT: Record<string, number> = {
   pending: 10,
@@ -200,6 +229,110 @@ async function getOrderItemReservations(supabase: SupabaseClient, orderId: strin
     });
   }
   return Array.from(aggregate.values());
+}
+
+function orderReleasedByExpiry(order: OrderRow) {
+  return order.inventory_reserved !== true && order.payment_status === "abandoned";
+}
+
+function isUnavailableStock(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  return /stock unavailable/i.test(message);
+}
+
+async function readStockCount(
+  supabase: SupabaseClient,
+  table: "products" | "product_variants",
+  id: string
+) {
+  const { data, error } = await supabase
+    .from(table)
+    .select("stock_count")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  const count = Math.floor(Number(data?.stock_count ?? 0));
+  return Number.isFinite(count) ? Math.max(0, count) : 0;
+}
+
+async function measureStockShortfall(
+  supabase: SupabaseClient,
+  lines: Array<{ product_id: string; variant_id: string | null; quantity: number }>
+): Promise<PaymentAfterExpiryShortfall[]> {
+  const shortfall: PaymentAfterExpiryShortfall[] = [];
+  for (const line of lines) {
+    const available = line.variant_id
+      ? await readStockCount(supabase, "product_variants", line.variant_id)
+      : await readStockCount(supabase, "products", line.product_id);
+    if (available < line.quantity) {
+      shortfall.push({
+        productId: line.product_id,
+        variantId: line.variant_id,
+        requested: line.quantity,
+        available,
+      });
+    }
+  }
+  return shortfall;
+}
+
+async function flagPaymentAfterExpiry(
+  supabase: SupabaseClient,
+  input: {
+    order: OrderRow;
+    payment: PaymentRow;
+    paymentIntentId: string;
+    providerEventId?: string | null;
+    providerEventCreatedAt?: string | null;
+    currentStatus: InternalPaymentStatus;
+    now: string;
+    shortfall: PaymentAfterExpiryShortfall[];
+  }
+) {
+  const { data: flagged, error: flagError } = await supabase
+    .from("orders")
+    .update({
+      payment_provider: AIRWALLEX_PROVIDER,
+      payment_status: "succeeded",
+      status: "inventory_exception",
+      fulfillment_status: "payment_failed",
+      paid_at: input.order.paid_at ?? input.now,
+      updated_at: input.now,
+    })
+    .eq("id", input.order.id)
+    .eq("payment_status", "abandoned")
+    .select("id")
+    .maybeSingle();
+  if (flagError) throw flagError;
+
+  if (flagged) {
+    reportPaymentAfterExpiryUnfulfilled({
+      orderId: input.order.id,
+      paymentIntentId: input.paymentIntentId,
+      shortfall: input.shortfall,
+    });
+  }
+
+  if (!isSuccessfulPaymentStatus(input.currentStatus)) {
+    const { error: paymentUpdateError } = await supabase
+      .from("payments")
+      .update({
+        status: "succeeded",
+        last_event_id: input.providerEventId ?? null,
+        last_event_created_at: input.providerEventCreatedAt ?? input.now,
+        paid_at: input.now,
+        updated_at: input.now,
+      })
+      .eq("id", input.payment.id)
+      .neq("status", "succeeded");
+    if (paymentUpdateError) throw paymentUpdateError;
+  }
+
+  return {
+    applied: false as const,
+    reason: "payment_after_expiry_unfulfilled" as const,
+    orderId: input.order.id,
+  };
 }
 
 async function restoreInventoryForOrder(supabase: SupabaseClient, orderId: string) {
@@ -420,6 +553,32 @@ export async function applyAirwallexPaymentIntentStatus(
   if (orderError) throw orderError;
 
   const order = orderData as unknown as OrderRow;
+  if (claimingPaid && orderReleasedByExpiry(order)) {
+    const lines = await getOrderItemReservations(supabase, order.id);
+    let stockShort = lines.length === 0;
+    if (!stockShort) {
+      try {
+        await reserveOrderInventory(supabase, order.id, lines);
+      } catch (error) {
+        if (!isUnavailableStock(error)) throw error;
+        stockShort = true;
+      }
+    }
+    if (stockShort) {
+      const shortfall = lines.length ? await measureStockShortfall(supabase, lines) : [];
+      return flagPaymentAfterExpiry(supabase, {
+        order,
+        payment,
+        paymentIntentId: input.paymentIntentId,
+        providerEventId: input.providerEventId,
+        providerEventCreatedAt: input.providerEventCreatedAt,
+        currentStatus,
+        now,
+        shortfall,
+      });
+    }
+  }
+
   const statusUpdate = deriveOrderStatusForPayment(order, input.nextStatus);
   const orderPatch = {
     payment_provider: AIRWALLEX_PROVIDER,
@@ -445,7 +604,7 @@ export async function applyAirwallexPaymentIntentStatus(
     if (!claimedOrder) {
       const { data: currentOrder, error: rereadError } = await supabase
         .from("orders")
-        .select("payment_status")
+        .select("payment_status, status")
         .eq("id", order.id)
         .maybeSingle();
       if (rereadError) throw rereadError;
@@ -455,6 +614,27 @@ export async function applyAirwallexPaymentIntentStatus(
           paymentIntentId: input.paymentIntentId,
         });
         return { applied: false, reason: "order_not_claimed" as const, orderId: order.id };
+      }
+      if (currentOrder.status === "inventory_exception") {
+        if (!isSuccessfulPaymentStatus(currentStatus)) {
+          const { error: paymentUpdateError } = await supabase
+            .from("payments")
+            .update({
+              status: "succeeded",
+              last_event_id: input.providerEventId ?? null,
+              last_event_created_at: input.providerEventCreatedAt ?? now,
+              paid_at: now,
+              updated_at: now,
+            })
+            .eq("id", payment.id)
+            .neq("status", "succeeded");
+          if (paymentUpdateError) throw paymentUpdateError;
+        }
+        return {
+          applied: false,
+          reason: "payment_after_expiry_unfulfilled" as const,
+          orderId: order.id,
+        };
       }
     }
 
