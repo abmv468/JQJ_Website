@@ -14,6 +14,5 @@ export const CASH_ON_DELIVERY_LABEL = "Cash on delivery";
 /** WEB_COPY v4 cart line for orders before free-shipping logic is live. */
 export const CART_SHIPPING_LINE = "Shipping calculated at checkout";
 
-// awaiting BRAND v4
-/** Card schemes are text, not marks: WEB_COPY v4 does not name them and the repo has no official assets. Wallets are omitted because they are not confirmed on hosted checkout. */
-export const CARD_NETWORK_LABELS = ["Visa", "Mastercard", "American Express"] as const;
+// add only schemes confirmed enabled in Airwallex
+export const CARD_NETWORK_LABELS: readonly string[] = [];

@@ -4,6 +4,7 @@ const CART_KEY = "JQD-cart";
 
 const walletOrCarrier =
   /apple pay|google pay|paypal|shop pay|worldwide|\bups\b|ups express/i;
+const cardSchemes = /visa|mastercard|american express|amex|unionpay|jcb|discover|diners/i;
 
 function cartItem(quantity: number) {
   return {
@@ -142,7 +143,7 @@ test("Checkout is disabled while stock is checked", async ({ page }) => {
   await expect(checkout).toHaveAttribute("aria-busy", "false");
 });
 
-test("the trust strip names enabled methods and no wallets", async ({ page }) => {
+test("the trust strip names enabled methods and no card schemes or wallets", async ({ page }) => {
   await seedCart(page, 1);
   await page.goto("/cart");
   const strip = page
@@ -151,16 +152,17 @@ test("the trust strip names enabled methods and no wallets", async ({ page }) =>
     .getByTestId("checkout-trust-strip");
   await expect(strip).toBeVisible();
   await expect(strip).toContainText("Secure checkout");
-  await expect(strip).toContainText("Visa");
-  await expect(strip).toContainText("Mastercard");
-  await expect(strip).toContainText("American Express");
   await expect(strip).toContainText("Cash on delivery");
+  await expect(strip.getByTestId("checkout-scheme-row")).toHaveCount(0);
+  await expect(strip).not.toContainText(cardSchemes);
   await expect(strip).not.toContainText(/apple pay|google pay|paypal|shop pay/i);
 
   await page.getByRole("button", { name: "Cart" }).click();
   const drawerStrip = page.getByRole("dialog").getByTestId("checkout-trust-strip");
   await expect(drawerStrip).toBeVisible();
+  await expect(drawerStrip.getByTestId("checkout-scheme-row")).toHaveCount(0);
   const text = await drawerStrip.innerText();
+  expect(text).not.toMatch(cardSchemes);
   expect(text).not.toMatch(walletOrCarrier);
   expect(text).not.toMatch(/\d+\s*(?:–|-|to)\s*\d+\s*(?:business\s+)?days/i);
 });
@@ -179,6 +181,7 @@ test.describe("mobile cart", () => {
     expect(box).not.toBeNull();
     expect(box!.y + box!.height).toBeGreaterThan(700);
     expect(box!.y).toBeLessThan(844);
+    await expect(bar.getByTestId("checkout-trust-strip")).not.toContainText(cardSchemes);
     await expect(bar.getByTestId("checkout-trust-strip")).not.toContainText(
       /apple pay|google pay|paypal|shop pay/i
     );

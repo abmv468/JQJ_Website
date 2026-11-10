@@ -25,8 +25,12 @@ describe("cart trust copy", () => {
     expect(stripCopy).not.toMatch(/\d+\s*(?:–|-|to)\s*\d+\s*(?:business\s+)?days/i);
     expect(stripCopy.toLowerCase()).not.toContain("no fee");
     expect(stripCopy.toLowerCase()).not.toContain("fee");
-    expect(CARD_NETWORK_LABELS).not.toEqual(
-      expect.arrayContaining(["Apple Pay", "Google Pay", "PayPal", "Shop Pay"])
+  });
+
+  it("renders no card scheme until Airwallex confirms one", () => {
+    expect(CARD_NETWORK_LABELS).toEqual([]);
+    expect(stripCopy).not.toMatch(
+      /visa|mastercard|american express|amex|unionpay|jcb|discover|diners/i
     );
   });
 });

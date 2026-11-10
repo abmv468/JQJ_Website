@@ -13,16 +13,18 @@ export default function CheckoutTrustStrip({ className }: { className?: string }
         <Lock className="h-3.5 w-3.5 shrink-0 text-brand-gold" aria-hidden="true" />
         {SECURE_CHECKOUT_LABEL}
       </p>
-      <ul className="mt-2 flex flex-wrap items-center gap-1.5">
-        {CARD_NETWORK_LABELS.map((label) => (
-          <li key={label}>
-            <span className="inline-flex h-6 items-center rounded-[3px] bg-white px-1.5 font-heading text-[10px] font-semibold tracking-[0.04em] text-neutral-950">
-              {label}
-            </span>
-          </li>
-        ))}
-        <li className="text-[13px] leading-5 text-white/72">{CASH_ON_DELIVERY_LABEL}</li>
-      </ul>
+      {CARD_NETWORK_LABELS.length > 0 && (
+        <ul className="mt-2 flex flex-wrap items-center gap-1.5" data-testid="checkout-scheme-row">
+          {CARD_NETWORK_LABELS.map((label) => (
+            <li key={label}>
+              <span className="inline-flex h-6 items-center rounded-[3px] bg-white px-1.5 font-heading text-[10px] font-semibold tracking-[0.04em] text-neutral-950">
+                {label}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-2 text-[13px] leading-5 text-white/72">{CASH_ON_DELIVERY_LABEL}</p>
     </div>
   );
 }
