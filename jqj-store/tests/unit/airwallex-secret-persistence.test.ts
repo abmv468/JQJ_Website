@@ -9,7 +9,11 @@ import {
   retrieveAirwallexPaymentIntent,
   type AirwallexPaymentIntent,
 } from "@/lib/payments/airwallex";
-import { toPersistedIntent, upsertAirwallexPaymentIntent } from "@/lib/payments/airwallex-orders";
+import {
+  toPersistedIntent,
+  toPersistedRefund,
+  upsertAirwallexPaymentIntent,
+} from "@/lib/payments/airwallex-orders";
 import {
   checkoutCustomer,
   checkoutItem,
@@ -73,11 +77,24 @@ function spySelects(db: MemoryDb) {
 
 const CHECKOUT_KEY = "11111111-1111-4111-8111-111111111111";
 
+const CLIENT_SECRET_VARIANTS = [
+  "client_secret",
+  "clientSecret",
+  "client-secret",
+  "CLIENT_SECRET",
+] as const;
+
 type PaymentOp = "insert" | "upsert" | "update";
+type WatchedTable = "payments" | "payment_refunds";
 
 interface RecordedPaymentWrite {
+  table: WatchedTable;
   op: PaymentOp;
   payload: unknown;
+}
+
+function isClientSecretKey(key: string) {
+  return key.replace(/[_-]/g, "").toLowerCase() === "clientsecret";
 }
 
 function recordPaymentWrites(db: MemoryDb) {
@@ -85,21 +102,22 @@ function recordPaymentWrites(db: MemoryDb) {
   const from = db.from.bind(db);
   db.from = (table: string) => {
     const query = from(table);
-    if (table !== "payments") return query;
+    if (table !== "payments" && table !== "payment_refunds") return query;
+    const watched = table;
 
     const insert = query.insert.bind(query);
     query.insert = (payload) => {
-      recorded.push({ op: "insert", payload });
+      recorded.push({ table: watched, op: "insert", payload });
       return insert(payload);
     };
     const update = query.update.bind(query);
     query.update = (payload) => {
-      recorded.push({ op: "update", payload });
+      recorded.push({ table: watched, op: "update", payload });
       return update(payload);
     };
     const upsert = query.upsert.bind(query);
     query.upsert = (payload, options) => {
-      recorded.push({ op: "upsert", payload });
+      recorded.push({ table: watched, op: "upsert", payload });
       return upsert(payload, options);
     };
     return query;
@@ -108,7 +126,7 @@ function recordPaymentWrites(db: MemoryDb) {
 }
 
 function assertNoClientSecret(payload: unknown) {
-  expect(keysDeep(payload)).not.toContain("client_secret");
+  expect(keysDeep(payload).filter(isClientSecretKey)).toEqual([]);
 }
 
 function secretIntent(overrides: Partial<AirwallexPaymentIntent> = {}): AirwallexPaymentIntent {
@@ -546,11 +564,110 @@ describe("Airwallex secret persistence", () => {
       toPersistedIntent(spreadIntent)
     );
 
+    const refund = refundObject("int_all", "ref_all");
+    const afterWebhook = recorded.length;
+    const refunded = await webhookPost(
+      signedWebhook({
+        id: "evt_refund_all",
+        name: "refund.received",
+        created_at: "2026-11-01T00:08:00.000Z",
+        data: {
+          object: refund,
+          clientSecret: "cs_refund_data",
+          nested: [{ "client-secret": "cs_refund_array" }],
+        },
+      })
+    );
+    expect(refunded.status).toBe(200);
+    const refundUpserts = recorded
+      .slice(afterWebhook)
+      .filter((write) => write.table === "payment_refunds" && write.op === "upsert");
+    expect(refundUpserts).toHaveLength(1);
+    expect((refundUpserts[0].payload as { metadata: unknown }).metadata).toEqual(
+      toPersistedRefund(refund)
+    );
+
     expect(recorded.length).toBeGreaterThan(4);
     for (const write of recorded) assertNoClientSecret(write.payload);
     const storedEvents = db.rowsOf("payment_webhook_events");
     expect(storedEvents.length).toBeGreaterThan(0);
     for (const row of storedEvents) assertNoClientSecret(row.payload);
+  });
+
+  it.each(CLIENT_SECRET_VARIANTS)(
+    "strips %s from the stored webhook payload at any depth",
+    async (secretKey) => {
+      seedOpenOrder(db, "order-variant", "int_variant");
+      const secretValue = `cs_variant_${secretKey}`;
+      const response = await webhookPost(
+        signedWebhook({
+          id: `evt_${secretKey}`,
+          name: "payment_intent.pending",
+          created_at: "2026-11-01T00:05:00.000Z",
+          data: {
+            [secretKey]: secretValue,
+            object: {
+              id: "int_variant",
+              status: "PENDING",
+              amount: 115,
+              currency: "USD",
+              merchant_order_id: "order-variant",
+              [secretKey]: `${secretValue}_object`,
+              nested: { [secretKey]: `${secretValue}_nested` },
+              attempts: [{ id: "att", [secretKey]: `${secretValue}_array` }],
+            },
+          },
+        })
+      );
+
+      expect(response.status).toBe(200);
+      const stored = db.rowsOf("payment_webhook_events")[0]?.payload;
+      assertNoClientSecret(stored);
+      expect(JSON.stringify(stored)).not.toContain(secretValue);
+      expect(stored).toMatchObject({
+        id: `evt_${secretKey}`,
+        data: {
+          object: {
+            id: "int_variant",
+            status: "PENDING",
+            merchant_order_id: "order-variant",
+            nested: {},
+            attempts: [{ id: "att" }],
+          },
+        },
+      });
+    }
+  );
+
+  it("refund metadata keeps only the allowlisted refund fields", async () => {
+    const recorded = recordPaymentWrites(db);
+    seedOpenOrder(db, "order-refund", "int_refund");
+    const refund = refundObject("int_refund", "ref_1");
+
+    const response = await webhookPost(
+      signedWebhook({
+        id: "evt_refund",
+        name: "refund.received",
+        created_at: "2026-11-01T00:07:00.000Z",
+        data: {
+          object: refund,
+          clientSecret: "cs_refund_data",
+          attempts: [{ CLIENT_SECRET: "cs_refund_array" }],
+        },
+      })
+    );
+    expect(response.status).toBe(200);
+
+    const refundUpserts = recorded.filter(
+      (write) => write.table === "payment_refunds" && write.op === "upsert"
+    );
+    expect(refundUpserts).toHaveLength(1);
+    expect((refundUpserts[0].payload as { metadata: unknown }).metadata).toEqual(
+      toPersistedRefund(refund)
+    );
+    for (const write of recorded) assertNoClientSecret(write.payload);
+    assertNoClientSecret(db.rowsOf("payment_webhook_events")[0]?.payload);
+    expect(JSON.stringify(db.rowsOf("payment_refunds")[0]?.metadata)).not.toContain("cs_refund");
   });
 });
 
@@ -569,6 +686,25 @@ async function runCheckout(intent: AirwallexPaymentIntent) {
   const response = await checkoutPost(checkoutRequest());
   expect(response.status).toBe(200);
   return created;
+}
+
+function refundObject(paymentIntentId: string, refundId: string): Record<string, unknown> {
+  return {
+    id: refundId,
+    request_id: `req_${refundId}`,
+    payment_intent_id: paymentIntentId,
+    amount: 10,
+    currency: "USD",
+    status: "RECEIVED",
+    reason: "customer request",
+    created_at: "2026-11-01T00:06:00.000Z",
+    updated_at: "2026-11-01T00:07:00.000Z",
+    client_secret: "cs_refund",
+    clientSecret: "cs_refund_camel",
+    "client-secret": "cs_refund_kebab",
+    CLIENT_SECRET: "cs_refund_upper",
+    customer: { client_secret: "cs_refund_nested" },
+  };
 }
 
 function webhookEvent(orderId: string, intentId: string) {

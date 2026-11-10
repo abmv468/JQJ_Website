@@ -27,13 +27,17 @@ function truncateError(input: string, maxLength = 1000) {
   return `${input.slice(0, maxLength - 3)}...`;
 }
 
+function isClientSecretKey(key: string) {
+  return key.replace(/[_-]/g, "").toLowerCase() === "clientsecret";
+}
+
 function withoutClientSecret(value: unknown): unknown {
   if (Array.isArray(value)) return value.map((entry) => withoutClientSecret(entry));
   if (!value || typeof value !== "object") return value;
 
   const copy: Record<string, unknown> = {};
   for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
-    if (key === "client_secret") continue;
+    if (isClientSecretKey(key)) continue;
     copy[key] = withoutClientSecret(nested);
   }
   return copy;

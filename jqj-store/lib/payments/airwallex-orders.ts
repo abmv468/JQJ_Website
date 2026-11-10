@@ -623,6 +623,28 @@ function mapRefundStatusFromEventName(eventName: string) {
   }
 }
 
+const PERSISTED_REFUND_FIELDS = [
+  "id",
+  "request_id",
+  "payment_intent_id",
+  "amount",
+  "currency",
+  "status",
+  "reason",
+  "created_at",
+  "updated_at",
+] as const;
+
+export function toPersistedRefund(refund: Record<string, unknown>): Json {
+  const persisted: { [key: string]: Json } = {};
+  for (const field of PERSISTED_REFUND_FIELDS) {
+    if (!Object.prototype.hasOwnProperty.call(refund, field)) continue;
+    const value = persistedScalar(refund[field]);
+    if (value !== undefined) persisted[field] = value;
+  }
+  return persisted;
+}
+
 export async function applyAirwallexRefundEvent(
   supabase: SupabaseClient,
   input: {
@@ -689,7 +711,7 @@ export async function applyAirwallexRefundEvent(
     reason: typeof input.refundObject.reason === "string" ? input.refundObject.reason : null,
     status: nextStatus,
     settled_at: nextStatus === "settled" ? now : existingRefund?.settled_at ?? null,
-    metadata: input.refundObject as unknown as Json,
+    metadata: toPersistedRefund(input.refundObject),
     updated_at: now,
   };
 
