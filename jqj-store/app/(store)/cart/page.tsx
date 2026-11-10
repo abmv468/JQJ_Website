@@ -1,13 +1,46 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
-import { Minus, Plus, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { X } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
+import CheckoutTrustStrip from "@/components/cart/CheckoutTrustStrip";
+import LineItemThumbnail from "@/components/cart/LineItemThumbnail";
+import QuantityStepper from "@/components/cart/QuantityStepper";
+import { CART_SHIPPING_LINE } from "@/lib/cart-copy";
+import { cn } from "@/lib/utils";
+
+function CheckoutButton({
+  busy,
+  blocked,
+  className,
+  onCheckout,
+}: {
+  busy: boolean;
+  blocked: boolean;
+  className?: string;
+  onCheckout: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        "btn-gold min-h-11 w-full disabled:cursor-not-allowed disabled:opacity-60",
+        className
+      )}
+      disabled={busy || blocked}
+      aria-busy={busy}
+      onClick={onCheckout}
+    >
+      Checkout
+    </button>
+  );
+}
 
 export default function CartPage() {
+  const router = useRouter();
   const { items, updateQuantity, removeItem, subtotal } = useCart();
   const { formatFromUsd } = useCurrency();
   const [stockErrors, setStockErrors] = useState<string[]>([]);
@@ -30,6 +63,7 @@ export default function CartPage() {
 
   useEffect(() => {
     if (!payloadItems.length) return;
+    let cancelled = false;
     setStockLoading(true);
     fetch("/api/products/availability", {
       method: "POST",
@@ -37,18 +71,30 @@ export default function CartPage() {
       body: JSON.stringify({ items: payloadItems }),
     })
       .then((response) => response.json())
-      .then((data) => setStockErrors(data.errors ?? []))
-      .catch(() => setStockErrors([]))
-      .finally(() => setStockLoading(false));
+      .then((data) => {
+        if (!cancelled) setStockErrors(data.errors ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setStockErrors([]);
+      })
+      .finally(() => {
+        if (!cancelled) setStockLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [payloadItems]);
+
+  function goToCheckout() {
+    if (stockLoading || stockErrors.length > 0) return;
+    router.push("/checkout");
+  }
 
   if (items.length === 0) {
     return (
       <div className="container-site flex flex-col items-center py-28 text-center">
         <h1 className="font-heading text-2xl uppercase tracking-wider2">Your cart is empty</h1>
-        <p className="mt-3 text-sm text-brand-muted">
-          Discover hand-crafted bracelets and necklaces.
-        </p>
+        <p className="mt-3 text-sm text-brand-muted">Discover hand-crafted bracelets and necklaces.</p>
         <Link href="/new" className="btn-gold mt-8">
           Shop New Arrivals
         </Link>
@@ -57,36 +103,43 @@ export default function CartPage() {
   }
 
   return (
-    <div className="container-site py-12">
+    <div className="container-site pb-44 pt-12 lg:pb-12">
       <h1 className="mb-10 font-heading text-2xl uppercase tracking-wider2">Cart</h1>
       <div className="grid grid-cols-1 gap-12 lg:grid-cols-[1fr_360px]">
         <ul className="divide-y divide-brand-border border-y border-brand-border">
           {items.map((item) => (
-            <li key={`${item.id}-${item.sku ?? ""}-${item.size ?? ""}-${item.material ?? ""}`} className="flex gap-5 py-6">
-              <div className="relative h-28 w-28 shrink-0 overflow-hidden bg-brand-card">
-                <Image src={item.image} alt={item.name} fill sizes="112px" className="object-cover" />
-              </div>
-              <div className="flex flex-1 flex-col">
-                <div className="flex items-start justify-between">
-                  <Link href={`/products/${item.slug}`} className="text-sm hover:text-brand-gold">
+            <li
+              key={`${item.id}-${item.sku ?? ""}-${item.size ?? ""}-${item.material ?? ""}`}
+              className="flex gap-5 py-6"
+            >
+              <LineItemThumbnail src={item.image} alt={item.name} size={112} />
+              <div className="flex min-w-0 flex-1 flex-col">
+                <div className="flex items-start justify-between gap-2">
+                  <Link href={`/products/${item.slug}`} className="pt-2.5 text-sm hover:text-brand-gold">
                     {item.name}
                   </Link>
-                  <button type="button" aria-label="Remove" onClick={() => removeItem(item.id, item.sku, item.size, item.material)}>
-                    <X className="h-4 w-4 text-brand-muted hover:text-white" />
+                  <button
+                    type="button"
+                    aria-label={`Remove ${item.name}`}
+                    className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-brand-muted hover:text-white"
+                    onClick={() => removeItem(item.id, item.sku, item.size, item.material)}
+                  >
+                    <X className="h-4 w-4" aria-hidden="true" />
                   </button>
                 </div>
                 {item.size && <p className="mt-1 text-xs text-brand-muted">Size: {item.size}</p>}
                 {item.material && <p className="mt-1 text-xs text-brand-muted">Material: {item.material}</p>}
-                <div className="mt-auto flex items-center justify-between">
-                  <div className="flex items-center border border-brand-border">
-                    <button type="button" aria-label="Decrease" className="px-3 py-2" onClick={() => updateQuantity(item.id, item.sku, item.size, item.material, item.quantity - 1)}>
-                      <Minus className="h-3 w-3" />
-                    </button>
-                    <span className="w-10 text-center text-sm">{item.quantity}</span>
-                    <button type="button" aria-label="Increase" className="px-3 py-2" onClick={() => updateQuantity(item.id, item.sku, item.size, item.material, item.quantity + 1)}>
-                      <Plus className="h-3 w-3" />
-                    </button>
-                  </div>
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <QuantityStepper
+                    name={item.name}
+                    quantity={item.quantity}
+                    onDecrease={() =>
+                      updateQuantity(item.id, item.sku, item.size, item.material, item.quantity - 1)
+                    }
+                    onIncrease={() =>
+                      updateQuantity(item.id, item.sku, item.size, item.material, item.quantity + 1)
+                    }
+                  />
                   <span className="text-sm text-brand-gold">{formatFromUsd(item.price * item.quantity)}</span>
                 </div>
               </div>
@@ -101,30 +154,56 @@ export default function CartPage() {
               <span className="text-brand-muted">Subtotal</span>
               <span>{formatFromUsd(subtotal)}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-brand-muted">Shipping</span>
-              <span className="text-brand-muted">Calculated at checkout</span>
-            </div>
+            <p className="text-brand-muted">{CART_SHIPPING_LINE}</p>
           </div>
           <div className="mt-6 flex justify-between border-t border-brand-border pt-4">
             <span className="font-heading uppercase tracking-wider2">Total</span>
             <span className="font-heading text-lg text-brand-gold">{formatFromUsd(subtotal)}</span>
           </div>
           {stockErrors.length > 0 && (
-            <p className="mt-4 text-xs text-red-400">{stockErrors[0]}</p>
+            <p className="mt-4 text-xs text-red-400" role="alert">
+              {stockErrors[0]}
+            </p>
           )}
-          <Link
-            href="/checkout"
-            className="btn-gold mt-6 w-full disabled:cursor-not-allowed disabled:opacity-60"
-            aria-disabled={stockErrors.length > 0}
-            onClick={(e) => {
-              if (stockErrors.length > 0) e.preventDefault();
-            }}
-          >
-            Checkout
-          </Link>
-          {stockLoading && <p className="mt-2 text-[11px] text-brand-muted">Checking stock…</p>}
+          <div className="mt-6 hidden lg:block">
+            <CheckoutButton busy={stockLoading} blocked={stockErrors.length > 0} onCheckout={goToCheckout} />
+            {stockLoading && (
+              <p className="mt-2 text-xs text-brand-muted" role="status">
+                Checking stock…
+              </p>
+            )}
+            <CheckoutTrustStrip />
+          </div>
         </aside>
+      </div>
+
+      <div
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-brand-border bg-brand-surface/95 px-4 pt-3 shadow-[0_-18px_40px_rgba(0,0,0,0.35)] backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden"
+        data-testid="cart-sticky-checkout"
+      >
+        <div className="flex items-center gap-3">
+          <div className="min-w-[5.5rem]">
+            <p className="font-heading text-[10px] uppercase tracking-wider2 text-brand-muted">Subtotal</p>
+            <p className="font-heading text-lg leading-tight text-brand-gold">{formatFromUsd(subtotal)}</p>
+          </div>
+          <CheckoutButton
+            busy={stockLoading}
+            blocked={stockErrors.length > 0}
+            className="flex-1"
+            onCheckout={goToCheckout}
+          />
+        </div>
+        {stockLoading && (
+          <p className="mt-2 text-xs text-brand-muted" role="status">
+            Checking stock…
+          </p>
+        )}
+        {stockErrors.length > 0 && (
+          <p className="mt-2 text-xs text-red-400" role="alert">
+            {stockErrors[0]}
+          </p>
+        )}
+        <CheckoutTrustStrip />
       </div>
     </div>
   );

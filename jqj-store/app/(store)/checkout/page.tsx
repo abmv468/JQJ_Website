@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, CreditCard, Truck } from "lucide-react";
+import LineItemThumbnail from "@/components/cart/LineItemThumbnail";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
 import { createClient } from "@/lib/supabase/client";
@@ -415,12 +415,7 @@ export default function CheckoutPage() {
           <ul className="space-y-4">
             {items.map((item) => (
               <li key={`${item.id}-${item.sku ?? ""}-${item.size ?? ""}-${item.material ?? ""}`} className="flex items-center gap-4">
-                <div className="relative h-16 w-16 shrink-0 overflow-hidden bg-brand-card">
-                  <Image src={item.image} alt={item.name} fill sizes="64px" className="object-cover" />
-                  <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-brand-gold text-[10px] font-semibold text-black">
-                    {item.quantity}
-                  </span>
-                </div>
+                <LineItemThumbnail src={item.image} alt={item.name} quantity={item.quantity} size={64} />
                 <div className="flex-1">
                   <p className="text-xs leading-snug">{item.name}</p>
                   {item.size && <p className="text-[11px] text-brand-muted">Size: {item.size}</p>}
