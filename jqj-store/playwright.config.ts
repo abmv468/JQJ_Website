@@ -13,15 +13,20 @@ export default defineConfig({
   testDir: "./e2e",
   timeout: 60_000,
   expect: { timeout: 15_000 },
-  fullyParallel: false,
-  workers: 1,
+  fullyParallel: true,
+  workers: process.env.CI ? 2 : undefined,
   retries: 0,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: "http://127.0.0.1:3000",
     trace: "retain-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    // Chromium only. WEB-011 extends this project for the stepped checkout
+    // and the sticky pay bar; iPhone/WebKit stays out so the job stays fast.
+    { name: "mobile-chromium", use: { ...devices["Pixel 7"] } },
+  ],
   webServer: {
     command: "npm run start -- --hostname 127.0.0.1 --port 3000",
     url: "http://127.0.0.1:3000",
