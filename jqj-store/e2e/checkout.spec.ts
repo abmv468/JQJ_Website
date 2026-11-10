@@ -139,6 +139,7 @@ test("a legacy session link does not call retired card verify", async ({ page })
     )
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: "Payment was not completed" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Continue Shopping" })).toHaveAttribute("href", "/new");
   expect(verifyHits).toEqual([]);
 });
 

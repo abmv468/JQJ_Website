@@ -106,11 +106,15 @@ function Confirmation() {
   if (status === "unavailable") {
     return (
       <div className="text-center">
+        {/* awaiting BRAND */}
         <h1 className="font-heading text-2xl uppercase tracking-wider2">Order link</h1>
         {/* awaiting BRAND */}
         <p className="mt-3 text-sm text-brand-muted">
           This order link is no longer available. Please check your confirmation email or contact us.
         </p>
+        <div className="mt-8 flex justify-center gap-4">
+          <Link href="/new" className="btn-secondary">Continue Shopping</Link>
+        </div>
       </div>
     );
   }
