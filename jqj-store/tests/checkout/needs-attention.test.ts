@@ -1,5 +1,7 @@
+import { createHmac } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "@/app/api/admin/orders/needs-attention/route";
+import { POST as webhook } from "@/app/api/webhooks/airwallex/route";
 import { PROTECTED_ORDER_ALERT_EVENT } from "@/lib/payments/airwallex-orders";
 import { createCheckoutDb, dbError, setActiveDb, type MemoryDb } from "../helpers/memory-db";
 
@@ -226,6 +228,79 @@ describe("GET /api/admin/orders/needs-attention", () => {
     expect(body.orders[0].id).toBe("order-100");
     expect(body.orders[99].id).toBe("order-001");
     expect(body.orders.map((order: { id: string }) => order.id)).not.toContain("order-000");
+  });
+
+  it("lists a cancelled order after the success webhook records the payment", async () => {
+    process.env.AIRWALLEX_WEBHOOK_SECRET = "test_dummy_webhook_secret";
+    db.rowsOf("products")[0].stock_count = 5;
+    seedOrder(db, {
+      id: "order-closed",
+      status: "cancelled",
+      payment_status: "requires_payment_method",
+      created_at: "2026-11-10T08:00:00.000Z",
+    });
+    db.seed("payments", [
+      {
+        id: "pay-closed",
+        order_id: "order-closed",
+        provider: "airwallex",
+        provider_payment_intent_id: "int_order-closed",
+        provider_request_id: "req-closed",
+        status: "requires_payment_method",
+        amount: 115,
+        currency: "USD",
+      },
+    ]);
+    const raw = JSON.stringify({
+      id: "evt_closed",
+      name: "payment_intent.succeeded",
+      created_at: "2026-11-10T12:00:00.000Z",
+      data: {
+        object: {
+          id: "int_order-closed",
+          status: "SUCCEEDED",
+          amount: 115,
+          currency: "USD",
+          merchant_order_id: "order-closed",
+        },
+      },
+    });
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const signature = createHmac("sha256", "test_dummy_webhook_secret")
+      .update(`${timestamp}${raw}`)
+      .digest("hex");
+
+    const posted = await webhook(
+      new Request("http://localhost:3000/api/webhooks/airwallex", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-signature": signature,
+          "x-timestamp": timestamp,
+        },
+        body: raw,
+      })
+    );
+    const listed = await GET(request("Bearer admin-token"));
+    const body = await listed.json();
+
+    expect(posted.status).toBe(200);
+    expect(db.rowsOf("orders")[0].status).toBe("cancelled");
+    expect(db.rowsOf("orders")[0].payment_status).toBe("requires_payment_method");
+    expect(db.rowsOf("payments")[0]).toMatchObject({ status: "succeeded", amount: 115 });
+    expect(db.rowsOf("products")[0].stock_count).toBe(5);
+    expect(body.orders).toEqual([
+      {
+        id: "order-closed",
+        created_at: "2026-11-10T08:00:00.000Z",
+        total: 115,
+        currency: "USD",
+        status: "cancelled",
+        payment_status: "requires_payment_method",
+        fulfillment_status: "payment_failed",
+        reason: PROTECTED_ORDER_ALERT_EVENT,
+      },
+    ]);
   });
 
   it("hides database errors behind a generic body", async () => {

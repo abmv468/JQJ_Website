@@ -32,18 +32,49 @@ export async function GET(req: Request) {
     if (authError) return authError;
 
     const supabase = createAdminClient();
-    const { data, error } = await supabase
+    const columns =
+      "id, created_at, total_amount, currency, status, sales_channel, payment_status, fulfillment_status";
+    const { data: recordedPayments, error: paymentError } = await supabase
+      .from("payments")
+      .select("order_id")
+      .eq("status", "succeeded");
+    if (paymentError) throw paymentError;
+    const paidOrderIds = [
+      ...new Set(
+        ((recordedPayments ?? []) as Array<{ order_id?: string | null }>)
+          .map((row) => row.order_id)
+          .filter((id): id is string => typeof id === "string" && id.length > 0)
+      ),
+    ];
+
+    const listed = supabase
       .from("orders")
-      .select(
-        "id, created_at, total_amount, currency, status, sales_channel, payment_status, fulfillment_status"
-      )
+      .select(columns)
       .eq("payment_status", "succeeded")
       .or("status.eq.inventory_exception,status.eq.cancelled,sales_channel.eq.test")
       .order("created_at", { ascending: false })
       .limit(PAGE_LIMIT + 1);
-    if (error) throw error;
+    const protectedByPayment =
+      paidOrderIds.length === 0
+        ? Promise.resolve({ data: [] as AttentionRow[], error: null })
+        : supabase
+            .from("orders")
+            .select(columns)
+            .in("id", paidOrderIds)
+            .or("status.eq.cancelled,sales_channel.eq.test")
+            .order("created_at", { ascending: false })
+            .limit(PAGE_LIMIT + 1);
+    const [byOrder, byPayment] = await Promise.all([listed, protectedByPayment]);
+    if (byOrder.error) throw byOrder.error;
+    if (byPayment.error) throw byPayment.error;
 
-    const rows = (data ?? []) as AttentionRow[];
+    const merged = new Map<string, AttentionRow>();
+    for (const row of [...((byOrder.data ?? []) as AttentionRow[]), ...((byPayment.data ?? []) as AttentionRow[])]) {
+      merged.set(row.id, row);
+    }
+    const rows = [...merged.values()].sort((left, right) =>
+      String(right.created_at ?? "").localeCompare(String(left.created_at ?? ""))
+    );
     const truncated = rows.length > PAGE_LIMIT;
     const orders = rows.slice(0, PAGE_LIMIT).map((row) => ({
       id: row.id,
