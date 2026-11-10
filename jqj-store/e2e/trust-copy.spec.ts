@@ -40,7 +40,7 @@ test("a bracelet page keeps resize copy bracelet-scoped", async ({ page }) => {
   await page.getByRole("button", { name: "Shipping & Return" }).click();
   await expect(
     page.getByText(
-      `Exchange or resize requests for bracelets are accepted within ${RETURNS_DAYS} days of delivery, including a complimentary first resize for new customers.`
+      `Exchange or resize requests for bracelets are accepted within ${RETURNS_DAYS} days of delivery.`
     )
   ).toBeVisible();
 });

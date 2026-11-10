@@ -32,6 +32,16 @@ describe("trust copy", () => {
     expect(RETURNS_DAYS).toBe(30);
   });
 
+  it("does not promise a complimentary first resize in the PDP accordion", () => {
+    const detail = source("components/product/ProductDetail.tsx");
+    const shipping = detail.slice(detail.indexOf('title: "Shipping & Return"'));
+    expect(shipping).not.toMatch(/first resize/i);
+    expect(shipping).not.toMatch(/complimentary first resize/i);
+    expect(shipping).toContain(
+      "Exchange or resize requests for bracelets are accepted within ${RETURNS_DAYS} days of delivery."
+    );
+  });
+
   it("renders the return window from RETURNS_DAYS", () => {
     for (const relative of WINDOW_SOURCES) {
       const text = source(relative);

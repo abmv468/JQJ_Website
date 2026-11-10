@@ -25,7 +25,7 @@ const accordionData = (product: Product) => [
     content: [
       `Returns are accepted within ${RETURNS_DAYS} days of delivery. Customers pay return shipping.`,
       product.category === "bracelets"
-        ? `Exchange or resize requests for bracelets are accepted within ${RETURNS_DAYS} days of delivery, including a complimentary first resize for new customers.`
+        ? `Exchange or resize requests for bracelets are accepted within ${RETURNS_DAYS} days of delivery.`
         : "",
     ]
       .filter(Boolean)
