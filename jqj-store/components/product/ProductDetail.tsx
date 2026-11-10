@@ -1,18 +1,49 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronDown, Minus, Plus } from "lucide-react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import type { Product } from "@/data/products";
 import { useCart } from "@/context/CartContext";
-import { RETURNS_DAYS } from "@/lib/policy";
+import {
+  DISPATCH_BUSINESS_DAYS_MAX,
+  DISPATCH_BUSINESS_DAYS_MIN,
+  RETURNS_DAYS,
+  TRANSIT_DAYS_MAX,
+  TRANSIT_DAYS_MIN,
+} from "@/lib/policy";
+import { FREE_SHIPPING_THRESHOLD_USD } from "@/lib/shipping";
 import ProductCard from "./ProductCard";
 import { getStockState, getVariantLabel } from "@/lib/product-stock";
 import { useCurrency } from "@/context/CurrencyContext";
 
-const accordionData = (product: Product) => [
+const RETURNS_POLICY_LABEL = "Returns Policy";
+
+export function shippingAndReturnsAccordionText(freeShippingThresholdUsd: number): string {
+  return `Free shipping on orders over $${freeShippingThresholdUsd} · ${RETURNS_DAYS}-day returns. Dispatched in ${DISPATCH_BUSINESS_DAYS_MIN}–${DISPATCH_BUSINESS_DAYS_MAX} business days, then typically ${TRANSIT_DAYS_MIN}–${TRANSIT_DAYS_MAX} days in transit. Customs and peak season can add time. Returns are accepted within ${RETURNS_DAYS} days of delivery; return shipping is paid by the customer unless the item arrived damaged or incorrect. See our ${RETURNS_POLICY_LABEL} for details.`;
+}
+
+function ShippingReturnsCopy() {
+  const text = shippingAndReturnsAccordionText(FREE_SHIPPING_THRESHOLD_USD);
+  const [before, after] = text.split(RETURNS_POLICY_LABEL);
+
+  return (
+    <>
+      {before}
+      <Link
+        href="/returns"
+        className="text-brand-gold underline underline-offset-2 hover:text-brand-gold-light"
+      >
+        {RETURNS_POLICY_LABEL}
+      </Link>
+      {after}
+    </>
+  );
+}
+
+const accordionData = (product: Product): { title: string; content: ReactNode }[] => [
   { title: "Description", content: product.description },
   {
     title: "Specifications",
@@ -21,15 +52,8 @@ const accordionData = (product: Product) => [
       .join("  •  "),
   },
   {
-    title: "Shipping & Return",
-    content: [
-      `Returns are accepted within ${RETURNS_DAYS} days of delivery. Customers pay return shipping.`,
-      product.category === "bracelets"
-        ? `Exchange or resize requests for bracelets are accepted within ${RETURNS_DAYS} days of delivery, including a complimentary first resize for new customers.`
-        : "",
-    ]
-      .filter(Boolean)
-      .join(" "),
+    title: "Shipping & Returns",
+    content: <ShippingReturnsCopy />,
   },
 ];
 
