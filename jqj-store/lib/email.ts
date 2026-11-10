@@ -93,14 +93,25 @@ function buildHtml(data: OrderEmailData, heading: string): string {
   </div>`;
 }
 
-export async function sendOrderEmails(data: OrderEmailData): Promise<void> {
+function senderAddress(): string | null {
+  const from = process.env.EMAIL_FROM?.trim();
+  if (!from) {
+    console.error("[email] EMAIL_FROM is not set — skipping send");
+    return null;
+  }
+  return from;
+}
+
+export async function sendOrderEmails(data: OrderEmailData): Promise<boolean> {
+  const from = senderAddress();
+  if (!from) return false;
+
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM || "orders@danvapes.shop";
   const adminEmail = process.env.ADMIN_EMAIL;
 
   if (!apiKey) {
     console.warn("[email] RESEND_API_KEY missing — skipping order emails");
-    return;
+    return false;
   }
 
   const resend = new Resend(apiKey);
@@ -121,8 +132,10 @@ export async function sendOrderEmails(data: OrderEmailData): Promise<void> {
         html: buildHtml(data, "New order received"),
       });
     }
+    return true;
   } catch (err) {
     console.error("[email] Failed to send order emails", err);
+    return false;
   }
 }
 
@@ -133,9 +146,11 @@ export async function sendInventoryExceptionAlert(input: {
   currency?: string | null;
 }): Promise<void> {
   console.error("[inventory] paid order has no stock; manual review required", input.orderId);
+  const from = senderAddress();
+  if (!from) return;
+
   const apiKey = process.env.RESEND_API_KEY;
   const adminEmail = process.env.ADMIN_EMAIL;
-  const from = process.env.EMAIL_FROM || "orders@danvapes.shop";
   if (!apiKey || !adminEmail) return;
 
   try {

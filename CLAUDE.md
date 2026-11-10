@@ -43,7 +43,7 @@ All admin API routes (`/api/admin/*`) use the admin client with service role key
 
 ### Emails
 
-`lib/email.ts` sends via Resend from `orders@danvapes.shop` (verified domain). Two emails per order: customer confirmation + admin notification. Both COD and Stripe routes call `sendOrderEmails()`.
+`lib/email.ts` sends via Resend. `EMAIL_FROM` is required and has no default; a missing sender is logged and the send is skipped. Two emails per order: customer confirmation + admin notification. Both COD and Stripe routes call `sendOrderEmails()`.
 
 ## Branding & Styling
 
