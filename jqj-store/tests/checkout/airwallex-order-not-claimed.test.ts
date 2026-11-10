@@ -211,4 +211,31 @@ describe("Airwallex webhook order_not_claimed", () => {
       status: "failed",
     });
   });
+
+  it("DB error during claim returns 5xx", async () => {
+    let webhookStored = false;
+    db.failWhen = (table, op) => {
+      if (table === "payment_webhook_events" && op === "insert") {
+        webhookStored = true;
+        return null;
+      }
+      if (webhookStored && table === "orders" && op === "update") {
+        return dbError("could not connect to server", "08006");
+      }
+      return null;
+    };
+
+    const response = await POST(signed(successEvent("evt_db")));
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body).toEqual({ error: "Internal error" });
+    expect(JSON.stringify(body)).not.toContain("could not connect to server");
+    expect(db.rowsOf("payment_webhook_events")[0]).toMatchObject({
+      provider_event_id: "evt_db",
+      status: "failed",
+    });
+    expect(db.rowsOf("orders")[0].payment_status).toBe("requires_payment_method");
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
+  });
 });
