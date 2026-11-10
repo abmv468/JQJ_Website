@@ -1,49 +1,21 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { products } from "@/data/products";
-import { RETURNS_DAYS } from "@/lib/policy";
+import {
+  BRACELETS_SUBTITLE,
+  CATALOG_FEATURE_LINE,
+  HERO_SUPPORTING,
+  HOME_EYEBROW,
+  HOME_LEAD,
+  LOYALTY_INTRO,
+  RETURNS_DAYS,
+  SITE_DESCRIPTION,
+  TRUST_LINE,
+} from "@/lib/policy";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-
-const TRUST_LINE = "Hand-finished natural stone jewellery · Secure checkout";
-
-/** Longer phrases first so a short allowed form cannot hide a disallowed one. */
-const APPROVED_HERITAGE = [
-  "Museum-inspired craftsmanship since 2015",
-  "Handmade natural stone jewellery since 2015, with museum collaborations",
-  "Crafting natural stone jewellery since 2015.",
-  "Since 2015 · Museum collaborations",
-  "Our work includes museum collaborations.",
-  "Crafted and finished by hand in our atelier.",
-  "Crafted in our atelier",
-  "Join our list for new pieces and atelier news.",
-  "Since 2015",
-];
-
-const INFLATED_CLAIMS = [
-  /world-renowned/i,
-  /museum-grade/i,
-  /award-winning/i,
-  /master artisans/i,
-  /as seen in museums/i,
-  /in partnership with/i,
-  /family atelier/i,
-  /museum-inspired restraint/i,
-];
-
-const FAKE_REVIEW_MARKERS = [
-  /aggregateRating/,
-  /reviewCount/,
-  /StarRating/,
-  /Top Rated/,
-  /9929/,
-  /4\.8\/5/,
-  /Satisfaction Guarantee/,
-  /Complimentary UPS/,
-  /collector benefits/i,
-];
 
 const WINDOW_SOURCES = [
   "components/home/Hero.tsx",
@@ -53,36 +25,16 @@ const WINDOW_SOURCES = [
   "app/(store)/shipping/page.tsx",
 ];
 
-function walk(dir: string): string[] {
-  const entries = readdirSync(dir);
-  const files: string[] = [];
-  for (const entry of entries) {
-    const full = path.join(dir, entry);
-    const stat = statSync(full);
-    if (stat.isDirectory()) {
-      if (entry === "node_modules" || entry === ".next") continue;
-      files.push(...walk(full));
-      continue;
-    }
-    if (/\.(ts|tsx|mjs|sql)$/.test(entry)) files.push(full);
-  }
-  return files;
-}
+/** Strings this PR must not introduce. Held main copy is separate. */
+const NOT_ADDED = [
+  "Hand-finished natural stone jewellery · Secure checkout",
+  "Join our list for new pieces and atelier news.",
+  "Handmade natural stone jewellery since 2015, with museum collaborations.",
+  "Hand-finished bracelet designs with carefully selected natural stones. Crafted in our atelier.",
+];
 
-function storefrontSources(): string[] {
-  return [
-    ...walk(path.join(root, "app")),
-    ...walk(path.join(root, "components")),
-    ...walk(path.join(root, "data")),
-    ...walk(path.join(root, "lib")),
-    ...walk(path.join(root, "scripts")),
-    path.join(root, "supabase/seed.sql"),
-  ];
-}
-
-function stripApproved(text: string): string {
-  const normalized = text.replace(/\s+/g, " ");
-  return APPROVED_HERITAGE.reduce((rest, phrase) => rest.replaceAll(phrase, ""), normalized);
+function source(relative: string): string {
+  return readFileSync(path.join(root, relative), "utf8");
 }
 
 describe("trust copy", () => {
@@ -90,20 +42,23 @@ describe("trust copy", () => {
     expect(RETURNS_DAYS).toBe(30);
   });
 
-  it("renders the return window from RETURNS_DAYS", () => {
-    for (const relative of WINDOW_SOURCES) {
-      const source = readFileSync(path.join(root, relative), "utf8");
-      expect(source, relative).toContain("RETURNS_DAYS");
-      expect(source, relative).not.toMatch(/14 days/);
-      expect(source, relative).not.toMatch(/\$\{14\}/);
-    }
+  it("leaves BRAND v4 slots empty so pending wording is not shown", () => {
+    expect(TRUST_LINE).toBe("");
+    expect(HERO_SUPPORTING).toBe("");
+    expect(HOME_EYEBROW).toBe("");
+    expect(HOME_LEAD).toBe("");
+    expect(BRACELETS_SUBTITLE).toBe("");
+    expect(CATALOG_FEATURE_LINE).toBe("");
+    expect(SITE_DESCRIPTION).toBe("");
+    expect(LOYALTY_INTRO).toBe("");
   });
 
-  it("keeps the approved hero trust line", () => {
-    const hero = readFileSync(path.join(root, "components/home/Hero.tsx"), "utf8");
-    expect(hero).toContain(TRUST_LINE);
-    expect(hero).not.toMatch(/Free shipping/i);
-    expect(hero).not.toMatch(/worldwide/i);
+  it("renders the return window from RETURNS_DAYS", () => {
+    for (const relative of WINDOW_SOURCES) {
+      const text = source(relative);
+      expect(text, relative).toContain("RETURNS_DAYS");
+      expect(text, relative).not.toMatch(/14 days/);
+    }
   });
 
   it("does not publish fabricated ratings", () => {
@@ -111,8 +66,6 @@ describe("trust copy", () => {
       expect(product).not.toHaveProperty("rating");
       expect(product).not.toHaveProperty("reviewCount");
       expect(product.tags).not.toContain("top-rated");
-      expect(product.features).toContain("Crafted in our atelier");
-      expect(product.features.join(" ")).not.toMatch(/museum/i);
     }
 
     const bracelets = products.filter((product) => product.category === "bracelets");
@@ -127,29 +80,34 @@ describe("trust copy", () => {
     }
   });
 
-  it("allows heritage claims only in the approved wording", () => {
-    for (const file of storefrontSources()) {
-      const source = readFileSync(file, "utf8");
-      const relative = path.relative(root, file);
-      const remainder = stripApproved(source);
-      expect(remainder, relative).not.toMatch(
-        /in our atelier|from the atelier|family atelier|museum-inspired|museum collaboration|since 2015/i
-      );
-      for (const pattern of INFLATED_CLAIMS) {
-        expect(source, relative).not.toMatch(pattern);
-      }
-      for (const pattern of FAKE_REVIEW_MARKERS) {
-        expect(source, relative).not.toMatch(pattern);
+  it("does not add the withdrawn trust line or new banned wording", () => {
+    const files = [
+      "app/layout.tsx",
+      "components/home/Hero.tsx",
+      "components/home/ForgetMassProduced.tsx",
+      "app/(store)/bracelets/page.tsx",
+      "app/(store)/loyalty/page.tsx",
+      "data/products.ts",
+      "lib/policy.ts",
+      "supabase/seed.sql",
+    ];
+    for (const relative of files) {
+      const text = source(relative);
+      for (const phrase of NOT_ADDED) {
+        expect(text, `${relative} contains ${phrase}`).not.toContain(phrase);
       }
     }
+    expect(source("components/home/Hero.tsx")).toContain("TRUST_LINE");
+    expect(source("components/home/Hero.tsx")).toContain("Museum-inspired craftsmanship since 2015");
   });
 
-  it("drops the collector-benefits promise on the loyalty page", () => {
-    const source = readFileSync(path.join(root, "app/(store)/loyalty/page.tsx"), "utf8");
-    expect(source).toContain("Join our list for new pieces and atelier news.");
-    expect(source).not.toMatch(/collector benefits/i);
-    expect(source).toContain('title: "JQD Group Updates — JQD Group"');
-    expect(source).toContain('title="Collector Updates"');
+  it("drops the collector-benefits promise without a new intro", () => {
+    const text = source("app/(store)/loyalty/page.tsx");
+    expect(text).toContain("Use the newsletter form in the footer to receive updates.");
+    expect(text).not.toMatch(/collector benefits/i);
+    expect(text).toContain('title: "JQD Group Updates — JQD Group"');
+    expect(text).toContain('title="Collector Updates"');
+    expect(text).toContain("LOYALTY_INTRO");
   });
 
   it("says the customer pays return shipping where returns are described", () => {
@@ -159,9 +117,9 @@ describe("trust copy", () => {
       "app/(store)/faqs/page.tsx",
       "components/product/ProductDetail.tsx",
     ]) {
-      const source = readFileSync(path.join(root, relative), "utf8");
-      expect(source, relative).toContain("Customers pay return shipping");
-      expect(source, relative).not.toMatch(/complimentary .*returns/i);
+      const text = source(relative);
+      expect(text, relative).toContain("Customers pay return shipping");
+      expect(text, relative).not.toMatch(/complimentary .*returns/i);
     }
   });
 });

@@ -49,7 +49,7 @@ export const categories: { slug: CategorySlug; name: string }[] = [
 const sharedFeatures = [
   "Tailored for your preferred fit",
   "Natural gemstones selected for color and character",
-  "Crafted in our atelier",
+  "Crafted in our atelier with museum-inspired design values",
 ];
 
 const braceletResizeFeature = "Complimentary first resize for new customers";

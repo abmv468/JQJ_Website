@@ -1,4 +1,5 @@
 import PolicyPage from "@/components/trust/PolicyPage";
+import { LOYALTY_INTRO } from "@/lib/policy";
 
 export const metadata = {
   title: "JQD Group Updates — JQD Group",
@@ -8,7 +9,10 @@ export default function LoyaltyPage() {
   return (
     <PolicyPage
       title="Collector Updates"
-      intro="Join our list for new pieces and atelier news."
+      intro={
+        LOYALTY_INTRO ||
+        "Join the JQD Group mailing list for new gemstone edits, limited drops, and collector releases."
+      }
       effectiveDate="July 28, 2026"
       contactDetails={[
         {

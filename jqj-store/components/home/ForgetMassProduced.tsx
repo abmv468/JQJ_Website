@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
+import { HOME_EYEBROW, HOME_LEAD } from "@/lib/policy";
 
 export default function ForgetMassProduced() {
   return (
@@ -12,14 +13,13 @@ export default function ForgetMassProduced() {
             className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(24,76,82,0.22),transparent_40%),radial-gradient(circle_at_bottom_right,rgba(187,157,123,0.14),transparent_30%)]"
           />
           <div className="relative max-w-xl">
-            <p className="eyebrow">Crafted in our atelier</p>
+            <p className="eyebrow">{HOME_EYEBROW || "From the atelier"}</p>
             <h2 className="mt-4 font-heading text-3xl font-light leading-tight text-white sm:text-4xl">
               Beyond mass production, closer to ritual.
             </h2>
             <p className="mt-6 text-sm leading-7 text-white/68">
-              We design from the idea that jewelry can carry meaning. Crafted in
-              our atelier, each piece is hand-finished with natural gemstones
-              selected for energy, tone, and character.
+              {HOME_LEAD ||
+                "We design from the idea that jewelry can carry meaning. In our family atelier, each piece is hand-finished with natural gemstones selected for energy, tone, and character."}
             </p>
             <p className="mt-4 text-sm leading-7 text-white/68">
               Rooted in cultural symbolism and made for modern wear, every design

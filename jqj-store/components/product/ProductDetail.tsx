@@ -7,7 +7,7 @@ import { ChevronDown, Minus, Plus } from "lucide-react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import type { Product } from "@/data/products";
 import { useCart } from "@/context/CartContext";
-import { RETURNS_DAYS } from "@/lib/policy";
+import { CATALOG_FEATURE_LINE, RETURNS_DAYS } from "@/lib/policy";
 import ProductCard from "./ProductCard";
 import { getStockState, getVariantLabel } from "@/lib/product-stock";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -382,11 +382,15 @@ export default function ProductDetail({
 
           {/* Trust list */}
           <ul className="mt-8 space-y-3 border-t border-brand-border pt-6">
-            {product.features.map((f) => (
-              <li key={f} className="text-xs text-brand-muted">
-                {f}
-              </li>
-            ))}
+            {product.features.map((feature, index) => {
+              // Awaiting BRAND v4. The third shared feature stays as catalog text until the constant is set.
+              const text = index === 2 && CATALOG_FEATURE_LINE ? CATALOG_FEATURE_LINE : feature;
+              return (
+                <li key={feature} className="text-xs text-brand-muted">
+                  {text}
+                </li>
+              );
+            })}
           </ul>
 
           {/* Accordions */}
