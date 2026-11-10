@@ -1,10 +1,22 @@
 import { createHmac } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET as adminGet, POST as adminPost } from "@/app/api/admin/orders/route";
+import { POST as checkoutPost } from "@/app/api/checkout/airwallex/route";
+import { POST as verifyPost } from "@/app/api/checkout/airwallex/verify/route";
 import { POST as webhookPost } from "@/app/api/webhooks/airwallex/route";
-import { retrieveAirwallexPaymentIntent, type AirwallexPaymentIntent } from "@/lib/payments/airwallex";
-import { upsertAirwallexPaymentIntent } from "@/lib/payments/airwallex-orders";
-import { createCheckoutDb, setActiveDb, type MemoryDb } from "../helpers/memory-db";
+import {
+  createAirwallexPaymentIntent,
+  retrieveAirwallexPaymentIntent,
+  type AirwallexPaymentIntent,
+} from "@/lib/payments/airwallex";
+import { toPersistedIntent, upsertAirwallexPaymentIntent } from "@/lib/payments/airwallex-orders";
+import {
+  checkoutCustomer,
+  checkoutItem,
+  createCheckoutDb,
+  setActiveDb,
+  type MemoryDb,
+} from "../helpers/memory-db";
 
 vi.mock("@/lib/auth/require-admin", () => ({
   requireAdmin: vi.fn(async () => null),
@@ -16,6 +28,7 @@ vi.mock("@/lib/payments/airwallex", async () => {
   );
   return {
     ...actual,
+    createAirwallexPaymentIntent: vi.fn(),
     retrieveAirwallexPaymentIntent: vi.fn(),
   };
 });
@@ -58,7 +71,47 @@ function spySelects(db: MemoryDb) {
   return selects;
 }
 
-function secretIntent(): AirwallexPaymentIntent {
+const CHECKOUT_KEY = "11111111-1111-4111-8111-111111111111";
+
+type PaymentOp = "insert" | "upsert" | "update";
+
+interface RecordedPaymentWrite {
+  op: PaymentOp;
+  payload: unknown;
+}
+
+function recordPaymentWrites(db: MemoryDb) {
+  const recorded: RecordedPaymentWrite[] = [];
+  const from = db.from.bind(db);
+  db.from = (table: string) => {
+    const query = from(table);
+    if (table !== "payments") return query;
+
+    const insert = query.insert.bind(query);
+    query.insert = (payload) => {
+      recorded.push({ op: "insert", payload });
+      return insert(payload);
+    };
+    const update = query.update.bind(query);
+    query.update = (payload) => {
+      recorded.push({ op: "update", payload });
+      return update(payload);
+    };
+    const upsert = query.upsert.bind(query);
+    query.upsert = (payload, options) => {
+      recorded.push({ op: "upsert", payload });
+      return upsert(payload, options);
+    };
+    return query;
+  };
+  return recorded;
+}
+
+function assertNoClientSecret(payload: unknown) {
+  expect(keysDeep(payload)).not.toContain("client_secret");
+}
+
+function secretIntent(overrides: Partial<AirwallexPaymentIntent> = {}): AirwallexPaymentIntent {
   return {
     id: "int_secret",
     request_id: "req_secret",
@@ -102,7 +155,85 @@ function secretIntent(): AirwallexPaymentIntent {
       },
     },
     attempts: [{ client_secret: "cs_array" }],
+    ...overrides,
   };
+}
+
+function checkoutRequest() {
+  return new Request("http://localhost:3000/api/checkout/airwallex", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      items: [checkoutItem()],
+      customer: checkoutCustomer,
+      currency: "USD",
+      idempotencyKey: CHECKOUT_KEY,
+    }),
+  });
+}
+
+function verifyRequest(orderId: string, paymentIntentId: string) {
+  return new Request("http://localhost:3000/api/checkout/airwallex/verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ orderId, paymentIntentId, refresh: true }),
+  });
+}
+
+function refreshRequest(orderId: string) {
+  return new Request("http://localhost:3000/api/admin/orders", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "refresh_payment", id: orderId }),
+  });
+}
+
+function signedWebhook(body: unknown) {
+  const raw = JSON.stringify(body);
+  const timestamp = String(Math.floor(Date.now() / 1000));
+  return new Request("http://localhost:3000/api/webhooks/airwallex", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-signature": sign(timestamp, raw),
+      "x-timestamp": timestamp,
+    },
+    body: raw,
+  });
+}
+
+function seedOpenOrder(db: MemoryDb, orderId: string, intentId: string | null) {
+  db.seed("orders", [
+    {
+      id: orderId,
+      status: "pending",
+      payment_provider: "airwallex",
+      payment_status: "requires_payment_method",
+      fulfillment_status: "pending_payment",
+      inventory_reserved: false,
+      total_amount: 115,
+      currency: "USD",
+      customer_email: "buyer@example.com",
+      customer_name: "Ada Lovelace",
+    },
+  ]);
+  if (!intentId) return;
+  db.seed("payments", [
+    {
+      id: `pay-${orderId}`,
+      order_id: orderId,
+      provider: "airwallex",
+      provider_payment_intent_id: intentId,
+      provider_request_id: `req-${orderId}`,
+      status: "requires_payment_method",
+      amount: 115,
+      currency: "USD",
+    },
+  ]);
+}
+
+function upsertsSince(recorded: RecordedPaymentWrite[], start: number) {
+  return recorded.slice(start).filter((write) => write.op === "upsert");
 }
 
 describe("Airwallex secret persistence", () => {
@@ -113,6 +244,7 @@ describe("Airwallex secret persistence", () => {
     setActiveDb(db);
     process.env.AIRWALLEX_WEBHOOK_SECRET = SECRET;
     delete process.env.RESEND_API_KEY;
+    vi.mocked(createAirwallexPaymentIntent).mockReset();
     vi.mocked(retrieveAirwallexPaymentIntent).mockReset();
   });
 
@@ -295,4 +427,190 @@ describe("Airwallex secret persistence", () => {
       expect(sql).not.toContain("metadata");
     }
   });
+
+  it("checkout writes the intent only through the allowlist", async () => {
+    const recorded = recordPaymentWrites(db);
+    const created = await runCheckout(secretIntent({ id: "int_checkout", status: "REQUIRES_PAYMENT_METHOD" }));
+
+    const [upsert] = upsertsSince(recorded, 0);
+    expect(upsert).toBeTruthy();
+    expect((upsert.payload as { metadata: unknown }).metadata).toEqual(toPersistedIntent(created));
+    for (const write of recorded) assertNoClientSecret(write.payload);
+  });
+
+  it("verify writes the intent only through the allowlist", async () => {
+    const recorded = recordPaymentWrites(db);
+    const intent = secretIntent({
+      id: "int_verify",
+      status: "REQUIRES_CUSTOMER_ACTION",
+      merchant_order_id: "order-verify",
+    });
+    seedOpenOrder(db, "order-verify", intent.id);
+    vi.mocked(retrieveAirwallexPaymentIntent).mockResolvedValue(intent);
+
+    const response = await verifyPost(verifyRequest("order-verify", intent.id));
+    expect(response.status).toBe(202);
+
+    const [upsert] = upsertsSince(recorded, 0);
+    expect(upsert).toBeTruthy();
+    expect((upsert.payload as { metadata: unknown }).metadata).toEqual(toPersistedIntent(intent));
+    for (const write of recorded) assertNoClientSecret(write.payload);
+  });
+
+  it("admin refresh writes the intent only through the allowlist", async () => {
+    const recorded = recordPaymentWrites(db);
+    const intent = secretIntent({
+      id: "int_refresh",
+      status: "PENDING",
+      merchant_order_id: "order-refresh",
+    });
+    seedOpenOrder(db, "order-refresh", intent.id);
+    vi.mocked(retrieveAirwallexPaymentIntent).mockResolvedValue(intent);
+
+    await adminPost(refreshRequest("order-refresh"));
+
+    const [upsert] = upsertsSince(recorded, 0);
+    expect(upsert).toBeTruthy();
+    expect((upsert.payload as { metadata: unknown }).metadata).toEqual(toPersistedIntent(intent));
+    for (const write of recorded) assertNoClientSecret(write.payload);
+  });
+
+  it("webhook spread writes the intent only through the allowlist", async () => {
+    const recorded = recordPaymentWrites(db);
+    seedOpenOrder(db, "order-wh", null);
+    const { event, spreadIntent } = webhookEvent("order-wh", "int_wh");
+
+    const response = await webhookPost(signedWebhook(event));
+    expect(response.status).toBe(200);
+
+    const [upsert] = upsertsSince(recorded, 0);
+    expect(upsert).toBeTruthy();
+    expect((upsert.payload as { metadata: unknown }).metadata).toEqual(toPersistedIntent(spreadIntent));
+    for (const write of recorded) assertNoClientSecret(write.payload);
+    assertNoClientSecret(db.rowsOf("payment_webhook_events")[0]?.payload);
+    expect(JSON.stringify(db.rowsOf("payment_webhook_events")[0]?.payload)).not.toContain("cs_wh_");
+  });
+
+  it("drops client_secret from every payments write across checkout, verify, admin refresh, and the webhook", async () => {
+    const recorded = recordPaymentWrites(db);
+    const created = await runCheckout(
+      secretIntent({ id: "int_all", status: "REQUIRES_PAYMENT_METHOD", client_secret: "cs_checkout" })
+    );
+    const checkoutUpserts = upsertsSince(recorded, 0);
+    expect(checkoutUpserts).toHaveLength(1);
+    expect((checkoutUpserts[0].payload as { metadata: unknown }).metadata).toEqual(
+      toPersistedIntent(created)
+    );
+
+    const verifyIntent = secretIntent({
+      id: "int_all",
+      status: "REQUIRES_CUSTOMER_ACTION",
+      merchant_order_id: created.merchant_order_id,
+      client_secret: "cs_verify",
+      customer: { client_secret: "cs_verify_nested" },
+    });
+    vi.mocked(retrieveAirwallexPaymentIntent).mockResolvedValue(verifyIntent);
+    const afterCheckout = recorded.length;
+    const verified = await verifyPost(verifyRequest(String(created.merchant_order_id), "int_all"));
+    expect(verified.status).toBe(202);
+    const verifyUpserts = upsertsSince(recorded, afterCheckout);
+    expect(verifyUpserts).toHaveLength(1);
+    expect((verifyUpserts[0].payload as { metadata: unknown }).metadata).toEqual(
+      toPersistedIntent(verifyIntent)
+    );
+
+    const refreshIntent = secretIntent({
+      id: "int_all",
+      status: "PENDING",
+      merchant_order_id: created.merchant_order_id,
+      client_secret: "cs_refresh",
+      next_action: { type: "redirect", client_secret: "cs_refresh_nested" },
+    });
+    vi.mocked(retrieveAirwallexPaymentIntent).mockResolvedValue(refreshIntent);
+    const afterVerify = recorded.length;
+    await adminPost(refreshRequest(String(created.merchant_order_id)));
+    const refreshUpserts = upsertsSince(recorded, afterVerify);
+    expect(refreshUpserts).toHaveLength(1);
+    expect((refreshUpserts[0].payload as { metadata: unknown }).metadata).toEqual(
+      toPersistedIntent(refreshIntent)
+    );
+
+    seedOpenOrder(db, "order-spread", null);
+    const { event, spreadIntent } = webhookEvent("order-spread", "int_spread");
+    const afterRefresh = recorded.length;
+    const delivered = await webhookPost(signedWebhook(event));
+    expect(delivered.status).toBe(200);
+    const webhookUpserts = upsertsSince(recorded, afterRefresh);
+    expect(webhookUpserts).toHaveLength(1);
+    expect((webhookUpserts[0].payload as { metadata: unknown }).metadata).toEqual(
+      toPersistedIntent(spreadIntent)
+    );
+
+    expect(recorded.length).toBeGreaterThan(4);
+    for (const write of recorded) assertNoClientSecret(write.payload);
+    const storedEvents = db.rowsOf("payment_webhook_events");
+    expect(storedEvents.length).toBeGreaterThan(0);
+    for (const row of storedEvents) assertNoClientSecret(row.payload);
+  });
 });
+
+async function runCheckout(intent: AirwallexPaymentIntent) {
+  let created: AirwallexPaymentIntent = intent;
+  vi.mocked(createAirwallexPaymentIntent).mockImplementation(async (input) => {
+    created = {
+      ...intent,
+      request_id: input.requestId,
+      amount: input.amount,
+      currency: input.currency,
+      merchant_order_id: input.merchantOrderId,
+    };
+    return created;
+  });
+  const response = await checkoutPost(checkoutRequest());
+  expect(response.status).toBe(200);
+  return created;
+}
+
+function webhookEvent(orderId: string, intentId: string) {
+  const createdAt = "2026-11-01T00:05:00.000Z";
+  const object = {
+    id: intentId,
+    request_id: `req_${intentId}`,
+    status: "PENDING",
+    amount: 115,
+    currency: "USD",
+    merchant_order_id: orderId,
+    client_secret: "cs_wh_top",
+    customer: { email: "buyer@example.com", client_secret: "cs_wh_customer" },
+    next_action: {
+      type: "redirect_iframe",
+      url: "https://issuer.example/3ds",
+      client_secret: "cs_wh_action",
+    },
+    return_url: "https://shop.example/return",
+    latest_payment_attempt: {
+      status: "AUTHENTICATION_REDIRECTED",
+      client_secret: "cs_wh_attempt",
+      payment_method: {
+        type: "card",
+        client_secret: "cs_wh_method",
+        card: { brand: "visa", last4: "4242", client_secret: "cs_wh_card" },
+      },
+    },
+    attempts: [{ id: "att_wh", client_secret: "cs_wh_array" }],
+  };
+  const event = {
+    id: `evt_${intentId}`,
+    name: "payment_intent.pending",
+    created_at: createdAt,
+    data: {
+      object,
+      client_secret: "cs_wh_data",
+    },
+  };
+  const spreadIntent: AirwallexPaymentIntent = {
+    ...object,
+    updated_at: createdAt,
+  };
+  return { event, spreadIntent };
+}
