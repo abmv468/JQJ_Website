@@ -939,7 +939,8 @@ export async function releaseExpiredAirwallexReservations(
     staleOrders.set(row.id, row);
   }
 
-  for (const order of staleOrders.values()) {
+  const batch = Array.from(staleOrders.values()).slice(0, 50);
+  for (const order of batch) {
     if (!order.inventory_reserved) continue;
     // Claim the row before restore. restore_order_inventory returns no stock once
     // inventory_reserved is false, so this update leaves that flag set and the

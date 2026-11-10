@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { releaseExpiredAirwallexReservations } from "@/lib/payments/airwallex-orders";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 const noStore = { headers: { "Cache-Control": "no-store" } };
 
@@ -16,7 +17,7 @@ function secretsMatch(left: string, right: string) {
 /** Raw header compare. The secret and header are not trimmed. */
 function cronRequestAuthorized(header: string | null) {
   const secret = process.env.CRON_SECRET;
-  if (!secret || !header) return false;
+  if (secret == null || secret.trim() === "" || !header) return false;
   return secretsMatch(header, `Bearer ${secret}`);
 }
 
