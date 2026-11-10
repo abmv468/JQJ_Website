@@ -1,4 +1,4 @@
-// Owner still has to confirm both the merchant country and this display name.
+// Owner confirmed HK and this display name on 2026-11-10 (via CEO/CTO).
 export const AIRWALLEX_WALLET_MERCHANT = {
   countryCode: "HK",
   displayName: "Jewellery Quintessential",
