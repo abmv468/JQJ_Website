@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
+import { BRAND_NAME } from "@/lib/brand";
 
 export const metadata: Metadata = {
   title: "Our Story",
   description:
-    "Discover JQD Group's approach to hand-finished natural stone jewelry, thoughtful gifting, and everyday ritual.",
+    `Discover ${BRAND_NAME}'s approach to hand-finished natural stone jewelry, thoughtful gifting, and everyday ritual.`,
   alternates: { canonical: "/story" },
 };
 
@@ -12,7 +13,7 @@ export default function StoryPage() {
   return (
     <PolicyPage
       title="Our Story"
-      intro="JQD Group creates hand-finished natural stone pieces for everyday ritual, thoughtful gifting, and a collection that grows with you."
+      intro={`${BRAND_NAME} creates hand-finished natural stone pieces for everyday ritual, thoughtful gifting, and a collection that grows with you.`}
       effectiveDate="July 28, 2026"
       sections={[
         {

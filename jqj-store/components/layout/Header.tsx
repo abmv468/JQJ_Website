@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { ArrowUpRight, ChevronDown, Menu, Search, ShoppingBag, User, X } from "lucide-react";
 import { AnimatePresence, LazyMotion, domAnimation, m, useReducedMotion } from "framer-motion";
+import { BRAND_NAME } from "@/lib/brand";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
 import { createClient } from "@/lib/supabase/client";
@@ -394,10 +395,10 @@ export default function Header() {
             </nav>
           </div>
 
-          <Link href="/" aria-label="JQD Group home" className="group shrink-0">
+          <Link href="/" aria-label={`${BRAND_NAME} home`} className="group shrink-0">
             <Image
               src="/JQD-logo.png"
-              alt="JQD Group"
+              alt={BRAND_NAME}
               width={56}
               height={56}
               className="h-11 w-11 rounded-full object-cover transition-transform duration-200 group-hover:scale-[1.02] sm:h-14 sm:w-14"

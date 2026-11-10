@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import CollectionView from "@/components/product/CollectionView";
 import { getProductsByCategory } from "@/data/products";
+import { BRAND_NAME } from "@/lib/brand";
 
 export function generateMetadata({
   searchParams,
@@ -16,7 +17,7 @@ export function generateMetadata({
     alternates: { canonical: "/necklaces" },
     robots: isFiltered ? { index: false, follow: true } : undefined,
     openGraph: {
-      title: "Gemstone Necklaces | JQD Group",
+      title: `Gemstone Necklaces | ${BRAND_NAME}`,
       description:
         "Discover gemstone necklaces and pendants with natural character, refined metalwork, and a considered everyday profile.",
       url: "/necklaces",

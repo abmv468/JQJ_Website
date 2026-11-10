@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { BRAND_NAME } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: "Admin — JQD Group",
+  title: { absolute: `Admin — ${BRAND_NAME}` },
   robots: { index: false, follow: false },
 };
 

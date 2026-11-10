@@ -1,20 +1,22 @@
 import PolicyPage from "@/components/trust/PolicyPage";
+import { BRAND_NAME, SUPPORT_EMAIL } from "@/lib/brand";
 
 export const metadata = {
-  title: "JQD Group Updates — JQD Group",
+  title: "Updates",
+  alternates: { canonical: "/loyalty" },
 };
 
 export default function LoyaltyPage() {
   return (
     <PolicyPage
-      title="Collector Updates"
-      intro="Join the JQD Group mailing list for new gemstone edits, limited drops, and collector releases."
+      title={`Updates from ${BRAND_NAME}`}
+      intro={`Join the ${BRAND_NAME} mailing list for new gemstone edits, limited drops, and collector releases.`}
       effectiveDate="July 28, 2026"
       contactDetails={[
         {
           label: "Questions",
-          value: "support@jqdgroup.com",
-          href: "mailto:support@jqdgroup.com",
+          value: SUPPORT_EMAIL,
+          href: `mailto:${SUPPORT_EMAIL}`,
         },
       ]}
       sections={[

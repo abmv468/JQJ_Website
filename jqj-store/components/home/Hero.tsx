@@ -1,3 +1,4 @@
+import { BRAND_NAME } from "@/lib/brand";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, Check } from "lucide-react";
@@ -15,7 +16,7 @@ export default function Hero() {
       <div className="relative min-h-[540px] overflow-hidden border border-white/10 bg-black shadow-[0_36px_100px_rgba(0,0,0,0.34)] sm:min-h-[620px]">
         <Image
           src="/products/hero-image.jpg"
-          alt="JQD Group craftsmanship"
+          alt={`Model wearing a red bead bracelet by ${BRAND_NAME}`}
           fill
           priority
           sizes="100vw"

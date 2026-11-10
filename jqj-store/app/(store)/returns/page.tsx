@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
+import { BRAND_NAME, SUPPORT_EMAIL } from "@/lib/brand";
 
 export const metadata: Metadata = {
   title: "Returns, Resizes & Exchanges",
   description:
-    "Understand JQD Group eligibility windows, return instructions, exchanges, resizing, and refund timing.",
+    `Understand ${BRAND_NAME} eligibility windows, return instructions, exchanges, resizing, and refund timing.`,
   alternates: { canonical: "/returns" },
 };
 
@@ -15,7 +16,7 @@ export default function ReturnsPage() {
       intro="If something is not the right fit, we are here to help with fair and transparent return and exchange support."
       effectiveDate="January 1, 2026"
       contactDetails={[
-        { label: "Returns Team", value: "returns@jqdgroup.com", href: "mailto:returns@jqdgroup.com" },
+        { label: "Returns Team", value: SUPPORT_EMAIL, href: `mailto:${SUPPORT_EMAIL}` },
       ]}
       sections={[
         {
@@ -31,7 +32,7 @@ export default function ReturnsPage() {
           bullets: [
             "Final sale or clearance items marked as non-returnable.",
             "Custom, personalized, or made-to-order pieces.",
-            "Items showing wear, damage, or alterations not performed by JQD Group.",
+            `Items showing wear, damage, or alterations not performed by ${BRAND_NAME}.`,
             "Gift cards and digital products.",
           ],
         },

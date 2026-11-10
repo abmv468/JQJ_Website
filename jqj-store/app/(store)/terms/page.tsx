@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
+import { SUPPORT_EMAIL } from "@/lib/brand";
 
 export const metadata: Metadata = {
   title: "Terms & Conditions",
@@ -15,7 +16,7 @@ export default function TermsPage() {
       intro="By using our website or purchasing from JQD Group, you agree to these terms. Please review them before placing an order."
       effectiveDate="January 1, 2026"
       contactDetails={[
-        { label: "Email", value: "support@jqdgroup.com", href: "mailto:support@jqdgroup.com" },
+        { label: "Email", value: SUPPORT_EMAIL, href: `mailto:${SUPPORT_EMAIL}` },
       ]}
       sections={[
         {

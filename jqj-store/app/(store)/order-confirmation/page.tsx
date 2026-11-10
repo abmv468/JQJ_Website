@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import { SUPPORT_EMAIL } from "@/lib/brand";
 
 function Confirmation() {
   const params = useSearchParams();
@@ -127,8 +128,8 @@ function Confirmation() {
         </p>
         <p className="mt-2 text-xs text-brand-muted">
           If this status does not update after a few minutes, contact{" "}
-          <a className="text-brand-gold underline" href="mailto:support@jqdgroup.com">
-            support@jqdgroup.com
+          <a className="text-brand-gold underline" href={`mailto:${SUPPORT_EMAIL}`}>
+            {SUPPORT_EMAIL}
           </a>{" "}
           and include your order reference.
         </p>
@@ -169,15 +170,25 @@ function Confirmation() {
               : "We couldn&apos;t confirm your order"}
         </h1>
         <p className="mt-3 text-sm text-brand-muted">
-          {status === "cancelled"
-            ? "You can return to checkout to try again."
-            : "If you were charged, please contact support with your payment details."}
+          {status === "cancelled" ? (
+            "You can return to checkout to try again."
+          ) : status === "error" ? (
+            <>
+              If you were charged, please contact{" "}
+              <a className="text-brand-gold underline" href={`mailto:${SUPPORT_EMAIL}`}>
+                {SUPPORT_EMAIL}
+              </a>{" "}
+              with your payment details.
+            </>
+          ) : (
+            "If you were charged, please contact support with your payment details."
+          )}
         </p>
         {(status === "failed" || status === "cancelled") && (
           <p className="mt-2 text-xs text-brand-muted">
             If you continue to have issues, contact{" "}
-            <a className="text-brand-gold underline" href="mailto:support@jqdgroup.com">
-              support@jqdgroup.com
+            <a className="text-brand-gold underline" href={`mailto:${SUPPORT_EMAIL}`}>
+              {SUPPORT_EMAIL}
             </a>{" "}
             and include your order reference.
           </p>

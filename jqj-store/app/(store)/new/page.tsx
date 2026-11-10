@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import CollectionView from "@/components/product/CollectionView";
 import { products } from "@/data/products";
+import { BRAND_NAME } from "@/lib/brand";
 
 export function generateMetadata({
   searchParams,
@@ -12,13 +13,13 @@ export function generateMetadata({
   return {
     title: "New Natural Stone Jewelry",
     description:
-      "Shop new natural stone jewelry, recent releases, and limited pieces from JQD Group.",
+      `Shop new natural stone jewelry, recent releases, and limited pieces from ${BRAND_NAME}.`,
     alternates: { canonical: "/new" },
     robots: isFiltered ? { index: false, follow: true } : undefined,
     openGraph: {
-      title: "New Natural Stone Jewelry | JQD Group",
+      title: `New Natural Stone Jewelry | ${BRAND_NAME}`,
       description:
-        "Shop new natural stone jewelry, recent releases, and limited pieces from JQD Group.",
+        `Shop new natural stone jewelry, recent releases, and limited pieces from ${BRAND_NAME}.`,
       url: "/new",
     },
   };

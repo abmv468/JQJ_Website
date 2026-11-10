@@ -11,6 +11,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { BRAND_NAME } from "@/lib/brand";
 import { formatPrice } from "@/lib/utils";
 import {
   formatOrderStatusLabel,
@@ -758,7 +759,7 @@ export default function AdminPage() {
         {tab === "settings" && (
           <div className="max-w-lg space-y-4 border border-brand-border p-6 text-sm">
             <Row label="Admin Email" value={adminEmail ?? "Not set"} />
-            <Row label="Store Name" value="JQD Group" />
+            <Row label="Store Name" value={BRAND_NAME} />
             <Row label="Currency" value="User selectable (USD/EUR/GBP/CAD/AUD)" />
             <Row label="Airwallex Mode" value="Server-configured (default sandbox)" />
             <Row label="COD Fee" value={formatPrice(20)} />
