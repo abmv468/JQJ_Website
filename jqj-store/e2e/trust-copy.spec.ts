@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { RETURNS_DAYS, TRUST_LINE } from "../lib/policy";
+import { RETURNS_DAYS } from "../lib/policy";
 
 const WITHDRAWN_TRUST_LINE = "Hand-finished natural stone jewellery · Secure checkout";
 
@@ -14,8 +14,7 @@ async function openPage(page: Page, url: string) {
   return html;
 }
 
-test("home has no fabricated reviews and no trust line while v4 is pending", async ({ page }) => {
-  expect(TRUST_LINE).toBe("");
+test("home has no fabricated reviews and no withdrawn trust line", async ({ page }) => {
   await openPage(page, "/");
   await expect(page.getByText(WITHDRAWN_TRUST_LINE)).toHaveCount(0);
   await expect(page.getByText(`${RETURNS_DAYS}-day returns`)).toBeVisible();
@@ -31,6 +30,7 @@ test("a necklace page has no ratings and states the return window", async ({ pag
       `Returns are accepted within ${RETURNS_DAYS} days of delivery. Customers pay return shipping.`
     )
   ).toBeVisible();
+  await expect(page.getByText("Designed in Hong Kong")).toBeVisible();
   await expect(page.getByText(/first resize/i)).toHaveCount(0);
   await expect(page.getByText(/Complimentary UPS/i)).toHaveCount(0);
 });
@@ -86,7 +86,7 @@ test("returns, shipping, and FAQ copy share RETURNS_DAYS", async ({ page }) => {
 
 test("the loyalty page no longer promises collector benefits", async ({ page }) => {
   await openPage(page, "/loyalty");
-  await expect(page.getByText("Use the newsletter form in the footer to receive updates.")).toBeVisible();
+  await expect(page.getByText("Join our list for new pieces and updates.")).toBeVisible();
   await expect(page.getByText(/collector benefits/i)).toHaveCount(0);
   await expect(page.getByText("Join our list for new pieces and atelier news.")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Collector Updates" })).toBeVisible();

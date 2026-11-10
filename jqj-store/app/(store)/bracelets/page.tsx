@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import CollectionView from "@/components/product/CollectionView";
 import { getProductsByCategory } from "@/data/products";
-import { BRACELETS_SUBTITLE } from "@/lib/policy";
 
 export function generateMetadata({
   searchParams,
@@ -36,10 +35,7 @@ export default function BraceletsPage({
     <CollectionView
       title="Bracelets"
       limitedTitle="Limited Edition Bracelets"
-      subtitle={
-        BRACELETS_SUBTITLE ||
-        "Museum-inspired bracelet designs, hand-finished in our atelier with carefully selected natural stones."
-      }
+      subtitle="Museum-inspired bracelet designs, hand-finished in our atelier with carefully selected natural stones."
       products={items}
       editorialSections={[
         {

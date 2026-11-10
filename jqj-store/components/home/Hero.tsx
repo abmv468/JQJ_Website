@@ -1,10 +1,9 @@
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, Check } from "lucide-react";
-import { HERO_SUPPORTING, RETURNS_DAYS, TRUST_LINE } from "@/lib/policy";
+import { RETURNS_DAYS } from "@/lib/policy";
 
 const guarantees = [
-  ...(TRUST_LINE ? [TRUST_LINE] : []),
   "Tailored to your preferred fit",
   `${RETURNS_DAYS}-day returns`,
   "Museum-inspired craftsmanship since 2015",
@@ -33,13 +32,9 @@ export default function Hero() {
               Inspired by Eastern heritage and modern craftsmanship
             </p>
             <p className="mx-auto mt-6 max-w-3xl text-[15px] leading-7 text-white/74 sm:mt-7 sm:text-lg">
-              {HERO_SUPPORTING || (
-                <>
-                  Hand-finished bracelets and necklaces shaped by Eastern heritage,
-                  museum-inspired restraint, and the quiet character of natural
-                  gemstones.
-                </>
-              )}
+              Hand-finished bracelets and necklaces shaped by Eastern heritage,
+              museum-inspired restraint, and the quiet character of natural
+              gemstones.
             </p>
 
             <div className="mt-8 flex flex-wrap justify-center gap-3">

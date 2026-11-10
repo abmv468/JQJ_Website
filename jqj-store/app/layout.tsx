@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Instrument_Sans, Manrope } from "next/font/google";
 import "./globals.css";
 import { CurrencyProvider } from "@/context/CurrencyContext";
-import { SITE_DESCRIPTION } from "@/lib/policy";
 import { absoluteUrl, jsonLd, siteUrl } from "@/lib/seo";
 
 const heading = Instrument_Sans({
@@ -17,17 +16,14 @@ const body = Manrope({
   display: "swap",
 });
 
-const description =
-  SITE_DESCRIPTION ||
-  "Handcrafted bracelets and necklaces inspired by Eastern cultural heritage, museum collaborations, and natural gemstone artistry.";
-
 export const metadata: Metadata = {
   metadataBase: siteUrl,
   title: {
     default: "JQD Group | Natural Stone Jewelry with Cultural Craft",
     template: "%s | JQD Group",
   },
-  description,
+  description:
+    "Handcrafted bracelets and necklaces inspired by Eastern cultural heritage, museum collaborations, and natural gemstone artistry.",
   icons: { icon: "/JQD-logo.png" },
   alternates: { canonical: "/" },
   openGraph: {
@@ -36,7 +32,8 @@ export const metadata: Metadata = {
     url: "/",
     siteName: "JQD Group",
     title: "JQD Group | Natural Stone Jewelry with Cultural Craft",
-    description,
+    description:
+      "Handcrafted bracelets and necklaces inspired by Eastern cultural heritage, museum collaborations, and natural gemstone artistry.",
     images: [
       {
         url: "/products/hero-image.jpg",
@@ -49,7 +46,8 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "JQD Group | Natural Stone Jewelry with Cultural Craft",
-    description,
+    description:
+      "Handcrafted bracelets and necklaces inspired by Eastern cultural heritage, museum collaborations, and natural gemstone artistry.",
     images: ["/products/hero-image.jpg"],
   },
   robots: {

@@ -49,7 +49,7 @@ export const categories: { slug: CategorySlug; name: string }[] = [
 const sharedFeatures = [
   "Tailored for your preferred fit",
   "Natural gemstones selected for color and character",
-  "Crafted in our atelier with museum-inspired design values",
+  "Designed in Hong Kong",
 ];
 
 const braceletResizeFeature = "Complimentary first resize for new customers";
@@ -89,7 +89,7 @@ const catalog: Product[] = [
       "Bead Shape": "Round",
       Stone: "Red Leopard Skin Jasper",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -119,7 +119,7 @@ const catalog: Product[] = [
       "Bead Shape": "Irregular",
       Stone: "Raw Brown Tourmaline",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -145,7 +145,7 @@ const catalog: Product[] = [
       "Bead Shape": "Round",
       Stone: "Sodalite",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -171,7 +171,7 @@ const catalog: Product[] = [
       "Bead Shape": "Round",
       Stone: "Amethyst",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -197,7 +197,7 @@ const catalog: Product[] = [
       "Bead Shape": "Round",
       Stone: "Hematite Silver",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -223,7 +223,7 @@ const catalog: Product[] = [
       "Bead Shape": "Round",
       Stone: "Labradorite",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -252,7 +252,7 @@ const catalog: Product[] = [
       "Chain Length": "55cm",
       Stone: "Blue Lace Agate",
       Metal: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -276,7 +276,7 @@ const catalog: Product[] = [
       "Chain Length": "55cm",
       Stone: "Labradorite",
       Metal: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -304,7 +304,7 @@ const catalog: Product[] = [
       "Bead Size": "7mm",
       Stone: "Freshwater Pearl",
       Metal: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
 ];

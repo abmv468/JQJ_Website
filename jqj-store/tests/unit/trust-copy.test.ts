@@ -3,17 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { products } from "@/data/products";
-import {
-  BRACELETS_SUBTITLE,
-  CATALOG_FEATURE_LINE,
-  HERO_SUPPORTING,
-  HOME_EYEBROW,
-  HOME_LEAD,
-  LOYALTY_INTRO,
-  RETURNS_DAYS,
-  SITE_DESCRIPTION,
-  TRUST_LINE,
-} from "@/lib/policy";
+import { RETURNS_DAYS } from "@/lib/policy";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -42,17 +32,6 @@ describe("trust copy", () => {
     expect(RETURNS_DAYS).toBe(30);
   });
 
-  it("leaves BRAND v4 slots empty so pending wording is not shown", () => {
-    expect(TRUST_LINE).toBe("");
-    expect(HERO_SUPPORTING).toBe("");
-    expect(HOME_EYEBROW).toBe("");
-    expect(HOME_LEAD).toBe("");
-    expect(BRACELETS_SUBTITLE).toBe("");
-    expect(CATALOG_FEATURE_LINE).toBe("");
-    expect(SITE_DESCRIPTION).toBe("");
-    expect(LOYALTY_INTRO).toBe("");
-  });
-
   it("renders the return window from RETURNS_DAYS", () => {
     for (const relative of WINDOW_SOURCES) {
       const text = source(relative);
@@ -66,6 +45,9 @@ describe("trust copy", () => {
       expect(product).not.toHaveProperty("rating");
       expect(product).not.toHaveProperty("reviewCount");
       expect(product.tags).not.toContain("top-rated");
+      expect(product.features).toContain("Designed in Hong Kong");
+      expect(product.features.join(" ")).not.toMatch(/atelier/i);
+      expect(product.specs.Origin).toBe("Designed in Hong Kong");
     }
 
     const bracelets = products.filter((product) => product.category === "bracelets");
@@ -97,17 +79,18 @@ describe("trust copy", () => {
         expect(text, `${relative} contains ${phrase}`).not.toContain(phrase);
       }
     }
-    expect(source("components/home/Hero.tsx")).toContain("TRUST_LINE");
+    expect(source("components/home/Hero.tsx")).not.toContain("TRUST_LINE");
+    expect(source("lib/policy.ts")).not.toContain("TRUST_LINE");
     expect(source("components/home/Hero.tsx")).toContain("Museum-inspired craftsmanship since 2015");
   });
 
-  it("drops the collector-benefits promise without a new intro", () => {
+  it("uses the v4 loyalty line and does not promise collector benefits", () => {
     const text = source("app/(store)/loyalty/page.tsx");
-    expect(text).toContain("Use the newsletter form in the footer to receive updates.");
+    expect(text).toContain("Join our list for new pieces and updates.");
     expect(text).not.toMatch(/collector benefits/i);
     expect(text).toContain('title: "JQD Group Updates — JQD Group"');
     expect(text).toContain('title="Collector Updates"');
-    expect(text).toContain("LOYALTY_INTRO");
+    expect(text).not.toContain("LOYALTY_INTRO");
   });
 
   it("says the customer pays return shipping where returns are described", () => {
