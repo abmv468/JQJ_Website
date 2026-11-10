@@ -734,7 +734,8 @@ export async function releaseExpiredAirwallexReservations(
     .eq("inventory_reserved", true)
     .in("payment_status", pendingStatuses)
     .lt("created_at", cutoff)
-    .limit(50);
+    .order("created_at")
+    .limit(25);
   if (pending.error) throw pending.error;
 
   const failed = await supabase
@@ -744,7 +745,8 @@ export async function releaseExpiredAirwallexReservations(
     .eq("inventory_reserved", true)
     .eq("status", "failed")
     .or("payment_status.is.null,payment_status.neq.succeeded")
-    .limit(50);
+    .order("created_at")
+    .limit(25);
   if (failed.error) throw failed.error;
 
   const staleOrders = new Map<
@@ -759,32 +761,35 @@ export async function releaseExpiredAirwallexReservations(
     staleOrders.set(row.id, row);
   }
 
-  const batch = Array.from(staleOrders.values()).slice(0, 50);
-  for (const order of batch) {
-    if (!order.inventory_reserved) continue;
-    // Claim the row before restore. restore_order_inventory returns no stock once
-    // inventory_reserved is false, so this update leaves that flag set and the
-    // restore below clears it. A second sweep, or a payment that landed first,
-    // matches no row and does not restore.
-    let claim = supabase
-      .from("orders")
-      .update({
-        payment_status: "abandoned",
-        status: "failed",
-        fulfillment_status: "payment_failed",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", order.id)
-      .eq("inventory_reserved", true)
-      .or("payment_status.is.null,payment_status.neq.succeeded")
-      .neq("status", "succeeded");
-    claim =
-      order.status === "failed"
-        ? claim.eq("status", "failed")
-        : claim.in("payment_status", pendingStatuses);
-    const { data: released, error: updateError } = await claim.select("id").maybeSingle();
-    if (updateError) throw updateError;
-    if (!released) continue;
-    await restoreInventoryForOrder(supabase, order.id);
+  for (const order of staleOrders.values()) {
+    try {
+      if (!order.inventory_reserved) continue;
+      // Claim the row before restore. restore_order_inventory returns no stock once
+      // inventory_reserved is false, so this update leaves that flag set and the
+      // restore below clears it. A second sweep, or a payment that landed first,
+      // matches no row and does not restore.
+      let claim = supabase
+        .from("orders")
+        .update({
+          payment_status: "abandoned",
+          status: "failed",
+          fulfillment_status: "payment_failed",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", order.id)
+        .eq("inventory_reserved", true)
+        .or("payment_status.is.null,payment_status.neq.succeeded")
+        .neq("status", "succeeded");
+      claim =
+        order.status === "failed"
+          ? claim.eq("status", "failed")
+          : claim.in("payment_status", pendingStatuses);
+      const { data: released, error: updateError } = await claim.select("id").maybeSingle();
+      if (updateError) throw updateError;
+      if (!released) continue;
+      await restoreInventoryForOrder(supabase, order.id);
+    } catch {
+      console.error("[reservation-release]", order.id);
+    }
   }
 }
