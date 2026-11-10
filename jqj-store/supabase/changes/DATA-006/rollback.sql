@@ -7,11 +7,14 @@
 --      a PostgREST select/update naming it fails (PGRST204 / 42703); in the
 --      payment-success path that would break confirmation handling.
 --   2. Then run this file.
--- Guard: refuses (and changes nothing) while any row still has a claim
--- timestamp, because dropping it discards the email de-duplication record
--- and a re-run of the sender could email the customer twice. To drop anyway
--- (CTO decision, after step 1), run in the same session first:
---   select set_config('jqd.data006_rollback_force', 'yes', false);
+-- Guard (CTO decision, no override): refuses with P0001 and changes nothing
+-- while ANY row has confirmation_email_claimed_at set. Dropping it would
+-- discard the email de-duplication record (a re-run of the sender could
+-- email the customer twice). BE-016's success step keeps claimed_at set, so
+-- once any confirmation email has been sent this file will always refuse;
+-- removing the column after that needs a new reviewed change approved by CTO
+-- and the Owner. There is deliberately no session setting or flag to skip
+-- the guard.
 -- Only counts are read; no customer data.
 -- Idempotent: a no-op if the column (or the history row) is not there.
 
@@ -27,10 +30,10 @@ begin
                and attname = 'confirmation_email_claimed_at' and not attisdropped) then
     execute 'select count(*) from public.orders where confirmation_email_claimed_at is not null'
       into v_claimed;
-    if v_claimed > 0 and coalesce(current_setting('jqd.data006_rollback_force', true), '') <> 'yes' then
+    if v_claimed > 0 then
       raise exception 'DATA-006 rollback guard: % orders row(s) have confirmation_email_claimed_at set; refusing to drop the column', v_claimed
         using errcode = 'P0001',
-              hint = 'Disable app code using the column first; then set jqd.data006_rollback_force = yes in this session (CTO decision) and re-run.';
+              hint = 'This rollback has no override. Removing the column while claims exist needs a new reviewed change approved by CTO and the Owner.';
     end if;
     alter table public.orders drop column confirmation_email_claimed_at;
   end if;
