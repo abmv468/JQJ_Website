@@ -6,7 +6,7 @@ import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
-import { formatOrderStatusLabel, hasPartialRefund, isFullyRefunded } from "@/lib/order-lifecycle";
+import { formatCustomerOrderStatusLabel, hasPartialRefund, isFullyRefunded } from "@/lib/order-lifecycle";
 
 interface ProfileRow {
   first_name: string | null;
@@ -552,7 +552,7 @@ export default function AccountPage() {
                 </div>
                 <div className="flex flex-wrap items-center gap-3 text-sm">
                   <span>
-                    {formatOrderStatusLabel(order.status, order.payment_status)}
+                    {formatCustomerOrderStatusLabel(order.status, order.payment_status)}
                     {hasPartialRefund(Number(order.total_amount), Number(order.refunded_amount || 0)) && (
                       <span className="ml-2 text-xs text-brand-muted">(partial refund)</span>
                     )}
@@ -608,7 +608,7 @@ export default function AccountPage() {
                         <p>Status: {order.payment_status.replace(/_/g, " ").toUpperCase()}</p>
                       )}
                       {order.fulfillment_status && (
-                        <p>Fulfilment: {order.fulfillment_status.replace(/_/g, " ").toUpperCase()}</p>
+                        <p>Fulfilment: {formatCustomerOrderStatusLabel(order.fulfillment_status)}</p>
                       )}
                       <p>Shipping: {formatFromUsd(order.shipping_amount || 0)}</p>
                       <p className="text-brand-gold">Total: {formatFromUsd(order.total_amount)}</p>

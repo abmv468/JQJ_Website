@@ -99,3 +99,119 @@ export function formatOrderStatusLabel(status: string, paymentStatus?: string | 
   if (raw === "delivered") return "Delivered";
   return raw.charAt(0).toUpperCase() + raw.slice(1).replace(/_/g, " ");
 }
+
+/** Customer account copy for statuses that are not a named pipeline or legacy label. */
+export const CUSTOMER_ORDER_STATUS_FALLBACK = "Processing";
+
+const CUSTOMER_STATUS_LABELS: Record<string, string> = {
+  pending: "Pending",
+  processing: "Processing",
+  cancelled: "Cancelled",
+  refunded: "Refunded",
+  packed: "Packed",
+  shipped: "Shipped",
+  delivered: "Delivered",
+};
+
+/**
+ * Account-page label. Inventory exceptions and other non-pipeline slugs
+ * stay on this fallback. Admin attention copy is not used here.
+ */
+export function formatCustomerOrderStatusLabel(
+  status: string | null | undefined,
+  paymentStatus?: string | null
+): string {
+  const raw = (status ?? "").trim().toLowerCase();
+  if (!raw) return "Unknown";
+  if (raw === "paid") {
+    return paymentStatus != null && !isSucceededPaymentStatus(paymentStatus) ? "Unpaid" : "Paid";
+  }
+  return CUSTOMER_STATUS_LABELS[raw] ?? CUSTOMER_ORDER_STATUS_FALLBACK;
+}
+
+/** Shown only when payment_status is succeeded. Fulfillment status never supplies this word. */
+export const INVENTORY_EXCEPTION_LABEL = "Paid \u2013 stock issue (action needed)";
+
+/**
+ * Same attention treatment as the product-card low-stock badge
+ * (gold border, gold text, dark fill). Not the plain fulfillment select.
+ */
+export const ORDER_STATUS_ATTENTION_CLASS =
+  "inline-flex rounded-full border border-brand-gold/45 bg-black/58 px-2.5 py-1 text-[11px] leading-snug text-brand-gold";
+
+export const ORDER_STATUS_NEUTRAL_CLASS = "text-xs text-brand-muted";
+
+export type OrderStatusTreatment = "pipeline" | "attention" | "neutral";
+
+export type OrderStatusPresentation = {
+  label: string;
+  flagged: boolean;
+  treatment: OrderStatusTreatment;
+  className: string;
+};
+
+export type AdminOrderStatusInput = {
+  status?: string | null;
+  fulfillmentStatus?: string | null;
+  paymentStatus?: string | null;
+};
+
+export type AdminOrderStatusPresentation = OrderStatusPresentation & {
+  showDropdown: boolean;
+  selectStatus: string;
+};
+
+/**
+ * Attention copy for a stored inventory_exception.
+ * "Paid" is chosen only from payment_status. fulfillment_status is ignored here.
+ */
+export function formatInventoryExceptionLabel(paymentStatus: string): string {
+  const raw = paymentStatus.trim();
+  if (isSucceededPaymentStatus(raw)) return INVENTORY_EXCEPTION_LABEL;
+  return `Stock issue \u2013 payment ${raw} (action needed)`;
+}
+
+export function getOrderStatusPresentation(status: string): OrderStatusPresentation {
+  if (!normalizeOrderStatus(status)) {
+    return {
+      label: status,
+      flagged: false,
+      treatment: "neutral",
+      className: ORDER_STATUS_NEUTRAL_CLASS,
+    };
+  }
+  return {
+    label: formatOrderStatusLabel(status),
+    flagged: false,
+    treatment: "pipeline",
+    className: "",
+  };
+}
+
+export function getAdminOrderStatusPresentation(
+  input: AdminOrderStatusInput
+): AdminOrderStatusPresentation {
+  const status = input.status ?? "";
+  const fulfillmentStatus = input.fulfillmentStatus ?? "";
+  const exceptionSource = [status, fulfillmentStatus].find((value) => isInventoryExceptionStatus(value));
+
+  if (exceptionSource) {
+    const rawPayment = (input.paymentStatus ?? "").trim();
+    return {
+      label: formatInventoryExceptionLabel(rawPayment.length > 0 ? rawPayment : "unknown"),
+      flagged: true,
+      treatment: "attention",
+      className: ORDER_STATUS_ATTENTION_CLASS,
+      showDropdown: true,
+      selectStatus: exceptionSource,
+    };
+  }
+
+  const displayed = fulfillmentStatus.length > 0 ? fulfillmentStatus : status;
+  const presentation = getOrderStatusPresentation(displayed);
+  return {
+    ...presentation,
+    showDropdown: true,
+    selectStatus: displayed,
+  };
+}
