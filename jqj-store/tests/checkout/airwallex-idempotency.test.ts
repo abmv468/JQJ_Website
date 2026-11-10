@@ -5,6 +5,7 @@ import { POST as verify } from "@/app/api/checkout/airwallex/verify/route";
 import { POST as webhook } from "@/app/api/webhooks/airwallex/route";
 import { sendOrderEmails } from "@/lib/email";
 import { createAirwallexPaymentIntent, retrieveAirwallexPaymentIntent } from "@/lib/payments/airwallex";
+import { applyAirwallexPaymentIntentStatus } from "@/lib/payments/airwallex-orders";
 import {
   checkoutCustomer,
   checkoutItem,
@@ -596,5 +597,115 @@ describe("Airwallex checkout idempotency", () => {
     expect(sameBody.clientSecret).toBe(firstBody.clientSecret);
     expect(sameBody.intentId).toBe(firstBody.intentId);
     expect(db.rowsOf("orders")).toHaveLength(2);
+  });
+
+  it("does not mark an already paid order failed when a later checkout update throws", async () => {
+    vi.mocked(createAirwallexPaymentIntent).mockImplementation(async (input) => ({
+      id: "int_paid",
+      request_id: input.requestId,
+      status: "REQUIRES_PAYMENT_METHOD",
+      amount: input.amount,
+      currency: input.currency,
+      client_secret: "secret_paid",
+      merchant_order_id: input.merchantOrderId,
+    }));
+
+    const first = await checkout(checkoutRequest({ idempotencyKey: KEY_A }));
+    expect(first.status).toBe(200);
+    const firstBody = await first.json();
+    db.rowsOf("orders")[0].payment_status = "succeeded";
+    db.rowsOf("orders")[0].status = "paid";
+    db.rowsOf("orders")[0].fulfillment_status = "paid";
+    db.rowsOf("payments")[0].status = "succeeded";
+
+    let failedReferenceUpdate = false;
+    db.failWhen = (table, op) => {
+      if (!failedReferenceUpdate && table === "orders" && op === "update") {
+        failedReferenceUpdate = true;
+        return dbError("reference update failed", "XX000");
+      }
+      return null;
+    };
+
+    const second = await checkout(checkoutRequest({ idempotencyKey: KEY_B }));
+    expect(second.status).toBe(500);
+    expect(db.rowsOf("orders").find((row) => row.id === firstBody.orderId)).toMatchObject({
+      payment_status: "succeeded",
+      status: "paid",
+      fulfillment_status: "paid",
+    });
+  });
+
+  it("does not overwrite a succeeded payment row from a non-success status", async () => {
+    db.seed("orders", [
+      {
+        id: "order-paid",
+        status: "paid",
+        payment_provider: "airwallex",
+        payment_status: "succeeded",
+        fulfillment_status: "paid",
+        inventory_reserved: true,
+        total_amount: 115,
+        currency: "USD",
+      },
+    ]);
+    db.seed("order_items", [
+      {
+        id: "item-paid",
+        order_id: "order-paid",
+        product_id: "prod-amethyst",
+        variant_id: null,
+        quantity: 1,
+        product_name: "Amethyst Bracelet XV (5mm)",
+        price_at_purchase: 100,
+      },
+    ]);
+    db.seed("payments", [
+      {
+        id: "pay-paid",
+        order_id: "order-paid",
+        provider: "airwallex",
+        provider_payment_intent_id: "int_paid_row",
+        provider_request_id: "req-paid",
+        status: "requires_payment_method",
+        paid_at: "2026-01-01T00:00:00.000Z",
+        amount: 115,
+        currency: "USD",
+      },
+    ]);
+    db.failWhen = (table, op) => {
+      if (table === "orders" && op === "select") {
+        const payment = db.rowsOf("payments").find((row) => row.id === "pay-paid");
+        if (payment) payment.status = "succeeded";
+      }
+      return null;
+    };
+
+    await applyAirwallexPaymentIntentStatus(db as never, {
+      paymentIntentId: "int_paid_row",
+      nextStatus: "requires_payment_method",
+    });
+
+    const payment = db.rowsOf("payments").find((row) => row.id === "pay-paid");
+    expect(payment).toMatchObject({
+      status: "succeeded",
+      paid_at: "2026-01-01T00:00:00.000Z",
+    });
+    expect(db.rowsOf("orders").find((row) => row.id === "order-paid")).toMatchObject({
+      payment_status: "succeeded",
+      status: "paid",
+    });
+    expect(db.rpcCalls.filter((call) => call.fn === "restore_order_inventory")).toHaveLength(0);
+    expect(
+      db.writes.filter(
+        (write) =>
+          write.table === "payments" &&
+          write.op === "update" &&
+          write.matched === 1 &&
+          write.payload != null &&
+          !Array.isArray(write.payload) &&
+          write.payload.paid_at === null
+      )
+    ).toHaveLength(0);
   });
 });

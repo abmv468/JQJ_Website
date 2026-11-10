@@ -486,7 +486,8 @@ export async function applyAirwallexPaymentIntentStatus(
       paid_at: null,
       updated_at: now,
     })
-    .eq("id", payment.id);
+    .eq("id", payment.id)
+    .neq("status", "succeeded");
   if (paymentUpdateError) throw paymentUpdateError;
 
   const { data: guardedOrder, error: orderUpdateError } = await supabase
@@ -689,8 +690,7 @@ export async function releaseExpiredAirwallexReservations(
   const staleOrders = (data ?? []) as Array<{ id: string; inventory_reserved: boolean }>;
   for (const order of staleOrders) {
     if (!order.inventory_reserved) continue;
-    await restoreInventoryForOrder(supabase, order.id);
-    const { error: updateError } = await supabase
+    const { data: released, error: updateError } = await supabase
       .from("orders")
       .update({
         payment_status: "abandoned",
@@ -698,7 +698,12 @@ export async function releaseExpiredAirwallexReservations(
         fulfillment_status: "payment_failed",
         updated_at: new Date().toISOString(),
       })
-      .eq("id", order.id);
+      .eq("id", order.id)
+      .in("payment_status", pendingStatuses)
+      .select("id")
+      .maybeSingle();
     if (updateError) throw updateError;
+    if (!released) continue;
+    await restoreInventoryForOrder(supabase, order.id);
   }
 }

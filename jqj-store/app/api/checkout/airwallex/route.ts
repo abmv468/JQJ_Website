@@ -508,7 +508,8 @@ export async function POST(req: Request) {
           fulfillment_status: "payment_failed",
           updated_at: new Date().toISOString(),
         })
-        .eq("id", orderId);
+        .eq("id", orderId)
+        .or("payment_status.is.null,payment_status.neq.succeeded");
       if (markFailedError) {
         console.error("[airwallex-checkout] failed to mark order as failed", markFailedError);
       }
