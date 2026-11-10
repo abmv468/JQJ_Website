@@ -14,6 +14,21 @@ describe("isValidSingleEmail", () => {
     expect(isValidSingleEmail("a@x.com, b@y.com")).toBe(false);
   });
 
+  it("rejects display and header characters", () => {
+    expect(isValidSingleEmail("<buyer@example.com>")).toBe(false);
+    expect(isValidSingleEmail("buyer@example.com>")).toBe(false);
+    expect(isValidSingleEmail('buyer"name@example.com')).toBe(false);
+    expect(isValidSingleEmail("buyer(name)@example.com")).toBe(false);
+    expect(isValidSingleEmail("buyer[name]@example.com")).toBe(false);
+    expect(isValidSingleEmail("buyer\\name@example.com")).toBe(false);
+  });
+
+  it("returns false for a non-string value", () => {
+    expect(isValidSingleEmail(42)).toBe(false);
+    expect(isValidSingleEmail(null)).toBe(false);
+    expect(isValidSingleEmail(["buyer@example.com"])).toBe(false);
+  });
+
   it("rejects separators, line breaks, whitespace, and control characters", () => {
     expect(isValidSingleEmail("a@x.com;b@y.com")).toBe(false);
     expect(isValidSingleEmail("buyer@example.com\nBcc:evil@example.com")).toBe(false);

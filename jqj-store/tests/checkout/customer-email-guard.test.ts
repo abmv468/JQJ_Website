@@ -4,6 +4,7 @@ import { POST as postAirwallex } from "@/app/api/checkout/airwallex/route";
 import { POST as postAirwallexVerify } from "@/app/api/checkout/airwallex/verify/route";
 import { POST as postCod } from "@/app/api/checkout/cod/route";
 import { POST as postWebhook } from "@/app/api/webhooks/airwallex/route";
+import { sendOrderEmails } from "@/lib/email";
 import { retrieveAirwallexPaymentIntent, createAirwallexPaymentIntent } from "@/lib/payments/airwallex";
 import {
   checkoutCustomer,
@@ -144,6 +145,7 @@ describe("customer email is a single mailbox", () => {
     errorSpy?.mockRestore();
     delete process.env.RESEND_API_KEY;
     delete process.env.ADMIN_EMAIL;
+    delete process.env.EMAIL_FROM;
   });
 
   beforeEach(() => {
@@ -260,6 +262,59 @@ describe("customer email is a single mailbox", () => {
     });
     expect(sendEmail).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("skips an invalid ADMIN_EMAIL and logs only the env name", async () => {
+    const injected = "admin)box@example.com";
+    process.env.ADMIN_EMAIL = injected;
+    process.env.EMAIL_FROM = "orders@example.com";
+    await sendOrderEmails({
+      orderId: "order-admin",
+      customerName: "Ada",
+      customerEmail: "buyer@example.com",
+      items: [{ name: "Bracelet", quantity: 1, price: 100 }],
+      subtotal: 100,
+      shipping: 15,
+      total: 115,
+      paymentMethod: "cod",
+      currency: "USD",
+      shippingAddress: { address: "1 Collector Lane", city: "Austin", region: "TX", country: "United States" },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(sendEmail.mock.calls[0][0]).toMatchObject({
+      to: "buyer@example.com",
+      from: "orders@example.com",
+    });
+    const logged = errorSpy?.mock.calls.map((args) => args.map(String).join(" ")).join("\n") ?? "";
+    expect(logged).toContain("ADMIN_EMAIL");
+    expect(logged).not.toContain(injected);
+    expect(logged).not.toContain("admin)");
+  });
+
+  it("skips both sends when EMAIL_FROM is invalid and logs only the env name", async () => {
+    const injected = "bad<from>@example.com";
+    process.env.EMAIL_FROM = injected;
+    process.env.ADMIN_EMAIL = "desk@example.com";
+    await sendOrderEmails({
+      orderId: "order-from",
+      customerName: "Ada",
+      customerEmail: "buyer@example.com",
+      items: [{ name: "Bracelet", quantity: 1, price: 100 }],
+      subtotal: 100,
+      shipping: 15,
+      total: 115,
+      paymentMethod: "airwallex",
+      currency: "USD",
+      shippingAddress: { address: "1 Collector Lane", city: "Austin", region: "TX", country: "United States" },
+    });
+
+    expect(sendEmail).not.toHaveBeenCalled();
+    const logged = errorSpy?.mock.calls.map((args) => args.map(String).join(" ")).join("\n") ?? "";
+    expect(logged).toContain("EMAIL_FROM");
+    expect(logged).not.toContain(injected);
+    expect(logged).not.toContain("bad<from>");
+    expect(logged).not.toContain("desk@example.com");
   });
 
   it("skips a stored invalid address and the paid webhook still succeeds", async () => {

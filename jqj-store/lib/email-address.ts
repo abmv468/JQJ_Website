@@ -7,8 +7,11 @@ export function normalizeSingleEmail(value: string): string {
   return value.trim();
 }
 
+const DISPLAY_OR_HEADER_CHARS = /[<>"()[\]\\]/;
+
 function hasForbiddenCharacter(value: string): boolean {
   if (value.includes(",") || value.includes(";")) return true;
+  if (DISPLAY_OR_HEADER_CHARS.test(value)) return true;
   for (let index = 0; index < value.length; index += 1) {
     const code = value.charCodeAt(index);
     if (code <= 32 || code === 127 || (code >= 128 && code <= 159)) return true;
@@ -18,9 +21,10 @@ function hasForbiddenCharacter(value: string): boolean {
 
 /**
  * One mailbox only: local@domain, with a dot in the domain.
- * Rejects extra recipients and header injection after trimming.
+ * Rejects extra recipients, header characters, and non-strings.
  */
-export function isValidSingleEmail(value: string): boolean {
+export function isValidSingleEmail(value: unknown): boolean {
+  if (typeof value !== "string") return false;
   const email = normalizeSingleEmail(value);
   if (email.length === 0 || email.length > MAX_SINGLE_EMAIL_LENGTH) return false;
   if (hasForbiddenCharacter(email)) return false;

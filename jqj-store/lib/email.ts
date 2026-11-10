@@ -94,10 +94,23 @@ function buildHtml(data: OrderEmailData, heading: string): string {
   </div>`;
 }
 
+function envAddress(name: "EMAIL_FROM" | "ADMIN_EMAIL", fallback = ""): string | null {
+  const raw = process.env[name];
+  const candidate = typeof raw === "string" && raw.trim() ? raw : fallback;
+  if (!candidate) return null;
+  if (!isValidSingleEmail(candidate)) {
+    if (typeof raw === "string" && raw.trim()) {
+      console.error("[email] skipped send, invalid env", name);
+    }
+    return null;
+  }
+  return normalizeSingleEmail(candidate);
+}
+
 export async function sendOrderEmails(data: OrderEmailData): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM || "orders@danvapes.shop";
-  const adminEmail = process.env.ADMIN_EMAIL;
+  const from = envAddress("EMAIL_FROM", "orders@danvapes.shop");
+  const adminEmail = envAddress("ADMIN_EMAIL");
   const customerEmail = normalizeSingleEmail(
     typeof data.customerEmail === "string" ? data.customerEmail : ""
   );
@@ -115,7 +128,7 @@ export async function sendOrderEmails(data: OrderEmailData): Promise<void> {
   const resend = new Resend(apiKey);
 
   try {
-    if (customerEmailOk) {
+    if (customerEmailOk && from) {
       await resend.emails.send({
         from,
         to: customerEmail,
@@ -124,7 +137,7 @@ export async function sendOrderEmails(data: OrderEmailData): Promise<void> {
       });
     }
 
-    if (adminEmail) {
+    if (adminEmail && from) {
       await resend.emails.send({
         from,
         to: adminEmail,
