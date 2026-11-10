@@ -36,16 +36,22 @@
 -- UNIQUE INDEX, not CONCURRENTLY: CONCURRENTLY cannot run in a transaction
 -- block, and on an 11-row table the plain build holds its lock for
 -- milliseconds.
--- lock_timeout is transaction-scoped (set_config(..., true)), so a long
--- transaction already holding a lock on orders makes this fail fast and roll
--- back instead of queueing (a queued ACCESS EXCLUSIVE request would stall every
--- later read and write on orders, including checkout).
+-- lock_timeout (r3): a plain session-level SET at the top, so EVERY statement
+-- in this file is covered in every runner, including autocommit psql -f where
+-- a transaction-scoped setting would expire after its own statement. A long
+-- transaction already holding a lock on orders makes each statement fail fast
+-- (3s) instead of queueing (a queued ACCESS EXCLUSIVE request would stall
+-- every later read and write on orders, including checkout). It can't leak:
+-- Supabase CLI 3.1.0 runs RESET ALL before every migration file
+-- (migration-apply.ts resetConnectionState); apply_via_connector.sql RESETs
+-- both settings before its COMMIT; psql/db-gate sessions end with the file.
+-- The DO blocks also set it transaction-locally (belt and braces).
 --
 -- Idempotent: every step is IF NOT EXISTS / guarded, so a re-run is a no-op.
 -- Rollback: see rollback.sql next to this file (not part of the migration).
 
-select set_config('lock_timeout', '3s', true);
-select set_config('statement_timeout', '60s', true);
+set lock_timeout = '3s';
+set statement_timeout = '60s';
 
 -- ---------- A) checkout attempt key ----------
 alter table public.orders
@@ -59,6 +65,7 @@ create unique index if not exists orders_provider_checkout_attempt_key
 
 do $attach$
 begin
+  perform set_config('lock_timeout', '3s', true);
   if not exists (
     select 1
     from pg_constraint
