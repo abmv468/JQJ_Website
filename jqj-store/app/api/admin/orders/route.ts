@@ -8,6 +8,7 @@ import {
   isFullyRefunded,
   isInventoryExceptionStatus,
   isKnownAdminOrderStatus,
+  isSucceededPaymentStatus,
   normalizeOrderStatus,
 } from "@/lib/order-lifecycle";
 import {
@@ -49,11 +50,8 @@ export async function GET(req: Request) {
       .order("created_at", { ascending: false });
     if (error) throw error;
     return NextResponse.json({ orders: data }, { headers: noStore });
-  } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to load orders" },
-      { status: 500 }
-    );
+  } catch {
+    return NextResponse.json({ error: "Internal error" }, { status: 500, headers: noStore });
   }
 }
 
@@ -75,7 +73,7 @@ export async function PUT(req: Request) {
     const supabase = createAdminClient();
     const { data: existing, error: existingError } = await supabase
       .from("orders")
-      .select("id, status, total_amount, refunded_amount")
+      .select("id, status, sales_channel, payment_status, total_amount, refunded_amount, payments(status)")
       .eq("id", id)
       .single();
 
@@ -84,10 +82,32 @@ export async function PUT(req: Request) {
     const totalAmount = Number(existing.total_amount ?? 0);
     const refundedAmount = Number(existing.refunded_amount ?? 0);
     const rawStatus = (existing.status ?? "").trim().toLowerCase();
+    const fullyRefunded = isFullyRefunded(totalAmount, refundedAmount);
+    const paymentRows = (existing.payments ?? []) as Array<{ status?: string | null }>;
+    const paymentCaptured =
+      isSucceededPaymentStatus(existing.payment_status) ||
+      paymentRows.some((payment) => isSucceededPaymentStatus(payment.status));
 
-    if (nextStatus === "refunded" && !isFullyRefunded(totalAmount, refundedAmount)) {
+    if (nextStatus === "refunded" && !fullyRefunded) {
       return NextResponse.json(
         { error: "Order can be marked refunded only when total refunded amount is complete" },
+        { status: 400 }
+      );
+    }
+
+    if (isProtectedOrder(existing) && !(nextStatus === "refunded" && fullyRefunded)) {
+      return NextResponse.json(
+        { error: "Cancelled or test orders cannot be moved along the fulfillment pipeline" },
+        { status: 400 }
+      );
+    }
+
+    if (
+      (nextStatus === "paid" || nextStatus === "processing") &&
+      !paymentCaptured
+    ) {
+      return NextResponse.json(
+        { error: "Order can be marked paid or processing only after the payment has succeeded" },
         { status: 400 }
       );
     }
@@ -124,11 +144,8 @@ export async function PUT(req: Request) {
       .single();
     if (error) throw error;
     return NextResponse.json({ order: data }, { headers: noStore });
-  } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to update order" },
-      { status: 500 }
-    );
+  } catch {
+    return NextResponse.json({ error: "Internal error" }, { status: 500, headers: noStore });
   }
 }
 
@@ -358,10 +375,7 @@ export async function POST(req: Request) {
     const updatedOrder = await loadOrderWithRelations(supabase, id);
 
     return NextResponse.json({ order: updatedOrder }, { headers: noStore });
-  } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to process refund" },
-      { status: 500 }
-    );
+  } catch {
+    return NextResponse.json({ error: "Internal error" }, { status: 500, headers: noStore });
   }
 }

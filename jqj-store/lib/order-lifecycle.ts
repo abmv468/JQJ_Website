@@ -17,6 +17,12 @@ export function isInventoryExceptionStatus(value: string) {
   return value.trim().toLowerCase() === INVENTORY_EXCEPTION_STATUS;
 }
 
+export function isSucceededPaymentStatus(value: string | null | undefined) {
+  return (value ?? "").trim().toLowerCase() === "succeeded";
+}
+
+export type AdminStatusOption = OrderStatus | "processing" | "cancelled" | "inventory_exception";
+
 export function canLeaveInventoryException(next: string) {
   return INVENTORY_EXCEPTION_NEXT.has(next.trim().toLowerCase());
 }
@@ -44,7 +50,15 @@ export function normalizeOrderStatus(value: string): OrderStatus | null {
   return LEGACY_ORDER_STATUS_MAP[normalized] ?? null;
 }
 
-export function getOrderStatusOptions(current: string): OrderStatus[] {
+export function getOrderStatusOptions(
+  current: string,
+  paymentStatus?: string | null
+): AdminStatusOption[] {
+  if (isInventoryExceptionStatus(current)) {
+    const next: AdminStatusOption[] = ["processing", "cancelled", "refunded"];
+    if (isSucceededPaymentStatus(paymentStatus)) next.unshift("paid");
+    return ["inventory_exception", ...next];
+  }
   const normalized = normalizeOrderStatus(current);
   if (!normalized) return ["paid"];
   if (normalized === "refunded" || normalized === "delivered") return [normalized];
@@ -69,7 +83,13 @@ export function hasPartialRefund(totalAmount: number, refundedAmount: number): b
   return refundedAmount > 0 && !isFullyRefunded(totalAmount, refundedAmount);
 }
 
-export function formatOrderStatusLabel(status: string): string {
-  const normalized = normalizeOrderStatus(status) ?? "paid";
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+export function formatOrderStatusLabel(status: string, paymentStatus?: string | null): string {
+  if (isInventoryExceptionStatus(status)) return "Inventory exception";
+  const normalized = normalizeOrderStatus(status);
+  if (normalized === "paid" && paymentStatus != null && !isSucceededPaymentStatus(paymentStatus)) {
+    return "Inventory exception";
+  }
+  const label = normalized ?? status.trim().toLowerCase().replace(/_/g, " ");
+  if (!label) return "Inventory exception";
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }

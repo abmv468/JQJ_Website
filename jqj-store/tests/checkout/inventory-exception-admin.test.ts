@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { POST, PUT } from "@/app/api/admin/orders/route";
+import { GET, POST, PUT } from "@/app/api/admin/orders/route";
 import { createAirwallexRefund } from "@/lib/payments/airwallex";
-import { createCheckoutDb, setActiveDb, type MemoryDb } from "../helpers/memory-db";
+import { createCheckoutDb, dbError, setActiveDb, type MemoryDb } from "../helpers/memory-db";
 
 vi.mock("@supabase/supabase-js", () => ({
   createClient: () => ({
@@ -65,6 +65,9 @@ function seedOrder(
     refunded_amount?: number;
     sales_channel?: string;
     payment_provider?: string;
+    payment_status?: string;
+    paymentRow?: "succeeded" | "requires_payment_method" | "none";
+    reserved?: boolean;
   }
 ) {
   db.seed("orders", [
@@ -73,9 +76,9 @@ function seedOrder(
       status: row.status,
       sales_channel: row.sales_channel ?? "website",
       payment_provider: row.payment_provider ?? "airwallex",
-      payment_status: "succeeded",
+      payment_status: row.payment_status ?? "succeeded",
       fulfillment_status: "payment_failed",
-      inventory_reserved: false,
+      inventory_reserved: row.reserved ?? false,
       total_amount: 115,
       refunded_amount: row.refunded_amount ?? 0,
       currency: "USD",
@@ -83,6 +86,7 @@ function seedOrder(
       customer_name: "Ada Lovelace",
     },
   ]);
+  if (row.paymentRow === "none") return;
   db.seed("payments", [
     {
       id: "pay-1",
@@ -90,7 +94,7 @@ function seedOrder(
       provider: "airwallex",
       provider_payment_intent_id: "int_1",
       provider_request_id: "req-1",
-      status: "succeeded",
+      status: row.paymentRow ?? "succeeded",
       amount: 115,
       currency: "USD",
     },
@@ -221,5 +225,113 @@ describe("inventory_exception admin actions", () => {
     const testOrder = await POST(refund());
     expect(testOrder.status).toBe(200);
     expect(createAirwallexRefund).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not mark an unpaid order paid or processing, and leaves stock alone", async () => {
+    db.rowsOf("products")[0].stock_count = 4;
+    seedOrder(db, {
+      status: "pending",
+      payment_status: "requires_payment_method",
+      paymentRow: "none",
+      reserved: true,
+    });
+
+    const paid = await PUT(put("paid", "Bearer admin-token"));
+    const processing = await PUT(put("processing", "Bearer admin-token"));
+
+    expect(paid.status).toBe(400);
+    expect(await paid.json()).toEqual({
+      error: "Order can be marked paid or processing only after the payment has succeeded",
+    });
+    expect(processing.status).toBe(400);
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      status: "pending",
+      payment_status: "requires_payment_method",
+      inventory_reserved: true,
+    });
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
+    expect(db.rowsOf("payments")).toEqual([]);
+    expect(db.rpcCalls.filter((call) => call.fn.includes("inventory"))).toEqual([]);
+    expect(db.writes.filter((write) => write.table === "orders" && write.op === "update")).toEqual([]);
+  });
+
+  it("accepts paid when only the payment row succeeded", async () => {
+    seedOrder(db, {
+      status: "inventory_exception",
+      payment_status: "requires_payment_method",
+      paymentRow: "succeeded",
+    });
+
+    const response = await PUT(put("paid", "Bearer admin-token"));
+
+    expect(response.status).toBe(200);
+    expect(db.rowsOf("orders")[0].status).toBe("paid");
+    expect(db.rowsOf("payments")[0].status).toBe("succeeded");
+  });
+
+  it("does not advance a cancelled or test order along the pipeline", async () => {
+    db.rowsOf("products")[0].stock_count = 4;
+    seedOrder(db, { status: "cancelled", reserved: true });
+
+    const packed = await PUT(put("packed", "Bearer admin-token"));
+    expect(packed.status).toBe(400);
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      status: "cancelled",
+      inventory_reserved: true,
+    });
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
+    expect(db.rowsOf("payments")[0].status).toBe("succeeded");
+    expect(db.writes.filter((write) => write.table === "orders" && write.op === "update")).toEqual([]);
+
+    db.rowsOf("orders")[0].status = "pending";
+    db.rowsOf("orders")[0].sales_channel = "test";
+    const paid = await PUT(put("paid", "Bearer admin-token"));
+    expect(paid.status).toBe(400);
+    expect(db.rowsOf("orders")[0].status).toBe("pending");
+    expect(db.rowsOf("orders")[0].sales_channel).toBe("test");
+  });
+
+  it("marks a protected order refunded only when the refund is already complete", async () => {
+    seedOrder(db, { status: "cancelled", sales_channel: "test", refunded_amount: 20 });
+
+    const early = await PUT(put("refunded", "Bearer admin-token"));
+    expect(early.status).toBe(400);
+    expect(db.rowsOf("orders")[0].status).toBe("cancelled");
+
+    db.rowsOf("orders")[0].refunded_amount = 115;
+    const done = await PUT(put("refunded", "Bearer admin-token"));
+    expect(done.status).toBe(200);
+    expect(db.rowsOf("orders")[0].status).toBe("refunded");
+  });
+
+  it("hides admin order failures behind a generic body", async () => {
+    const injected = dbError("driver-secret-xyz", "XX000");
+    db.failWhen = (table, op) => (table === "orders" && op === "select" ? injected : null);
+
+    const listed = await GET(
+      new Request("http://localhost:3000/api/admin/orders", {
+        headers: { authorization: "Bearer admin-token" },
+      })
+    );
+    const listedBody = await listed.json();
+    expect(listed.status).toBe(500);
+    expect(listedBody).toEqual({ error: "Internal error" });
+    expect(JSON.stringify(listedBody)).not.toContain("driver-secret-xyz");
+    expect(listed.headers.get("cache-control")).toBe("no-store");
+
+    db.failWhen = () => new Error("driver-secret-xyz") as never;
+    const updated = await PUT(put("paid", "Bearer admin-token"));
+    const updatedBody = await updated.json();
+    expect(updated.status).toBe(500);
+    expect(updatedBody).toEqual({ error: "Internal error" });
+    expect(JSON.stringify(updatedBody)).not.toContain("driver-secret-xyz");
+    expect(updated.headers.get("cache-control")).toBe("no-store");
+
+    const refunded = await POST(refund());
+    const refundedBody = await refunded.json();
+    expect(refunded.status).toBe(500);
+    expect(refundedBody).toEqual({ error: "Internal error" });
+    expect(JSON.stringify(refundedBody)).not.toContain("driver-secret-xyz");
+    expect(refunded.headers.get("cache-control")).toBe("no-store");
   });
 });
