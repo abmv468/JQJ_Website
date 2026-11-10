@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import CheckoutPage from "@/app/(store)/checkout/page";
 import { POST as postAirwallex } from "@/app/api/checkout/airwallex/route";
 import { POST as postCod } from "@/app/api/checkout/cod/route";
+import { COD_FEE, CARD_CURRENCY_NOTICE, COD_FREE_LABEL } from "@/lib/checkout-fees";
 import { convertUsdToCurrency, type SupportedCurrency } from "@/lib/currency";
 import {
   buildCheckoutSummary,
@@ -198,7 +199,7 @@ describe("checkout summary charge currency", () => {
   });
 
   it("shows every GBP-display line in USD and matches the COD order total", async () => {
-    const summary = summaryFromDb("GBP", COD_FEE_USD);
+    const summary = summaryFromDb("GBP", COD_FEE);
     const response = await postCod(
       new Request("http://localhost:3000/api/checkout/cod", {
         method: "POST",
@@ -216,14 +217,14 @@ describe("checkout summary charge currency", () => {
     const order = db.rowsOf("orders")[0];
     expect(summary.subtotalUsd).toBe(order.subtotal_amount);
     expect(summary.shippingUsd).toBe(order.shipping_amount);
-    expect(summary.codFeeUsd).toBe(20);
+    expect(summary.codFeeUsd).toBe(COD_FEE);
     expect(summary.totalUsd).toBe(order.total_amount);
-    expect(summary.totalUsd).not.toBe(CLIENT_PRICE * QTY + SHIPPING_USD + COD_FEE_USD);
-    expect(order.shipping_address).toEqual(expect.objectContaining({ cod_fee: 20 }));
+    expect(summary.totalUsd).not.toBe(CLIENT_PRICE * QTY + SHIPPING_USD + COD_FEE);
+    expect(order.shipping_address).toEqual(expect.objectContaining({ cod_fee: COD_FEE }));
     expectEntirelyUsd(summary, "GBP");
     expect(summary.chargeNote).toBe("Charged in USD");
-    expect(summary.codFee).toBe(formatPrice(20, { currency: "USD" }));
-    expect(summary.total).toBe(formatPrice(235, { currency: "USD" }));
+    expect(summary.codFee).toBe(formatPrice(COD_FEE, { currency: "USD" }));
+    expect(summary.total).toBe(formatPrice(215, { currency: "USD" }));
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -266,8 +267,10 @@ describe("checkout summary charge currency", () => {
       expect(html).toContain("Charged in USD");
       expect(html).not.toContain(legacyLine);
       expect(html).not.toContain(formatPrice(convertUsdToCurrency(200, currency), { currency }));
-      expect(html).toContain("Airwallex sandbox checkout currently charges in USD only.");
-      expect(html).toContain("Cash on Delivery (+$0.00 fee)");
+      expect(html).toContain(CARD_CURRENCY_NOTICE);
+      expect(html).toContain(COD_FREE_LABEL);
+      expect(html).not.toContain("sandbox");
+      expect(html).not.toContain("Cash on Delivery (+$0.00 fee)");
       expect(html).not.toContain(">Cash on Delivery fee<");
     }
   });

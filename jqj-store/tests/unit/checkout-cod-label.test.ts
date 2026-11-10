@@ -2,8 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import CheckoutPage from "@/app/(store)/checkout/page";
-import { convertUsdToCurrency } from "@/lib/currency";
-import { formatPrice } from "@/lib/utils";
+import { COD_FEE, COD_FREE_LABEL } from "@/lib/checkout-fees";
 
 vi.mock("react", async () => {
   const actual = await vi.importActual<typeof import("react")>("react");
@@ -49,15 +48,14 @@ vi.mock("@/context/CartContext", () => ({
 }));
 
 describe("COD radio label", () => {
-  it("shows the COD fee in USD when the display currency is EUR", () => {
+  it("shows the no-fee label only, in place of a converted fee, when the display currency is EUR", () => {
     const html = renderToStaticMarkup(createElement(CheckoutPage));
-    const usdFee = formatPrice(20, { currency: "USD" });
-    const eurFee = formatPrice(convertUsdToCurrency(20, "EUR"), { currency: "EUR" });
 
-    expect(html).toContain(`Cash on Delivery (+${usdFee} fee)`);
-    expect(html).toContain("Cash on Delivery fee");
-    expect(html).not.toContain(`Cash on Delivery (+${eurFee} fee)`);
-    expect(html).not.toContain("DISPLAY:EUR:20");
+    expect(COD_FEE).toBe(0);
+    expect(html).toContain(COD_FREE_LABEL);
+    expect(html).not.toContain("Cash on Delivery (+");
+    expect(html).not.toContain("Cash on Delivery fee");
+    expect(html).not.toContain("DISPLAY:EUR:");
     expect(html).toContain("Credit / Debit Card (Airwallex Hosted Checkout)");
   });
 });

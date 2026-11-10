@@ -10,7 +10,6 @@ import { buildCheckoutSummary, formatCheckoutCharge } from "@/lib/checkout-curre
 import { createClient } from "@/lib/supabase/client";
 import { CARD_CURRENCY_NOTICE, COD_FEE, codPaymentLabel } from "@/lib/checkout-fees";
 import { computeShippingUsd } from "@/lib/shipping";
-import { formatPrice } from "@/lib/utils";
 
 const AIRWALLEX_SDK_SRC = "https://static.airwallex.com/components/sdk/v1/index.js";
 
@@ -180,8 +179,6 @@ export default function CheckoutPage() {
     codFeeUsd: codFee,
     displayCurrency: currency,
   });
-  const codFeeInCurrency =
-    method === "cod" ? formatCheckoutCharge(COD_FEE) : formatPrice(codFee, { currency: "USD" });
 
   const payloadItems = useMemo(
     () =>
@@ -385,7 +382,7 @@ export default function CheckoutPage() {
               <p className="text-xs text-brand-muted">{CARD_CURRENCY_NOTICE}</p>
               <label className={`flex cursor-pointer items-center gap-3 border p-4 ${method === "cod" ? "border-brand-gold" : "border-brand-border"}`}>
                 <input type="radio" name="method" checked={method === "cod"} onChange={() => setMethod("cod")} className="accent-brand-gold" />
-                <span className="text-sm">{codPaymentLabel(COD_FEE, formatCheckoutAmount(COD_FEE))}</span>
+                <span className="text-sm">{codPaymentLabel(COD_FEE, formatCheckoutCharge(COD_FEE))}</span>
               </label>
             </div>
           </section>
