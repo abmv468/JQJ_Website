@@ -15,7 +15,7 @@ function secretsMatch(left: string, right: string) {
 }
 
 /** Raw header compare. The secret and header are not trimmed. */
-function cronRequestAuthorized(header: string | null) {
+export function cronRequestAuthorized(header: string | null) {
   const secret = process.env.CRON_SECRET;
   if (secret == null || secret.trim() === "" || !header) return false;
   return secretsMatch(header, `Bearer ${secret}`);
