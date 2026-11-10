@@ -5,9 +5,17 @@ export interface DbError extends Error {
 }
 
 export interface QueryFilter {
-  op: "eq" | "in" | "lt" | "is";
+  op: "eq" | "neq" | "in" | "lt" | "is";
   column: string;
   value: unknown;
+}
+
+export interface DbWrite {
+  table: string;
+  op: "insert" | "update" | "upsert" | "delete";
+  payload: Row | Row[] | null;
+  filters: QueryFilter[];
+  matched: number;
 }
 
 type Row = Record<string, unknown>;
@@ -50,6 +58,7 @@ export class MemoryDb {
   private readonly columns: Record<string, Set<string>>;
   private readonly rows: Record<string, Row[]>;
   readonly rpcCalls: { fn: string; args: Record<string, unknown> }[] = [];
+  readonly writes: DbWrite[] = [];
   failWhen: FailWhen | null = null;
 
   constructor(schema: StoreSchema = loadStoreSchema()) {
@@ -288,6 +297,11 @@ class Query implements PromiseLike<QueryResult> {
     return this;
   }
 
+  neq(column: string, value: unknown) {
+    this.filters.push({ op: "neq", column, value });
+    return this;
+  }
+
   in(column: string, value: unknown[]) {
     this.filters.push({ op: "in", column, value });
     return this;
@@ -365,6 +379,7 @@ class Query implements PromiseLike<QueryResult> {
       stored.push(next);
       inserted.push(next);
     }
+    this.record("insert", this.payload, inserted.length);
     if (this.selectList === "*" && this.operation === "insert" && this.mode === "many" && !this.counted) {
       // Insert without a following select still records rows. Callers only read `error`.
     }
@@ -378,6 +393,7 @@ class Query implements PromiseLike<QueryResult> {
     const patch = (this.payload ?? {}) as Row;
     this.db.assertKnownColumns(this.table, patch);
     const rows = this.db.requireTable(this.table).filter((row) => matches(row, this.filters));
+    this.record("update", patch, rows.length);
     for (const row of rows) {
       const nextStatus = Object.prototype.hasOwnProperty.call(patch, "status") ? patch.status : row.status;
       this.assertStatus(nextStatus);
@@ -406,6 +422,7 @@ class Query implements PromiseLike<QueryResult> {
       saved = this.withDefaults(patch);
       stored.push(saved);
     }
+    this.record("upsert", patch, 1);
     if (!this.selected()) return { data: saved, error: null, count: 1 };
     const fields = parseSelect(this.selectList);
     this.assertFields(fields);
@@ -417,7 +434,18 @@ class Query implements PromiseLike<QueryResult> {
     const kept = stored.filter((row) => !matches(row, this.filters));
     const removed = stored.length - kept.length;
     stored.splice(0, stored.length, ...kept);
+    this.record("delete", null, removed);
     return { data: null, error: null, count: removed };
+  }
+
+  private record(op: DbWrite["op"], payload: Row | Row[] | null, matched: number) {
+    this.db.writes.push({
+      table: this.table,
+      op,
+      payload,
+      filters: this.filters.map((filter) => ({ ...filter })),
+      matched,
+    });
   }
 
   private selected() {
@@ -571,6 +599,7 @@ function matches(row: Row, filters: QueryFilter[]) {
   return filters.every((filter) => {
     const value = row[filter.column];
     if (filter.op === "eq") return value === filter.value;
+    if (filter.op === "neq") return value !== filter.value;
     if (filter.op === "in") return Array.isArray(filter.value) && filter.value.includes(value);
     if (filter.op === "is") return value === filter.value || (filter.value === null && value == null);
     if (filter.op === "lt") return String(value ?? "") < String(filter.value ?? "");

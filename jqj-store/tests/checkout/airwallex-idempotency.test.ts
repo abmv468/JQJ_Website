@@ -1,0 +1,333 @@
+import { createHmac } from "node:crypto";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { POST as checkout } from "@/app/api/checkout/airwallex/route";
+import { POST as verify } from "@/app/api/checkout/airwallex/verify/route";
+import { POST as webhook } from "@/app/api/webhooks/airwallex/route";
+import { sendOrderEmails } from "@/lib/email";
+import { createAirwallexPaymentIntent, retrieveAirwallexPaymentIntent } from "@/lib/payments/airwallex";
+import {
+  checkoutCustomer,
+  checkoutItem,
+  createCheckoutDb,
+  setActiveDb,
+  type MemoryDb,
+} from "../helpers/memory-db";
+
+vi.mock("@/lib/email", () => ({
+  sendOrderEmails: vi.fn(async () => undefined),
+}));
+
+vi.mock("@/lib/payments/airwallex", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/payments/airwallex")>(
+    "@/lib/payments/airwallex"
+  );
+  return {
+    ...actual,
+    createAirwallexPaymentIntent: vi.fn(),
+    retrieveAirwallexPaymentIntent: vi.fn(),
+  };
+});
+
+const KEY_A = "11111111-1111-4111-8111-111111111111";
+const KEY_B = "22222222-2222-4222-8222-222222222222";
+const SECRET = "test_dummy_webhook_secret";
+
+function checkoutRequest(body: Record<string, unknown>) {
+  return new Request("http://localhost:3000/api/checkout/airwallex", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      items: [checkoutItem()],
+      customer: checkoutCustomer,
+      currency: "USD",
+      ...body,
+    }),
+  });
+}
+
+function verifyRequest(body: Record<string, unknown>) {
+  return new Request("http://localhost:3000/api/checkout/airwallex/verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+function sign(timestamp: string, body: string) {
+  return createHmac("sha256", SECRET).update(`${timestamp}${body}`).digest("hex");
+}
+
+function signedWebhook(body: unknown) {
+  const raw = JSON.stringify(body);
+  const timestamp = String(Math.floor(Date.now() / 1000));
+  return new Request("http://localhost:3000/api/webhooks/airwallex", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-signature": sign(timestamp, raw),
+      "x-timestamp": timestamp,
+    },
+    body: raw,
+  });
+}
+
+function paidOrderWrites(db: MemoryDb) {
+  return db.writes.filter(
+    (write) =>
+      write.op === "update" &&
+      write.table === "orders" &&
+      write.matched === 1 &&
+      write.payload != null &&
+      !Array.isArray(write.payload) &&
+      write.payload.payment_status === "succeeded"
+  );
+}
+
+function paidPaymentWrites(db: MemoryDb) {
+  return db.writes.filter(
+    (write) =>
+      write.op === "update" &&
+      write.table === "payments" &&
+      write.matched === 1 &&
+      write.payload != null &&
+      !Array.isArray(write.payload) &&
+      write.payload.status === "succeeded"
+  );
+}
+
+function reserves(db: MemoryDb) {
+  return db.rpcCalls.filter((call) => call.fn === "reserve_order_inventory");
+}
+
+describe("Airwallex checkout idempotency", () => {
+  let db: MemoryDb;
+
+  beforeEach(() => {
+    db = createCheckoutDb();
+    setActiveDb(db);
+    process.env.AIRWALLEX_WEBHOOK_SECRET = SECRET;
+    delete process.env.RESEND_API_KEY;
+    vi.mocked(sendOrderEmails).mockClear();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("unexpected network call");
+      })
+    );
+    vi.mocked(createAirwallexPaymentIntent).mockReset();
+    vi.mocked(retrieveAirwallexPaymentIntent).mockReset();
+    vi.mocked(createAirwallexPaymentIntent).mockImplementation(async (input) => ({
+      id: "int_same",
+      request_id: input.requestId,
+      status: "REQUIRES_PAYMENT_METHOD",
+      amount: input.amount,
+      currency: input.currency,
+      client_secret: "secret_test",
+      merchant_order_id: input.merchantOrderId,
+    }));
+  });
+
+  it("confirms the same intent once across two returns and a webhook", async () => {
+    const started = await checkout(checkoutRequest({ idempotencyKey: KEY_A }));
+    expect(started.status).toBe(200);
+    const startedBody = await started.json();
+
+    vi.mocked(retrieveAirwallexPaymentIntent).mockResolvedValue({
+      id: "int_same",
+      request_id: KEY_A,
+      status: "SUCCEEDED",
+      amount: 115,
+      currency: "USD",
+      merchant_order_id: startedBody.orderId,
+    });
+
+    const firstReturn = await verify(
+      verifyRequest({
+        orderId: startedBody.orderId,
+        paymentIntentId: "int_same",
+        refresh: true,
+      })
+    );
+    const secondReturn = await verify(
+      verifyRequest({
+        orderId: startedBody.orderId,
+        paymentIntentId: "int_same",
+        refresh: true,
+      })
+    );
+    expect(firstReturn.status).toBe(200);
+    expect(secondReturn.status).toBe(200);
+
+    const delivered = await webhook(
+      signedWebhook({
+        id: "evt_paid_once",
+        name: "payment_intent.succeeded",
+        created_at: new Date().toISOString(),
+        data: {
+          object: {
+            id: "int_same",
+            request_id: KEY_A,
+            status: "SUCCEEDED",
+            amount: 115,
+            currency: "USD",
+            merchant_order_id: startedBody.orderId,
+          },
+        },
+      })
+    );
+    expect(delivered.status).toBe(200);
+
+    expect(db.rowsOf("orders")).toHaveLength(1);
+    expect(db.rowsOf("payments")).toHaveLength(1);
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      id: startedBody.orderId,
+      payment_status: "succeeded",
+      status: "paid",
+      inventory_reserved: true,
+    });
+    expect(db.rowsOf("payments")[0]).toMatchObject({
+      order_id: startedBody.orderId,
+      provider_payment_intent_id: "int_same",
+      status: "succeeded",
+    });
+    expect(reserves(db)).toHaveLength(1);
+    expect(paidOrderWrites(db)).toHaveLength(1);
+    expect(paidPaymentWrites(db)).toHaveLength(1);
+    expect(sendOrderEmails).toHaveBeenCalledTimes(1);
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("keeps one order when a pending or failed return retries with the same key and the intent succeeds later", async () => {
+    const started = await checkout(checkoutRequest({ idempotencyKey: KEY_A }));
+    expect(started.status).toBe(200);
+    const startedBody = await started.json();
+    const originalAddress = {
+      ...(db.rowsOf("orders")[0].shipping_address as Record<string, unknown>),
+    };
+    const originalTotal = db.rowsOf("orders")[0].total_amount;
+
+    vi.mocked(retrieveAirwallexPaymentIntent).mockResolvedValueOnce({
+      id: "int_same",
+      status: "PENDING",
+      amount: 115,
+      currency: "USD",
+    });
+    const pending = await verify(verifyRequest({ orderId: startedBody.orderId, paymentIntentId: "int_same" }));
+    expect(pending.status).toBe(202);
+
+    const retried = await checkout(
+      checkoutRequest({
+        idempotencyKey: KEY_A,
+        paymentIntentId: "int_same",
+        customer: { ...checkoutCustomer, address: "9 Other Street" },
+      })
+    );
+    expect(retried.status).toBe(200);
+    expect(db.rowsOf("orders")).toHaveLength(1);
+    expect(db.rowsOf("payments")).toHaveLength(1);
+    expect(db.rowsOf("orders")[0].shipping_address).toMatchObject(originalAddress);
+    expect(db.rowsOf("orders")[0].total_amount).toBe(originalTotal);
+
+    vi.mocked(retrieveAirwallexPaymentIntent).mockResolvedValueOnce({
+      id: "int_same",
+      status: "FAILED",
+      amount: 115,
+      currency: "USD",
+    });
+    const failed = await verify(verifyRequest({ orderId: startedBody.orderId, paymentIntentId: "int_same" }));
+    expect(failed.status).toBe(402);
+
+    const retriedAfterFailure = await checkout(
+      checkoutRequest({
+        idempotencyKey: KEY_A,
+        paymentIntentId: "int_same",
+        customer: { ...checkoutCustomer, address: "9 Other Street", city: "Dallas" },
+      })
+    );
+    expect(retriedAfterFailure.status).toBe(200);
+    expect(db.rowsOf("orders")).toHaveLength(1);
+    expect(db.rowsOf("orders")[0].shipping_address).toMatchObject({
+      address: originalAddress.address,
+      city: originalAddress.city,
+    });
+    expect(db.rowsOf("orders")[0].total_amount).toBe(originalTotal);
+
+    const late = await webhook(
+      signedWebhook({
+        id: "evt_late_success",
+        name: "payment_intent.succeeded",
+        created_at: new Date().toISOString(),
+        data: {
+          object: {
+            id: "int_same",
+            request_id: KEY_A,
+            status: "SUCCEEDED",
+            amount: 115,
+            currency: "USD",
+            merchant_order_id: startedBody.orderId,
+          },
+        },
+      })
+    );
+    expect(late.status).toBe(200);
+    expect(db.rowsOf("orders")).toHaveLength(1);
+    expect(db.rowsOf("payments")).toHaveLength(1);
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      id: startedBody.orderId,
+      payment_status: "succeeded",
+      status: "paid",
+    });
+    expect(paidOrderWrites(db)).toHaveLength(1);
+    expect(paidPaymentWrites(db)).toHaveLength(1);
+    expect(sendOrderEmails).toHaveBeenCalledTimes(1);
+    expect(reserves(db)).toHaveLength(1);
+  });
+
+  it("does not open a second order when a new idempotency key still belongs to the same payment intent", async () => {
+    const first = await checkout(checkoutRequest({ idempotencyKey: KEY_A }));
+    expect(first.status).toBe(200);
+    const firstBody = await first.json();
+    expect(db.rowsOf("orders")).toHaveLength(1);
+
+    const second = await checkout(
+      checkoutRequest({
+        idempotencyKey: KEY_B,
+        paymentIntentId: firstBody.intentId,
+        customer: { ...checkoutCustomer, address: "9 Other Street" },
+      })
+    );
+    expect(second.status).toBe(200);
+    const secondBody = await second.json();
+
+    expect(secondBody.orderId).toBe(firstBody.orderId);
+    expect(db.rowsOf("orders")).toHaveLength(1);
+    expect(db.rowsOf("payments")).toHaveLength(1);
+    expect(db.rowsOf("payments")[0]).toMatchObject({
+      order_id: firstBody.orderId,
+      provider_payment_intent_id: "int_same",
+    });
+    expect((db.rowsOf("orders")[0].shipping_address as { address?: string }).address).toBe(
+      "1 Atelier Lane"
+    );
+    expect(reserves(db)).toHaveLength(1);
+
+    vi.mocked(createAirwallexPaymentIntent).mockImplementation(async (input) => ({
+      id: "int_same",
+      request_id: input.requestId,
+      status: "REQUIRES_PAYMENT_METHOD",
+      amount: input.amount,
+      currency: input.currency,
+      client_secret: "secret_test",
+      merchant_order_id: input.merchantOrderId,
+    }));
+    const third = await checkout(checkoutRequest({ idempotencyKey: "33333333-3333-4333-8333-333333333333" }));
+    expect(third.status).toBe(200);
+    const thirdBody = await third.json();
+    expect(thirdBody.orderId).toBe(firstBody.orderId);
+    expect(db.rowsOf("orders")).toHaveLength(1);
+    expect(db.rowsOf("payments")).toHaveLength(1);
+    expect(db.rowsOf("payments")[0].order_id).toBe(firstBody.orderId);
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
+  });
+});

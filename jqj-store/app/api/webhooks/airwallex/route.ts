@@ -7,6 +7,7 @@ import {
 import {
   applyAirwallexPaymentIntentStatus,
   applyAirwallexRefundEvent,
+  findAirwallexPaymentByIntent,
   upsertAirwallexPaymentIntent,
 } from "@/lib/payments/airwallex-orders";
 
@@ -118,13 +119,7 @@ export async function POST(req: Request) {
         throw new Error("payment_intent event is missing data.object.id");
       }
 
-      const { data: paymentRow, error: paymentRowError } = await supabase
-        .from("payments")
-        .select("id, order_id")
-        .eq("provider", "airwallex")
-        .eq("provider_payment_intent_id", paymentIntentId)
-        .maybeSingle();
-      if (paymentRowError) throw paymentRowError;
+      const paymentRow = await findAirwallexPaymentByIntent(supabase, paymentIntentId);
 
       linkedOrderId = paymentRow?.order_id ?? merchantOrderId ?? null;
       linkedPaymentId = paymentRow?.id ?? null;
