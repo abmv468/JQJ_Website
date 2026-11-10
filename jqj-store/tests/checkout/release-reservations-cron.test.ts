@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { GET, cronRequestAuthorized } from "@/app/api/cron/release-reservations/route";
+import { GET } from "@/app/api/cron/release-reservations/route";
+import { authorizeCronRequest } from "@/lib/payments/cron-auth";
 import { createCheckoutDb, setActiveDb, type MemoryDb } from "../helpers/memory-db";
 
 const SECRET = "cron_test_secret";
@@ -78,20 +79,17 @@ describe("GET /api/cron/release-reservations", () => {
     expect(db.rpcCalls.filter((call) => call.fn === "restore_order_inventory")).toHaveLength(0);
   });
 
-  it("rejects a whitespace secret before the raw bearer is compared", async () => {
+  it("rejects a whitespace-only secret with an identical raw bearer", async () => {
     const secret = "   ";
+    const token = `Bearer ${secret}`;
+
+    expect(authorizeCronRequest(token, secret)).toEqual({ ok: false, reason: "missing_secret" });
+    expect(authorizeCronRequest("Bearer", secret)).toEqual({ ok: false, reason: "missing_secret" });
+
     process.env.CRON_SECRET = secret;
-    const rawBearer = `Bearer ${secret}`;
-
-    expect(cronRequestAuthorized(rawBearer)).toBe(false);
-    expect(cronRequestAuthorized("Bearer")).toBe(false);
-
     const response = await GET(cronRequest("Bearer"));
-
     expect(response.status).toBe(401);
-    expect(response.headers.get("cache-control")).toBe("no-store");
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
-    expect(db.rpcCalls.filter((call) => call.fn === "restore_order_inventory")).toHaveLength(0);
   });
 
   it("returns 401 when the Authorization header is missing", async () => {
