@@ -123,7 +123,7 @@ export async function sendOrderEmails(data: OrderEmailData): Promise<void> {
   const customerEmailOk = isValidSingleEmail(customerEmail);
 
   if (!customerEmailOk) {
-    console.error("[email] skipped customer confirmation for order", data.orderId);
+    console.error("[email] skip", data.orderId, "invalid_recipient");
   }
 
   if (!apiKey) {

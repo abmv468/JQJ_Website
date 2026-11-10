@@ -379,10 +379,48 @@ describe("customer email is a single mailbox", () => {
     expect(sendEmail).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
 
+    expect(errorSpy).toHaveBeenCalledWith("[email] skip", "order-1", "invalid_recipient");
     const logged = errorSpy?.mock.calls.map((args) => args.map(String).join(" ")).join("\n");
-    expect(logged).toContain("order-1");
     expect(logged).not.toContain(stored);
     expect(logged).not.toContain("evil.com");
+    expect(logged).not.toContain("@");
+  });
+
+  it("logs invalid_recipient with the order id before stamping the send", async () => {
+    seedPaidPath(db, "A<a@b.c>");
+    let stampedWhenLogged: unknown = "not-logged";
+    errorSpy?.mockImplementation((_message, orderId, reason) => {
+      if (orderId === "order-1" && reason === "invalid_recipient") {
+        stampedWhenLogged = db.rowsOf("orders")[0].confirmation_email_sent_at ?? null;
+      }
+    });
+
+    const response = await postWebhook(
+      signedWebhook({
+        id: "evt_skip_reason",
+        name: "payment_intent.succeeded",
+        created_at: new Date().toISOString(),
+        data: {
+          object: {
+            id: "int_order-1",
+            status: "SUCCEEDED",
+            amount: 115,
+            currency: "USD",
+            merchant_order_id: "order-1",
+          },
+        },
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(errorSpy).toHaveBeenCalledWith("[email] skip", "order-1", "invalid_recipient");
+    expect(stampedWhenLogged).toBeNull();
+    expect(db.rowsOf("orders")[0].confirmation_email_sent_at).toEqual(expect.any(String));
+    expect(db.rowsOf("orders")[0].inventory_reserved).toBe(true);
+    expect(sendEmail).not.toHaveBeenCalled();
+    const logged = errorSpy?.mock.calls.flat().map(String).join(" ");
+    expect(logged).not.toContain("A<a@b.c>");
+    expect(logged).not.toContain("@");
   });
 
   it("skips a stored CR/LF address and Airwallex verify still succeeds", async () => {

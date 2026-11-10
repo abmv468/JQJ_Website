@@ -14,6 +14,17 @@ describe("isValidSingleEmail", () => {
     expect(isValidSingleEmail("a@x.com, b@y.com")).toBe(false);
   });
 
+  it("rejects a display name, a semicolon, and a bracketed mailbox with no space", () => {
+    expect(isValidSingleEmail("A <a@b.c>")).toBe(false);
+    expect(isValidSingleEmail("A<a@b.c>")).toBe(false);
+    expect(isValidSingleEmail("a@x.com;evil.com")).toBe(false);
+  });
+
+  it("accepts plus-addressing and an IDN domain", () => {
+    expect(isValidSingleEmail("a+tag@b.c")).toBe(true);
+    expect(isValidSingleEmail("buyer@münchen.de")).toBe(true);
+  });
+
   it("rejects display and header characters", () => {
     expect(isValidSingleEmail("<buyer@example.com>")).toBe(false);
     expect(isValidSingleEmail("buyer@example.com>")).toBe(false);
