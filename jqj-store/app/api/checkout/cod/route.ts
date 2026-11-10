@@ -12,11 +12,10 @@ import {
   validateCheckoutItems,
   type CheckoutItemInput,
 } from "@/lib/inventory";
-
+import { computeShippingUsd } from "@/lib/shipping";
 export const dynamic = "force-dynamic";
 
 const COD_FEE = 20;
-const SHIPPING_FLAT = 15;
 const CLAIM_TIMEOUT_MS = 5 * 60 * 1000;
 
 async function getAuthenticatedUserId() {
@@ -64,7 +63,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
     }
 
-    const shippingAmount = items.length ? SHIPPING_FLAT : 0;
     const selectedCurrency = normalizeCurrency(currency);
     const customerName = `${customer.firstName} ${customer.lastName}`.trim();
     const userId = await getAuthenticatedUserId();
@@ -82,6 +80,18 @@ export async function POST(req: Request) {
     };
 
     const supabase = createAdminClient();
+    const slugs = Array.from(new Set(items.map((item) => item.slug).filter(Boolean) as string[]));
+    const inventoryBySlug = await fetchInventoryBySlugs(supabase, slugs);
+    const quotedShipping = computeShippingUsd(
+      items.flatMap((item) => {
+        const slug = item.slug?.trim();
+        const product = slug ? inventoryBySlug.get(slug) : undefined;
+        if (!product) return [];
+        const quantity = Math.max(0, Math.floor(Number(item.quantity) || 0));
+        if (quantity < 1) return [];
+        return [{ unitPriceUsd: product.price, quantity }];
+      })
+    );
     const derivedKey =
       idempotencyKey?.trim() ||
       createHash("sha256")
@@ -98,7 +108,7 @@ export async function POST(req: Request) {
             shippingAddress: Object.fromEntries(
               Object.entries(shippingAddress).filter(([key]) => key !== "currency")
             ),
-            shipping: shippingAmount,
+            quotedShipping,
           })
         )
         .digest("hex")
@@ -122,8 +132,6 @@ export async function POST(req: Request) {
       }
     }
 
-    const slugs = Array.from(new Set(items.map((item) => item.slug).filter(Boolean) as string[]));
-    const inventoryBySlug = await fetchInventoryBySlugs(supabase, slugs);
     const validation = validateCheckoutItems(items, inventoryBySlug);
     if (!validation.ok) {
       return NextResponse.json({ error: validation.errors[0] || "Insufficient stock" }, { status: 409 });
@@ -132,6 +140,12 @@ export async function POST(req: Request) {
     const subtotal = validation.resolved.reduce(
       (sum, line) => sum + line.product.price * line.requestedQuantity,
       0
+    );
+    const shippingAmount = computeShippingUsd(
+      validation.resolved.map((line) => ({
+        unitPriceUsd: line.product.price,
+        quantity: line.requestedQuantity,
+      }))
     );
     const total = subtotal + shippingAmount + COD_FEE;
 
