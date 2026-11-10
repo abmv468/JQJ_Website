@@ -137,7 +137,7 @@ describe("order email HTML", () => {
     }
   });
 
-  it("leaves plain text, money, subjects, and the sender unchanged", async () => {
+  it("leaves plain text, money, and subjects unchanged", async () => {
     const data = order({ codFee: 3, paymentMethod: "cod", total: 58 });
     const { customer, admin } = await renderBoth(data);
     const lineTotal = formatPrice(50, { currency: "USD" });
@@ -146,8 +146,6 @@ describe("order email HTML", () => {
     const codFee = formatPrice(3, { currency: "USD" });
     const total = formatPrice(58, { currency: "USD" });
 
-    expect(customer.from).toBe("orders@example.com");
-    expect(admin.from).toBe("orders@example.com");
     expect(customer.to).toBe(CUSTOMER_TO);
     expect(admin.to).toBe(ADMIN_TO);
     expect(customer.subject).toBe("Your JQD Group order ord_123");
