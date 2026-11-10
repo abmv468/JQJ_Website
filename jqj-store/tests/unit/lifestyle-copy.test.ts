@@ -67,6 +67,8 @@ describe("lifestyle section copy", () => {
     expect(hero).toContain(`"${HERO_SINCE}"`);
     expect(hero).not.toContain("Satisfaction Guarantee");
     expect(hero).not.toMatch(/StarRating/);
+    expect(hero).not.toMatch(/reviews/i);
+    expect(hero).not.toMatch(/\d(\.\d)?\s*\/\s*5/);
     expect(lifestyle).toContain(`alt="${LIFESTYLE_ALT}"`);
     expect(LIFESTYLE_CAPTION_BODY).toBe(CAPTION_BODY);
   });

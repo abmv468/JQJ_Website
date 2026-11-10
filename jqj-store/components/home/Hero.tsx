@@ -24,10 +24,7 @@ export default function Hero() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_20%,rgba(187,157,123,0.16),transparent_28%),radial-gradient(circle_at_80%_18%,rgba(24,76,82,0.24),transparent_30%)]" />
         <div className="container-site relative z-10 flex min-h-[540px] items-center justify-center py-12 sm:min-h-[620px] sm:py-20">
           <div className="max-w-[58rem] text-center">
-            <div className="inline-flex items-center gap-3 rounded-full border border-white/12 bg-black/28 px-4 py-2 backdrop-blur-md">
-              <span className="text-xs text-white/76">4.8/5.0 (9929 Reviews)</span>
-            </div>
-            <h1 className="mt-7 font-heading text-[2rem] font-light leading-[1.02] text-white sm:mt-8 sm:text-5xl lg:text-[5.6rem]">
+            <h1 className="font-heading text-[2rem] font-light leading-[1.02] text-white sm:text-5xl lg:text-[5.6rem]">
               Natural Stones. Cultured Design.
             </h1>
             <p className="mt-5 px-2 font-heading text-[11px] uppercase tracking-[0.18em] text-brand-gold-light sm:mt-6 sm:px-0 sm:text-sm sm:tracking-[0.22em]">
