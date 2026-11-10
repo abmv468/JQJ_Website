@@ -1,6 +1,31 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { POST } from "@/app/api/admin/orders/route";
+import { createAirwallexRefund } from "@/lib/payments/airwallex";
 import { applyAirwallexRefundEvent } from "@/lib/payments/airwallex-orders";
 import { createCheckoutDb, setActiveDb, type MemoryDb } from "../helpers/memory-db";
+
+vi.mock("@supabase/supabase-js", () => ({
+  createClient: () => ({
+    auth: {
+      getUser: async (token: string) => {
+        if (token === "admin-token") {
+          return { data: { user: { email: "admin@example.com" } }, error: null };
+        }
+        return { data: { user: null }, error: { message: "invalid" } };
+      },
+    },
+  }),
+}));
+
+vi.mock("@/lib/payments/airwallex", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/payments/airwallex")>(
+    "@/lib/payments/airwallex"
+  );
+  return {
+    ...actual,
+    createAirwallexRefund: vi.fn(),
+  };
+});
 
 function seedOrder(
   db: MemoryDb,
@@ -47,12 +72,46 @@ async function settle(db: MemoryDb, orderId: string, refundId: string, amount: n
   });
 }
 
+function refundRequest(id: string) {
+  return new Request("http://localhost:3000/api/admin/orders", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: "Bearer admin-token",
+    },
+    body: JSON.stringify({
+      action: "refund",
+      id,
+      amount: 20,
+      reason: "customer return",
+      confirm: true,
+    }),
+  });
+}
+
 describe("refunds on protected orders", () => {
   let db: MemoryDb;
 
   beforeEach(() => {
     db = createCheckoutDb();
     setActiveDb(db);
+    process.env.ADMIN_EMAIL = "admin@example.com";
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "http://127.0.0.1:54321";
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "test-anon-key";
+    vi.mocked(createAirwallexRefund).mockReset();
+    vi.mocked(createAirwallexRefund).mockResolvedValue({
+      id: "rf_route",
+      status: "SETTLED",
+      amount: 20,
+      currency: "USD",
+      payment_intent_id: "int_order-route",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("unexpected network call");
+      })
+    );
   });
 
   it("keeps a cancelled order cancelled after a partial and a full refund", async () => {
@@ -107,6 +166,41 @@ describe("refunds on protected orders", () => {
       status: "refunded",
       fulfillment_status: "refunded",
       refunded_amount: 115,
+    });
+  });
+
+  it("still applies a refund when the order is cancelled or a test order", async () => {
+    seedOrder(db, { id: "order-cancelled", status: "cancelled" });
+    const cancelled = await settle(db, "order-cancelled", "rf_allowed_cancelled", 20);
+    expect(cancelled).toMatchObject({ applied: true, orderId: "order-cancelled" });
+    expect(cancelled).not.toMatchObject({ reason: "protected_order" });
+    expect(db.rowsOf("orders").find((row) => row.id === "order-cancelled")).toMatchObject({
+      status: "cancelled",
+      refunded_amount: 20,
+    });
+
+    seedOrder(db, { id: "order-test", status: "pending", salesChannel: "test" });
+    const testOrder = await settle(db, "order-test", "rf_allowed_test", 20);
+    expect(testOrder).toMatchObject({ applied: true, orderId: "order-test" });
+    expect(testOrder).not.toMatchObject({ reason: "protected_order" });
+    expect(db.rowsOf("orders").find((row) => row.id === "order-test")).toMatchObject({
+      status: "pending",
+      sales_channel: "test",
+      refunded_amount: 20,
+    });
+
+    seedOrder(db, { id: "order-route", status: "pending", salesChannel: "test" });
+    const response = await POST(refundRequest("order-route"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(createAirwallexRefund).toHaveBeenCalledTimes(1);
+    expect(body.error).toBeUndefined();
+    expect(JSON.stringify(body)).not.toContain("protected_order");
+    expect(db.rowsOf("orders").find((row) => row.id === "order-route")).toMatchObject({
+      status: "pending",
+      sales_channel: "test",
+      refunded_amount: 20,
     });
   });
 });
