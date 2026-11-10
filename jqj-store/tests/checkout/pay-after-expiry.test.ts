@@ -10,7 +10,7 @@ vi.mock("@/lib/email", () => ({
 }));
 
 const SECRET = "test_dummy_webhook_secret";
-const ALERT = "[airwallex-orders] payment_after_expiry_unfulfilled";
+const ALERT = "jqd_alert";
 
 function sign(timestamp: string, body: string) {
   return createHmac("sha256", SECRET).update(`${timestamp}${body}`).digest("hex");
@@ -104,7 +104,10 @@ function reserves(db: MemoryDb) {
 }
 
 function alertCalls(spy: { mock: { calls: unknown[][] } }) {
-  return spy.mock.calls.filter((call) => call[0] === ALERT);
+  return spy.mock.calls
+    .map((call) => call[0])
+    .filter((value): value is string => typeof value === "string" && value.includes(ALERT))
+    .map((value) => JSON.parse(value) as { tag: string; event: string; orderId: string });
 }
 
 describe("payment succeeds after the reservation expired", () => {
@@ -181,14 +184,13 @@ describe("payment succeeds after the reservation expired", () => {
 
     const alerts = alertCalls(errorSpy);
     expect(alerts).toHaveLength(1);
-    expect(alerts[0][1]).toMatchObject({
+    expect(alerts[0]).toEqual({
+      tag: "jqd_alert",
       event: PAYMENT_AFTER_EXPIRY_UNFULFILLED_EVENT,
       orderId: "order-expired",
-      paymentIntentId: "int_expired",
-      shortfall: [
-        { productId: "prod-amethyst", variantId: null, requested: 1, available: 0 },
-      ],
     });
+    expect(JSON.stringify(alerts[0])).not.toContain("paymentIntentId");
+    expect(JSON.stringify(alerts[0])).not.toContain("int_expired");
     expect(JSON.stringify(alerts[0])).not.toContain("buyer@example.com");
     expect(JSON.stringify(alerts[0])).not.toContain("Ada Lovelace");
   });
@@ -222,9 +224,8 @@ describe("payment succeeds after the reservation expired", () => {
     expect(db.rowsOf("products").find((row) => row.id === "prod-amethyst")?.stock_count).toBe(5);
     expect(db.rowsOf("products").find((row) => row.id === "prod-jasper")?.stock_count).toBe(0);
     expect(reserves(db)).toHaveLength(1);
-    expect(alertCalls(errorSpy)[0][1]).toMatchObject({
-      shortfall: [{ productId: "prod-jasper", variantId: null, requested: 2, available: 0 }],
-    });
+    expect(JSON.stringify(alertCalls(errorSpy))).not.toContain("paymentIntentId");
+    expect(JSON.stringify(alertCalls(errorSpy))).not.toContain("int_expired");
     expect(sendOrderEmails).not.toHaveBeenCalled();
   });
 

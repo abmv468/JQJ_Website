@@ -3,9 +3,11 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import {
+  canLeaveInventoryException,
   canTransitionOrderStatus,
   isFullyRefunded,
-  isOrderStatus,
+  isInventoryExceptionStatus,
+  isKnownAdminOrderStatus,
   normalizeOrderStatus,
 } from "@/lib/order-lifecycle";
 import {
@@ -66,7 +68,7 @@ export async function PUT(req: Request) {
     }
 
     const nextStatus = status.trim().toLowerCase();
-    if (!isOrderStatus(nextStatus)) {
+    if (!isKnownAdminOrderStatus(nextStatus)) {
       return NextResponse.json({ error: "Invalid order status" }, { status: 400 });
     }
 
@@ -81,11 +83,7 @@ export async function PUT(req: Request) {
 
     const totalAmount = Number(existing.total_amount ?? 0);
     const refundedAmount = Number(existing.refunded_amount ?? 0);
-    const normalizedCurrentStatus = normalizeOrderStatus(existing.status ?? "");
-
-    if (!normalizedCurrentStatus) {
-      return NextResponse.json({ error: "Order has unsupported status value" }, { status: 400 });
-    }
+    const rawStatus = (existing.status ?? "").trim().toLowerCase();
 
     if (nextStatus === "refunded" && !isFullyRefunded(totalAmount, refundedAmount)) {
       return NextResponse.json(
@@ -94,11 +92,24 @@ export async function PUT(req: Request) {
       );
     }
 
-    if (!canTransitionOrderStatus(normalizedCurrentStatus, nextStatus)) {
-      return NextResponse.json(
-        { error: `Invalid status transition from ${normalizedCurrentStatus} to ${nextStatus}` },
-        { status: 400 }
-      );
+    if (isInventoryExceptionStatus(rawStatus)) {
+      if (!canLeaveInventoryException(nextStatus)) {
+        return NextResponse.json(
+          { error: `Invalid status transition from ${rawStatus} to ${nextStatus}` },
+          { status: 400 }
+        );
+      }
+    } else {
+      const normalizedCurrentStatus = normalizeOrderStatus(rawStatus);
+      if (!normalizedCurrentStatus) {
+        return NextResponse.json({ error: "Order has unsupported status value" }, { status: 400 });
+      }
+      if (!canTransitionOrderStatus(normalizedCurrentStatus, nextStatus)) {
+        return NextResponse.json(
+          { error: `Invalid status transition from ${normalizedCurrentStatus} to ${nextStatus}` },
+          { status: 400 }
+        );
+      }
     }
 
     const { data, error } = await supabase
@@ -211,7 +222,7 @@ export async function POST(req: Request) {
     const { data: existing, error: existingError } = await supabase
       .from("orders")
       .select(
-        "id, status, total_amount, refunded_amount, payment_provider, payments(id, provider, provider_payment_intent_id, currency)"
+        "id, status, sales_channel, total_amount, refunded_amount, payment_provider, payments(id, provider, provider_payment_intent_id, currency)"
       )
       .eq("id", id)
       .single();
@@ -220,10 +231,19 @@ export async function POST(req: Request) {
 
     const totalAmount = Number(existing.total_amount ?? 0);
     const refundedAmount = Number(existing.refunded_amount ?? 0);
-    const normalizedCurrentStatus = normalizeOrderStatus(existing.status ?? "");
+    const rawStatus = (existing.status ?? "").trim().toLowerCase();
+    const normalizedCurrentStatus = normalizeOrderStatus(rawStatus);
+    const refundable =
+      isInventoryExceptionStatus(rawStatus) ||
+      isProtectedOrder({ status: rawStatus, sales_channel: existing.sales_channel }) ||
+      normalizedCurrentStatus != null;
 
-    if (!normalizedCurrentStatus || normalizedCurrentStatus === "refunded") {
+    if (rawStatus === "refunded" || isFullyRefunded(totalAmount, refundedAmount)) {
       return NextResponse.json({ error: "Order is already fully refunded" }, { status: 400 });
+    }
+
+    if (!refundable) {
+      return NextResponse.json({ error: "Order has unsupported status value" }, { status: 400 });
     }
 
     const payments = (existing.payments ?? []) as Array<{

@@ -10,6 +10,22 @@ const LEGACY_ORDER_STATUS_MAP: Record<string, OrderStatus> = {
   cancelled: "refunded",
 };
 
+const INVENTORY_EXCEPTION_STATUS = "inventory_exception";
+const INVENTORY_EXCEPTION_NEXT = new Set(["paid", "processing", "cancelled", "refunded"]);
+
+export function isInventoryExceptionStatus(value: string) {
+  return value.trim().toLowerCase() === INVENTORY_EXCEPTION_STATUS;
+}
+
+export function canLeaveInventoryException(next: string) {
+  return INVENTORY_EXCEPTION_NEXT.has(next.trim().toLowerCase());
+}
+
+export function isKnownAdminOrderStatus(value: string) {
+  const normalized = value.trim().toLowerCase();
+  return isOrderStatus(normalized) || normalized === "processing" || normalized === "cancelled";
+}
+
 const NEXT_STATUS: Partial<Record<OrderPipelineStatus, OrderPipelineStatus>> = {
   paid: "packed",
   packed: "shipped",
@@ -36,7 +52,8 @@ export function getOrderStatusOptions(current: string): OrderStatus[] {
   return next ? [normalized, next] : [normalized];
 }
 
-export function canTransitionOrderStatus(current: string, next: OrderStatus): boolean {
+export function canTransitionOrderStatus(current: string, next: string): boolean {
+  if (!isOrderStatus(next)) return false;
   const normalized = normalizeOrderStatus(current);
   if (!normalized) return next === "paid";
   if (normalized === next) return true;
