@@ -17,6 +17,7 @@ import {
   CHECKOUT_STATUS_PROCESSING,
   CHECKOUT_STATUS_REDIRECTING,
   customerSafeCheckoutMessage,
+  isPostcodeRequired,
   readCheckoutFailure,
   validateCheckoutCustomer,
   type CheckoutCustomer,
@@ -249,10 +250,17 @@ export default function CheckoutPage() {
   function update(field: CheckoutCustomerField, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
     setFieldErrors((current) => {
-      if (!current[field]) return current;
       const next = { ...current };
-      delete next[field];
-      return next;
+      let changed = false;
+      if (next[field]) {
+        delete next[field];
+        changed = true;
+      }
+      if (field === "country" && next.postalCode && !isPostcodeRequired(value)) {
+        delete next.postalCode;
+        changed = true;
+      }
+      return changed ? next : current;
     });
   }
 
@@ -376,6 +384,7 @@ export default function CheckoutPage() {
         : null;
   const alertMessage = error ?? (stockErrors.length > 0 ? stockErrors[0] : null);
   const showAlert = Boolean(alertMessage || errorReference);
+  const postcodeRequired = isPostcodeRequired(form.country);
 
   return (
     <div className="container-site py-12">
@@ -492,8 +501,8 @@ export default function CheckoutPage() {
               <CheckoutTextField
                 id="checkout-postalCode"
                 name="postalCode"
-                label="Postcode"
-                required
+                label={postcodeRequired ? "Postcode" : "Postcode (optional)"}
+                required={postcodeRequired}
                 value={form.postalCode}
                 error={fieldErrors.postalCode}
                 onChange={(value) => update("postalCode", value)}

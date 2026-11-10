@@ -228,3 +228,38 @@ test("the fields map from checkout validation lands on the postcode input", asyn
   await expect(page.locator("#checkout-postalCode-error")).toHaveText("Enter a valid postcode.");
   await expect(page.locator("#checkout-form-error")).toContainText("Check the highlighted fields.");
 });
+
+test("Hong Kong submits with an empty postalCode", async ({ page }) => {
+  const captured: { customer?: { country?: string; postalCode?: string } } = {};
+  await page.route(/\/api\/checkout\/airwallex$/, async (route) => {
+    captured.customer = route.request().postDataJSON().customer;
+    await route.fulfill({
+      status: 400,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: "Something went wrong. Please try again.",
+        reference: "hk000001",
+      }),
+    });
+  });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openCheckout(page);
+  await page.getByRole("combobox", { name: "Country Required" }).selectOption("Hong Kong SAR");
+  const postcode = page.locator("#checkout-postalCode");
+  await expect(page.getByRole("textbox", { name: "Postcode (optional)", exact: true })).toBeVisible();
+  await expect(postcode).toHaveAttribute("autocomplete", "postal-code");
+  await expect(postcode).not.toHaveAttribute("required", "");
+
+  await fillCheckout(page);
+  await postcode.fill("");
+  await page.screenshot({
+    path: "test-results/checkout-hk-postcode-optional-390.png",
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "Continue to Secure Payment" }).click();
+
+  await expect.poll(() => captured.customer?.country).toBe("Hong Kong SAR");
+  expect(captured.customer?.postalCode).toBe("");
+  await expect(page.locator("#checkout-postalCode-error")).toHaveCount(0);
+});

@@ -27,15 +27,30 @@ export type CheckoutCustomer = Record<CheckoutCustomerField, string>;
 
 export type CheckoutFieldErrors = Partial<Record<CheckoutCustomerField, string>>;
 
-/** Fields the checkout form blocks on before a request. Region and last name stay optional. */
+/** Fields the checkout form blocks on before a request. Region, last name, and postcode stay out of this list. */
 export const CHECKOUT_REQUIRED_FIELDS = [
   "email",
   "country",
   "firstName",
   "address",
   "city",
-  "postalCode",
 ] as const satisfies readonly CheckoutCustomerField[];
+
+/** Exact checkout country labels. Hong Kong does not use a postcode. Unknown countries are optional. */
+export const POSTCODE_REQUIRED_BY_COUNTRY: Record<string, boolean> = {
+  "United States": true,
+  "United Kingdom": true,
+  Canada: true,
+  Australia: true,
+  "Hong Kong SAR": false,
+  Singapore: true,
+  Netherlands: true,
+  Germany: true,
+};
+
+export function isPostcodeRequired(country: string) {
+  return POSTCODE_REQUIRED_BY_COUNTRY[country] === true;
+}
 
 export const CHECKOUT_FIELD_FOCUS_ORDER: readonly CheckoutCustomerField[] = [
   "email",
@@ -119,6 +134,10 @@ export function validateCheckoutCustomer(customer: CheckoutCustomer): CheckoutFi
 
   for (const field of CHECKOUT_REQUIRED_FIELDS) {
     if (!customer[field].trim()) errors[field] = CHECKOUT_FIELD_REQUIRED;
+  }
+
+  if (isPostcodeRequired(customer.country) && !customer.postalCode.trim()) {
+    errors.postalCode = CHECKOUT_FIELD_REQUIRED;
   }
 
   if (customer.email.trim() && !EMAIL_PATTERN.test(customer.email.trim())) {

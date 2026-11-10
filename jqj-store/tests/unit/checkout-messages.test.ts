@@ -8,8 +8,11 @@ import {
   CHECKOUT_ERROR_PAYMENT,
   CHECKOUT_FIELD_EMAIL,
   CHECKOUT_FIELD_REQUIRED,
+  CHECKOUT_REQUIRED_FIELDS,
   CHECKOUT_SHIPPING_LABEL,
+  POSTCODE_REQUIRED_BY_COUNTRY,
   customerSafeCheckoutMessage,
+  isPostcodeRequired,
   readCheckoutFailure,
   validateCheckoutCustomer,
   type CheckoutCustomer,
@@ -88,16 +91,50 @@ describe("checkout customer field contract", () => {
   });
 });
 
+describe("POSTCODE_REQUIRED_BY_COUNTRY", () => {
+  it("keeps Hong Kong optional and requires a postcode for the other checkout countries", () => {
+    expect(POSTCODE_REQUIRED_BY_COUNTRY).toEqual({
+      "United States": true,
+      "United Kingdom": true,
+      Canada: true,
+      Australia: true,
+      "Hong Kong SAR": false,
+      Singapore: true,
+      Netherlands: true,
+      Germany: true,
+    });
+    expect(isPostcodeRequired("Hong Kong SAR")).toBe(false);
+    expect(isPostcodeRequired("United States")).toBe(true);
+    expect(isPostcodeRequired("United Kingdom")).toBe(true);
+    expect(isPostcodeRequired("Canada")).toBe(true);
+    expect(isPostcodeRequired("Australia")).toBe(true);
+    expect(isPostcodeRequired("Singapore")).toBe(true);
+    expect(isPostcodeRequired("Netherlands")).toBe(true);
+    expect(isPostcodeRequired("Germany")).toBe(true);
+    expect(isPostcodeRequired("France")).toBe(false);
+    expect(isPostcodeRequired("")).toBe(false);
+    expect(CHECKOUT_REQUIRED_FIELDS).not.toContain("postalCode");
+  });
+});
+
 describe("validateCheckoutCustomer", () => {
-  it("requires postalCode and the existing required fields", () => {
+  it("requires the static fields and a postcode only when the country requires one", () => {
     expect(validateCheckoutCustomer(emptyCustomer())).toEqual({
       email: CHECKOUT_FIELD_REQUIRED,
       country: CHECKOUT_FIELD_REQUIRED,
       firstName: CHECKOUT_FIELD_REQUIRED,
       address: CHECKOUT_FIELD_REQUIRED,
       city: CHECKOUT_FIELD_REQUIRED,
-      postalCode: CHECKOUT_FIELD_REQUIRED,
     });
+
+    const unitedStates = emptyCustomer();
+    unitedStates.country = "United States";
+    expect(validateCheckoutCustomer(unitedStates).postalCode).toBe(CHECKOUT_FIELD_REQUIRED);
+
+    const hongKong = readyCustomer();
+    hongKong.country = "Hong Kong SAR";
+    hongKong.postalCode = "";
+    expect(validateCheckoutCustomer(hongKong)).toEqual({});
   });
 
   it("leaves last name and region optional", () => {
