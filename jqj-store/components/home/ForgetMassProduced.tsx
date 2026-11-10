@@ -63,7 +63,7 @@ export default function ForgetMassProduced() {
               className="text-[10px] uppercase text-brand-gold/80"
               style={{ letterSpacing: "0.18em" }}
             >
-              Collected pieces.
+              Collected pieces
             </p>
             <p className="mt-2 text-sm leading-6 text-white/82">{LIFESTYLE_CAPTION_BODY}</p>
           </div>

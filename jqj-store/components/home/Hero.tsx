@@ -1,11 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, Check } from "lucide-react";
-import StarRating from "@/components/ui/StarRating";
 
 const guarantees = [
   "Tailored to your preferred fit",
-  "30-day Satisfaction Guarantee",
+  "30-day returns",
   "Museum-inspired since 2015",
 ];
 
@@ -15,7 +14,7 @@ export default function Hero() {
       <div className="relative min-h-[540px] overflow-hidden border border-white/10 bg-black shadow-[0_36px_100px_rgba(0,0,0,0.34)] sm:min-h-[620px]">
         <Image
           src="/products/hero-image.jpg"
-          alt="JQD Group"
+          alt="Model wearing a red bead bracelet by Jewellery Quintessential"
           fill
           priority
           sizes="100vw"
@@ -26,7 +25,6 @@ export default function Hero() {
         <div className="container-site relative z-10 flex min-h-[540px] items-center justify-center py-12 sm:min-h-[620px] sm:py-20">
           <div className="max-w-[58rem] text-center">
             <div className="inline-flex items-center gap-3 rounded-full border border-white/12 bg-black/28 px-4 py-2 backdrop-blur-md">
-              <StarRating rating={5} size={13} />
               <span className="text-xs text-white/76">4.8/5.0 (9929 Reviews)</span>
             </div>
             <h1 className="mt-7 font-heading text-[2rem] font-light leading-[1.02] text-white sm:mt-8 sm:text-5xl lg:text-[5.6rem]">

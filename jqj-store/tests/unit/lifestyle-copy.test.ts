@@ -15,7 +15,10 @@ const POINTS = [
   ["Designed to belong", "Designed with meaning"],
   ["Material character", "Natural stones, individually selected"],
 ] as const;
-const CAPTION_TITLE = "Collected pieces.";
+const CAPTION_TITLE = "Collected pieces";
+const HERO_ALT = "Model wearing a red bead bracelet by Jewellery Quintessential";
+const HERO_RETURNS = "30-day returns";
+const HERO_SINCE = "Museum-inspired since 2015";
 const CAPTION_BODY = "Each piece is designed to feel collected rather than mass-made.";
 const HERO_EYEBROW = "Designed in Hong Kong · Natural stones";
 const HERO_SENTENCE =
@@ -45,7 +48,8 @@ describe("lifestyle section copy", () => {
     expect(lifestyle).toContain(SECTION_LABEL);
     expect(lifestyle).toContain(HEADLINE);
     expect(lifestyle).toContain(BODY);
-    expect(lifestyle).toContain(CAPTION_TITLE);
+    expect(lifestyle).toContain(`>\n              ${CAPTION_TITLE}\n            </p>`);
+    expect(lifestyle).not.toContain("Collected pieces.");
     expect(lifestyle).toContain('src="/products/lifestyle.webp"');
     expect(lifestyle).toContain(`alt="${LIFESTYLE_ALT}"`);
 
@@ -53,11 +57,16 @@ describe("lifestyle section copy", () => {
     expect(lifestyle.slice(labelAt, labelAt + 400)).toContain(POINTS.map(([label, value]) => `["${label}", "${value}"]`).join(",\n                "));
   });
 
-  it("pins the Hero eyebrow, sentence, and lifestyle alt", () => {
+  it("pins the Hero eyebrow, sentence, alt, and guarantees", () => {
     expect(hero).toContain(HERO_EYEBROW);
     const paragraph = hero.match(/text-white\/74[\s\S]*?>\s*([\s\S]*?)<\/p>/);
     expect(paragraph).not.toBeNull();
     expect(renderedText(paragraph?.[1] ?? "")).toBe(HERO_SENTENCE);
+    expect(hero).toContain(`alt="${HERO_ALT}"`);
+    expect(hero).toContain(`"${HERO_RETURNS}"`);
+    expect(hero).toContain(`"${HERO_SINCE}"`);
+    expect(hero).not.toContain("Satisfaction Guarantee");
+    expect(hero).not.toMatch(/StarRating/);
     expect(lifestyle).toContain(`alt="${LIFESTYLE_ALT}"`);
     expect(LIFESTYLE_CAPTION_BODY).toBe(CAPTION_BODY);
   });
