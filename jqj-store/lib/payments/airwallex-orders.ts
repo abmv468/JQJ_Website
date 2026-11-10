@@ -387,6 +387,55 @@ async function restoreInventoryForOrder(supabase: SupabaseClient, orderId: strin
   if (failed) throw new Error(failed.message || "Failed to restore inventory");
 }
 
+/**
+ * Restores stock for an order that still holds a reservation. Stored order
+ * items are used first. `fallbackItems` covers the gap where this request
+ * reserved stock but the line insert had not committed. The restore RPC
+ * changes nothing when `inventory_reserved` is already false.
+ */
+export async function releaseOrderReservation(
+  supabase: SupabaseClient,
+  orderId: string,
+  fallbackItems?: ReadonlyArray<{
+    product_id: string;
+    variant_id: string | null;
+    quantity: number;
+  }>
+) {
+  const { data: order, error: orderError } = await supabase
+    .from("orders")
+    .select("inventory_reserved, payment_status")
+    .eq("id", orderId)
+    .maybeSingle();
+  if (orderError) throw orderError;
+  if (!order || order.payment_status === "succeeded" || order.inventory_reserved !== true) {
+    return { released: false as const };
+  }
+
+  let reservations = await getOrderItemReservations(supabase, orderId);
+  if (!reservations.length && fallbackItems?.length) {
+    reservations = fallbackItems.map((line) => ({
+      product_id: line.product_id,
+      variant_id: line.variant_id,
+      quantity: line.quantity,
+    }));
+  }
+  if (!reservations.length) {
+    throw new Error("Order holds a reservation but has no items to restore");
+  }
+
+  const { data, error } = await supabase.rpc("restore_order_inventory", {
+    p_order_id: orderId,
+    order_items: reservations as unknown as Json,
+  });
+  if (error) throw error;
+
+  const result = (data ?? []) as Array<{ success: boolean; was_reserved?: boolean; message: string }>;
+  const failed = result.find((entry) => !entry.success);
+  if (failed) throw new Error(failed.message || "Failed to restore inventory");
+  return { released: Boolean(result[0]?.was_reserved) as boolean };
+}
+
 async function sendOrderEmailsIfNeeded(supabase: SupabaseClient, orderId: string) {
   const { data, error } = await supabase
     .from("orders")
@@ -911,24 +960,47 @@ export async function releaseExpiredAirwallexReservations(
     "pending_review",
     "unknown",
   ];
+  const columns = "id, status, payment_status, inventory_reserved";
 
-  const { data, error } = await supabase
+  const pending = await supabase
     .from("orders")
-    .select("id, payment_status, inventory_reserved")
+    .select(columns)
     .eq("payment_provider", AIRWALLEX_PROVIDER)
     .eq("inventory_reserved", true)
     .in("payment_status", pendingStatuses)
     .lt("created_at", cutoff)
     .limit(50);
-  if (error) throw error;
+  if (pending.error) throw pending.error;
 
-  const staleOrders = (data ?? []) as Array<{ id: string; inventory_reserved: boolean }>;
-  for (const order of staleOrders) {
+  const failed = await supabase
+    .from("orders")
+    .select(columns)
+    .eq("payment_provider", AIRWALLEX_PROVIDER)
+    .eq("inventory_reserved", true)
+    .eq("status", "failed")
+    .or("payment_status.is.null,payment_status.neq.succeeded")
+    .limit(50);
+  if (failed.error) throw failed.error;
+
+  const staleOrders = new Map<
+    string,
+    { id: string; status: string | null; inventory_reserved: boolean | null }
+  >();
+  for (const row of [...(pending.data ?? []), ...(failed.data ?? [])] as Array<{
+    id: string;
+    status: string | null;
+    inventory_reserved: boolean | null;
+  }>) {
+    staleOrders.set(row.id, row);
+  }
+
+  for (const order of staleOrders.values()) {
     if (!order.inventory_reserved) continue;
     // Claim the row before restore. restore_order_inventory returns no stock once
     // inventory_reserved is false, so this update leaves that flag set and the
-    // restore below clears it.
-    const { data: released, error: updateError } = await supabase
+    // restore below clears it. A second sweep, or a payment that landed first,
+    // matches no row and does not restore.
+    let claim = supabase
       .from("orders")
       .update({
         payment_status: "abandoned",
@@ -938,9 +1010,13 @@ export async function releaseExpiredAirwallexReservations(
       })
       .eq("id", order.id)
       .eq("inventory_reserved", true)
-      .in("payment_status", pendingStatuses)
-      .select("id")
-      .maybeSingle();
+      .or("payment_status.is.null,payment_status.neq.succeeded")
+      .neq("status", "succeeded");
+    claim =
+      order.status === "failed"
+        ? claim.eq("status", "failed")
+        : claim.in("payment_status", pendingStatuses);
+    const { data: released, error: updateError } = await claim.select("id").maybeSingle();
     if (updateError) throw updateError;
     if (!released) continue;
     await restoreInventoryForOrder(supabase, order.id);
