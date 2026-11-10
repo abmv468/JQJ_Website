@@ -146,6 +146,16 @@ export class MemoryDb {
   private restoreOrder(args: Record<string, unknown>) {
     const order = this.orderForUpdate(args.p_order_id);
     if (!order) throw dbError("Order not found while restoring inventory");
+    // Mirrors restore_order_inventory: payment_status is read under the order lock.
+    if (order.payment_status === "succeeded") {
+      return [
+        {
+          success: false,
+          was_reserved: order.inventory_reserved === true,
+          message: "Order is paid; inventory not restored",
+        },
+      ];
+    }
     if (order.inventory_reserved !== true) {
       return [{ success: true, was_reserved: false, message: "Inventory already restored" }];
     }
