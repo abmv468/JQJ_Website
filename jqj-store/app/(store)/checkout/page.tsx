@@ -376,7 +376,11 @@ export default function CheckoutPage() {
               <p className="text-xs text-brand-muted">{CARD_CURRENCY_NOTICE}</p>
               <label className={`flex cursor-pointer items-center gap-3 border p-4 ${method === "cod" ? "border-brand-gold" : "border-brand-border"}`}>
                 <input type="radio" name="method" checked={method === "cod"} onChange={() => setMethod("cod")} className="accent-brand-gold" />
-                <span className="text-sm">Cash on Delivery (+{formatCheckoutAmount(COD_FEE)} fee)</span>
+                <span className="text-sm">
+                  {COD_FEE > 0
+                    ? `Cash on Delivery (+${formatCheckoutAmount(COD_FEE)} fee)`
+                    : "Cash on Delivery · Free"}
+                </span>
               </label>
             </div>
           </section>

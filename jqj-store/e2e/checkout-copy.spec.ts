@@ -1,14 +1,12 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { CARD_CURRENCY_NOTICE, COD_FEE } from "../lib/checkout-fees";
 
 const CART_KEY = "JQD-cart";
-const codFeeLabel = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-}).format(COD_FEE);
-const codOptionLabel = `Cash on Delivery (+${codFeeLabel} fee)`;
+const codOptionLabel = "Cash on Delivery · Free";
+
+async function checkoutTotal(page: Page) {
+  return (await page.locator("span.font-heading.text-2xl").innerText()).trim();
+}
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript((key) => {
@@ -46,7 +44,9 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
-test("checkout copy omits sandbox wording and shows the shared COD fee", async ({ page }) => {
+test("checkout copy omits sandbox wording and shows free cash on delivery", async ({ page }) => {
+  expect(COD_FEE).toBe(0);
+
   for (const viewport of [
     { width: 1280, height: 900 },
     { width: 390, height: 844 },
@@ -54,15 +54,20 @@ test("checkout copy omits sandbox wording and shows the shared COD fee", async (
     await page.setViewportSize(viewport);
     await page.goto("/checkout");
     await expect(page.getByRole("button", { name: "Continue to Secure Payment" })).toBeVisible();
-    await expect(page.getByText(codOptionLabel)).toBeVisible();
     await expect(page.getByText(CARD_CURRENCY_NOTICE)).toBeVisible();
+    await expect(page.getByText(codOptionLabel)).toBeVisible();
+    await expect(page.getByText("+$0.00")).toHaveCount(0);
+    await expect(page.getByText("Cash on Delivery fee")).toHaveCount(0);
     expect((await page.locator("body").innerText()).toLowerCase()).not.toContain("sandbox");
+    const cardTotal = await checkoutTotal(page);
 
     await page.getByText(codOptionLabel).click();
     await expect(page.getByRole("button", { name: "Place Order" })).toBeVisible();
     await expect(page.getByText(codOptionLabel)).toBeVisible();
     await expect(page.getByText(CARD_CURRENCY_NOTICE)).toBeVisible();
-    await expect(page.getByText("Cash on Delivery fee")).toBeVisible();
+    await expect(page.getByText("+$0.00")).toHaveCount(0);
+    await expect(page.getByText("Cash on Delivery fee")).toHaveCount(0);
+    expect(await checkoutTotal(page)).toBe(cardTotal);
     expect((await page.locator("body").innerText()).toLowerCase()).not.toContain("sandbox");
   }
 });

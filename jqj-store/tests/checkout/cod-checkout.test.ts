@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/checkout/cod/route";
+import { COD_FEE } from "@/lib/checkout-fees";
 import {
   checkoutCustomer,
   checkoutItem,
@@ -34,7 +35,7 @@ describe("POST /api/checkout/cod", () => {
     );
   });
 
-  it("reserves stock, adds shipping and the COD fee, and does not email without a Resend key", async () => {
+  it("reserves stock, adds shipping, charges no COD fee, and does not email without a Resend key", async () => {
     const response = await POST(
       request({
         items: [checkoutItem({ price: 1, quantity: 2 })],
@@ -48,20 +49,26 @@ describe("POST /api/checkout/cod", () => {
     const body = await response.json();
     expect(body.orderId).toEqual(expect.any(String));
     expect(db.rowsOf("products")[0].stock_count).toBe(3);
-    expect(db.rowsOf("orders")[0]).toMatchObject({
+    const order = db.rowsOf("orders")[0];
+    expect(COD_FEE).toBe(0);
+    expect(order).toMatchObject({
       payment_provider: "cod",
       payment_status: "pending",
       status: "pending",
       inventory_reserved: true,
       subtotal_amount: 200,
       shipping_amount: 15,
-      total_amount: 235,
+      total_amount: 200 + 15 + COD_FEE,
       stripe_session_id: `COD-${KEY}`,
       shipping_address: expect.objectContaining({
         payment_method: "cod",
-        cod_fee: 20,
+        cod_fee: 0,
       }),
     });
+    expect(order.total_amount).toBe(order.subtotal_amount as number + (order.shipping_amount as number));
+    expect(
+      db.rowsOf("order_items").some((item) => /fee/i.test(String(item.product_name)))
+    ).toBe(false);
     expect(db.rpcCalls.filter((call) => call.fn === "reserve_order_inventory")).toHaveLength(1);
     expect(fetch).not.toHaveBeenCalled();
   });
