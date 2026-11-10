@@ -12,6 +12,7 @@ import {
   validateCheckoutItems,
   type CheckoutItemInput,
 } from "@/lib/inventory";
+import { rejectUnavailableShippingMethod } from "@/lib/express-shipping";
 import { computeShippingUsd } from "@/lib/shipping";
 export const dynamic = "force-dynamic";
 
@@ -52,12 +53,16 @@ async function getAuthenticatedUserId() {
 
 export async function POST(req: Request) {
   try {
-    const { items, customer, idempotencyKey, currency } = (await req.json()) as {
+    const { items, customer, idempotencyKey, currency, shippingMethod } = (await req.json()) as {
       items: CheckoutItemInput[];
       customer: Record<string, string>;
       idempotencyKey?: string;
       currency?: string;
+      shippingMethod?: unknown;
     };
+
+    const rejectedShipping = rejectUnavailableShippingMethod(shippingMethod);
+    if (rejectedShipping) return rejectedShipping;
 
     if (!items?.length) {
       return NextResponse.json({ error: "Cart is empty" }, { status: 400 });

@@ -154,4 +154,26 @@ describe("POST /api/checkout/cod", () => {
       expect(db.rowsOf("orders")[0].total_amount).not.toBe(eurDisplay);
     }
   );
+
+  it("ignores a client shipping amount and total on a $100 cart", async () => {
+    db.rowsOf("products")[0].price = 100;
+    const response = await POST(
+      request({
+        items: [checkoutItem({ price: 0, quantity: 1 })],
+        customer: checkoutCustomer,
+        currency: "USD",
+        shipping: 0,
+        total: 1,
+        idempotencyKey: `${KEY}-100`,
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      subtotal_amount: 100,
+      shipping_amount: 15,
+      total_amount: 135,
+    });
+    expect(db.rowsOf("orders")[0].total_amount).not.toBe(1);
+  });
 });

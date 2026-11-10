@@ -95,6 +95,8 @@ export default function CheckoutPage() {
   const checkoutAttemptIdRef = useRef<string>(crypto.randomUUID());
   const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
   const [method, setMethod] = useState<"airwallex" | "cod">("airwallex");
+  const [shippingMethod, setShippingMethod] = useState<"standard" | "expedited">("standard");
+  const [expressShippingEnabled, setExpressShippingEnabled] = useState(false);
   const [loading, setLoading] = useState(false);
   const [paymentStage, setPaymentStage] = useState<
     "idle" | "creating_payment" | "redirecting_to_airwallex"
@@ -161,6 +163,35 @@ export default function CheckoutPage() {
     void prefillFromAccount();
     return () => {
       isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4_000);
+    let cancelled = false;
+
+    fetch("/api/checkout/shipping", { cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(String(response.status));
+        return response.json();
+      })
+      .then((data: { expressShippingEnabled?: unknown } | null) => {
+        if (cancelled) return;
+        const enabled = !!data && typeof data === "object" && data.expressShippingEnabled === true;
+        setExpressShippingEnabled(enabled);
+        if (!enabled) setShippingMethod("standard");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setExpressShippingEnabled(false);
+        setShippingMethod("standard");
+      });
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+      controller.abort();
     };
   }, []);
 
@@ -233,10 +264,14 @@ export default function CheckoutPage() {
     setPaymentStage(method === "airwallex" ? "creating_payment" : "idle");
 
     const idempotencyKey = checkoutAttemptIdRef.current;
+    const offerExpedited = expressShippingEnabled === true;
+    const postedShippingMethod =
+      offerExpedited && shippingMethod === "expedited" ? "expedited" : "standard";
     const payload = {
       items: payloadItems,
       customer: form,
       shipping,
+      shippingMethod: postedShippingMethod,
       currency: method === "airwallex" ? "USD" : currency,
       idempotencyKey,
     };
@@ -309,7 +344,33 @@ export default function CheckoutPage() {
         <form onSubmit={handleSubmit} className="order-2 lg:order-1">
           <div className="mb-8 flex flex-wrap items-center gap-4 border border-brand-border p-4 sm:gap-6 sm:p-5">
             <div className="flex items-center gap-2 text-xs text-brand-muted">
-              <Truck className="h-4 w-4 text-brand-gold" /> UPS Express — Tracked delivery
+              <Truck className="h-4 w-4 text-brand-gold" />
+              {expressShippingEnabled ? (
+                <span className="flex flex-wrap items-center gap-3">
+                  <label className="flex items-center gap-1.5">
+                    <input
+                      type="radio"
+                      name="shippingMethod"
+                      checked={shippingMethod === "standard"}
+                      onChange={() => setShippingMethod("standard")}
+                      className="accent-brand-gold"
+                    />
+                    Standard shipping · Tracked delivery
+                  </label>
+                  <label className="flex items-center gap-1.5">
+                    <input
+                      type="radio"
+                      name="shippingMethod"
+                      checked={shippingMethod === "expedited"}
+                      onChange={() => setShippingMethod("expedited")}
+                      className="accent-brand-gold"
+                    />
+                    Expedited shipping
+                  </label>
+                </span>
+              ) : (
+                "Standard shipping · Tracked delivery"
+              )}
             </div>
             <div className="flex items-center gap-2 text-xs text-brand-muted">
               <CreditCard className="h-4 w-4 text-brand-gold" /> Secure payment
