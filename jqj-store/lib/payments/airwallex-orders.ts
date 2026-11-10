@@ -602,6 +602,7 @@ export async function applyAirwallexPaymentIntentStatus(
   if (orderError) throw orderError;
 
   const order = orderData as unknown as OrderRow;
+  let reReservedThisCall = false;
   if (claimingPaid && orderReleasedByExpiry(order)) {
     const lines = await getOrderItemReservations(supabase, order.id);
     let stockShort = lines.length === 0;
@@ -626,10 +627,19 @@ export async function applyAirwallexPaymentIntentStatus(
         shortfall,
       });
     }
+    reReservedThisCall = true;
   }
 
   const statusUpdate = deriveOrderStatusForPayment(order, input.nextStatus);
-  const orderPatch = {
+  const orderPatch: {
+    payment_provider: typeof AIRWALLEX_PROVIDER;
+    payment_status: string | null;
+    status: string | null;
+    fulfillment_status: string | null;
+    paid_at: string | null;
+    updated_at: string;
+    inventory_reserved?: boolean;
+  } = {
     payment_provider: AIRWALLEX_PROVIDER,
     payment_status: statusUpdate.payment_status,
     status: statusUpdate.status,
@@ -637,6 +647,19 @@ export async function applyAirwallexPaymentIntentStatus(
     paid_at: statusUpdate.paid_at,
     updated_at: now,
   };
+  // restore_order_inventory only looks at inventory_reserved. It cannot also
+  // require the order to still be unpaid without a new SQL function. When the
+  // reaper has claimed this row (abandoned, flag still true) and a payment
+  // then succeeds, clear the flag here and do not return stock. The reaper's
+  // later restore becomes a no-op. A re-reserve in this same call keeps the flag.
+  if (
+    claimingPaid &&
+    !reReservedThisCall &&
+    order.inventory_reserved === true &&
+    order.payment_status === "abandoned"
+  ) {
+    orderPatch.inventory_reserved = false;
+  }
 
   if (claimingPaid) {
     // The order claim is the gate. NULL payment_status is unpaid in Postgres,
@@ -965,6 +988,25 @@ export async function releaseExpiredAirwallexReservations(
     const { data: released, error: updateError } = await claim.select("id").maybeSingle();
     if (updateError) throw updateError;
     if (!released) continue;
+    const { data: stillUnpaid, error: stillUnpaidError } = await supabase
+      .from("orders")
+      .select("id")
+      .eq("id", order.id)
+      .eq("inventory_reserved", true)
+      .eq("payment_status", "abandoned")
+      .neq("status", "paid")
+      .maybeSingle();
+    if (stillUnpaidError) throw stillUnpaidError;
+    if (!stillUnpaid) continue;
+    const { data: succeededPayment, error: succeededPaymentError } = await supabase
+      .from("payments")
+      .select("id")
+      .eq("order_id", order.id)
+      .eq("provider", AIRWALLEX_PROVIDER)
+      .eq("status", "succeeded")
+      .limit(1);
+    if (succeededPaymentError) throw succeededPaymentError;
+    if ((succeededPayment ?? []).length > 0) continue;
     await restoreInventoryForOrder(supabase, order.id);
   }
 }
