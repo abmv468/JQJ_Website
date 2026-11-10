@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   const type = requestUrl.searchParams.get("type");
   const code = requestUrl.searchParams.get("code");
   const next = sanitizeNextPath(requestUrl.searchParams.get("next"));
-  const supabase = createClient();
+  const supabase = await createClient();
 
   if (tokenHash && type) {
     const { error } = await supabase.auth.verifyOtp({

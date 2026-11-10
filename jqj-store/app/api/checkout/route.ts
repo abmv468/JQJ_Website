@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 const SHIPPING_FLAT = 15;
 
 async function getAuthenticatedUserId() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

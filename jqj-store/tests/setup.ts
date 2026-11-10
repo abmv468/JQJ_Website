@@ -8,7 +8,7 @@ vi.mock("@/lib/supabase/admin", async () => {
 });
 
 vi.mock("next/headers", () => ({
-  cookies: () => ({
+  cookies: async () => ({
     getAll: () => [],
     set: () => undefined,
   }),

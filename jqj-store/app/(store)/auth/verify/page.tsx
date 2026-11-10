@@ -1,17 +1,21 @@
 import Link from "next/link";
 import { sanitizeNextPath } from "@/lib/auth/sanitize-next-path";
 
-export default function VerifyPage({
+export default async function VerifyPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const status = typeof searchParams.status === "string" ? searchParams.status : "info";
+  const resolvedSearchParams = await searchParams;
+  const status =
+    typeof resolvedSearchParams.status === "string" ? resolvedSearchParams.status : "info";
   const message =
-    typeof searchParams.message === "string"
-      ? searchParams.message
+    typeof resolvedSearchParams.message === "string"
+      ? resolvedSearchParams.message
       : "We could not determine your verification status.";
-  const next = sanitizeNextPath(typeof searchParams.next === "string" ? searchParams.next : null);
+  const next = sanitizeNextPath(
+    typeof resolvedSearchParams.next === "string" ? resolvedSearchParams.next : null
+  );
 
   const isError = status === "error" || status === "invalid";
 

@@ -20,7 +20,7 @@ const SHIPPING_FLAT = 15;
 const CLAIM_TIMEOUT_MS = 5 * 60 * 1000;
 
 async function getAuthenticatedUserId() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
