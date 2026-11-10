@@ -106,8 +106,9 @@ describe("red leopard skin jasper cube bracelet copy", () => {
       "JQJ-RLSJ-III-L-SS",
     ]);
     expect(entry.price).toBe(599.99);
-    expect(entry.compareAtPrice).toBe(699.99);
-    expect(entry.tags).toEqual(["sale"]);
+    expect(entry.compareAtPrice).toBeNull();
+    expect(entry.tags).not.toContain("sale");
+    expect(entry.tags).toEqual([]);
     expect(entry.rating).toBeUndefined();
     expect(entry.reviewCount).toBeUndefined();
     expect(entry.specs["Bead Size"]).toBeUndefined();
@@ -122,6 +123,8 @@ describe("red leopard skin jasper cube bracelet copy", () => {
 
     expect(text).not.toMatch(/logo/i);
     expect(text).not.toContain("6mm");
+    expect(text).not.toMatch(/6\s*mm/i);
+    expect(text).not.toMatch(/925/);
     expect(text).not.toMatch(/\bRound\b/);
     expect(text).not.toMatch(/\bround\b/i);
     expect(text).not.toContain("Sterling");

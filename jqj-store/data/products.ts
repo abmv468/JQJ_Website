@@ -67,7 +67,7 @@ export const products: Product[] = [
     metaDescription:
       "Red Leopard Skin Jasper Cube Bracelet by Jewellery Quintessential · 極氣: patterned jasper cubes with one silver-tone accent, designed in Hong Kong.",
     price: 599.99,
-    compareAtPrice: 699.99,
+    compareAtPrice: null,
     sku: "JQJ-RLSJ-III",
     category: "bracelets",
     images: ["/products/red-leopard-jasper-bracelet.webp"],
@@ -82,7 +82,7 @@ export const products: Product[] = [
       { size: "Medium", material: "Silver-tone", sku: "JQJ-RLSJ-III-M-SS", stockCount: 5 },
       { size: "Large", material: "Silver-tone", sku: "JQJ-RLSJ-III-L-SS", stockCount: 3 },
     ],
-    tags: ["sale"],
+    tags: [],
     stone: "Red Leopard Skin Jasper",
     features: [
       "Designed in Hong Kong",

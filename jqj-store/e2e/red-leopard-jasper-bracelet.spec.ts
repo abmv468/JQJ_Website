@@ -11,6 +11,10 @@ test("product page shows the cube bracelet name and only the webp gallery", asyn
   await page.goto(`/products/${SLUG}`);
 
   await expect(page.getByRole("heading", { level: 1, name: NAME })).toBeVisible();
+  const productInfo = page.locator("div.lg\\:pl-6");
+  await expect(productInfo.locator(".line-through")).toHaveCount(0);
+  await expect(productInfo.getByText("Sale — Save")).toHaveCount(0);
+  await expect(productInfo.getByText("$599.99")).toBeVisible();
   await expect(
     page.getByText(`Free shipping on orders over $${FREE_SHIPPING_THRESHOLD_USD}`, { exact: true })
   ).toBeVisible();
