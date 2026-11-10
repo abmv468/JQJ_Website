@@ -111,14 +111,11 @@ jobs:
               exit 1
             fi
 
-            # Fetch the pull ref, then merge only if it is exactly the API head.
-            # The header is per command. persist-credentials: false keeps it out of git config.
-            if [ -n "${GH_TOKEN:-}" ]; then
-              git -c "http.extraheader=AUTHORIZATION: bearer ${GH_TOKEN}" \
-                fetch --no-tags origin "pull/${pr}/head"
-            else
-              git fetch --no-tags origin "pull/${pr}/head"
-            fi
+            # Fetch the public pull ref. Do not attach a bearer header: git smart HTTP
+            # rejects it and then prompts, and persist-credentials is false so there is
+            # no stored credential. Same-repo heads are reachable without one.
+            GIT_TERMINAL_PROMPT=0 git -c credential.helper= \
+              fetch --no-tags origin "pull/${pr}/head"
             fetched=$(git rev-parse FETCH_HEAD)
             if [ "${fetched}" != "${sha}" ]; then
               echo "::error::PR #${pr} moved while resolving (API ${sha}, git ${fetched}). Refusing to merge."
