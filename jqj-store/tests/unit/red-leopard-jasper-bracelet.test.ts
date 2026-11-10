@@ -97,9 +97,9 @@ describe("red leopard skin jasper cube bracelet copy", () => {
     ]);
     expect(entry.variants?.map((variant) => variant.size)).toEqual(["Small", "Medium", "Large"]);
     expect(entry.variants?.map((variant) => variant.material)).toEqual([
-      undefined,
-      undefined,
-      undefined,
+      "Silver-tone",
+      "Silver-tone",
+      "Silver-tone",
     ]);
     expect(entry.variants?.map((variant) => variant.sku)).toEqual([
       "JQJ-RLSJ-III-S-SS",

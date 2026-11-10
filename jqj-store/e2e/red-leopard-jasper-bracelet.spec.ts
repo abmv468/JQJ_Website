@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { FREE_SHIPPING_THRESHOLD_USD } from "../lib/shipping";
 
 const SLUG = "red-leopard-skin-jasper-bracelet-iii";
 const NAME = "Red Leopard Skin Jasper Cube Bracelet";
@@ -10,6 +11,9 @@ test("product page shows the cube bracelet name and only the webp gallery", asyn
   await page.goto(`/products/${SLUG}`);
 
   await expect(page.getByRole("heading", { level: 1, name: NAME })).toBeVisible();
+  await expect(
+    page.getByText(`Free shipping on orders over $${FREE_SHIPPING_THRESHOLD_USD}`, { exact: true })
+  ).toBeVisible();
 
   const gallery = page.locator("div.grid.gap-12 > div").first();
   const images = gallery.locator("img");

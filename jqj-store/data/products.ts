@@ -78,9 +78,9 @@ export const products: Product[] = [
     stockCount: 12,
     lowStockThreshold: 5,
     variants: [
-      { size: "Small", sku: "JQJ-RLSJ-III-S-SS", stockCount: 4 },
-      { size: "Medium", sku: "JQJ-RLSJ-III-M-SS", stockCount: 5 },
-      { size: "Large", sku: "JQJ-RLSJ-III-L-SS", stockCount: 3 },
+      { size: "Small", material: "Silver-tone", sku: "JQJ-RLSJ-III-S-SS", stockCount: 4 },
+      { size: "Medium", material: "Silver-tone", sku: "JQJ-RLSJ-III-M-SS", stockCount: 5 },
+      { size: "Large", material: "Silver-tone", sku: "JQJ-RLSJ-III-L-SS", stockCount: 3 },
     ],
     tags: ["sale"],
     stone: "Red Leopard Skin Jasper",

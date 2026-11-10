@@ -10,6 +10,7 @@ import { useCart } from "@/context/CartContext";
 import StarRating from "@/components/ui/StarRating";
 import ProductCard from "./ProductCard";
 import { getStockState, getVariantLabel } from "@/lib/product-stock";
+import { FREE_SHIPPING_THRESHOLD_USD } from "@/lib/shipping";
 import { useCurrency } from "@/context/CurrencyContext";
 
 const accordionData = (product: Product) => [
@@ -226,6 +227,10 @@ export default function ProductDetail({
               Sale — Save {formatFromUsd(product.compareAtPrice - product.price)}
             </p>
           )}
+
+          <p className="mt-2 text-xs text-brand-muted">
+            Free shipping on orders over ${FREE_SHIPPING_THRESHOLD_USD}
+          </p>
 
           {hasVariants ? (
             <div className="mt-8 space-y-3">
