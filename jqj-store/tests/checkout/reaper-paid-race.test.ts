@@ -174,8 +174,12 @@ describe("reaper claim versus a later success", () => {
     };
 
     const first = await webhook(signedWebhook());
+    const firstBody = await first.json();
 
-    expect(first.status).toBeGreaterThanOrEqual(500);
+    expect(first.status).toBe(500);
+    expect(firstBody).toEqual({ error: "Internal error" });
+    expect(JSON.stringify(firstBody)).not.toContain("failed");
+    expect(JSON.stringify(firstBody)).not.toContain("Paid claim");
     expect(injected).toBe(true);
     expect(db.rowsOf("payment_webhook_events")[0].status).not.toBe("processed");
     expect(db.rowsOf("orders")[0]).toMatchObject({
