@@ -280,6 +280,22 @@ async function sendOrderEmailsIfNeeded(supabase: SupabaseClient, orderId: string
   if (updateError) throw updateError;
 }
 
+export async function findAirwallexPaymentByIntent(
+  supabase: SupabaseClient,
+  paymentIntentId: string
+) {
+  const { data, error } = await supabase
+    .from("payments")
+    .select(
+      "id, order_id, provider, provider_payment_intent_id, provider_request_id, status, amount, currency, last_event_created_at"
+    )
+    .eq("provider", AIRWALLEX_PROVIDER)
+    .eq("provider_payment_intent_id", paymentIntentId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as PaymentRow | null) ?? null;
+}
+
 export async function upsertAirwallexPaymentIntent(
   supabase: SupabaseClient,
   input: {
@@ -291,18 +307,41 @@ export async function upsertAirwallexPaymentIntent(
   const now = new Date().toISOString();
   const amount = toNumber(input.intent.amount);
   const normalizedStatus = normalizeAirwallexPaymentStatus(input.intent.status);
+  const existing = await findAirwallexPaymentByIntent(supabase, input.intent.id);
+  if (
+    existing &&
+    (existing.order_id !== input.orderId ||
+      isSuccessfulPaymentStatus(normalizeAirwallexPaymentStatus(existing.status)))
+  ) {
+    // Keep the original order and a paid row. A second checkout must not move the intent.
+    return existing;
+  }
 
-  const payload = {
+  const payload: {
+    order_id: string;
+    provider: typeof AIRWALLEX_PROVIDER;
+    provider_payment_intent_id: string;
+    provider_request_id: string;
+    amount: number;
+    currency: string;
+    metadata: Json;
+    updated_at: string;
+    status?: InternalPaymentStatus;
+  } = {
     order_id: input.orderId,
     provider: AIRWALLEX_PROVIDER,
     provider_payment_intent_id: input.intent.id,
     provider_request_id: input.intent.request_id ?? input.requestId,
     amount,
     currency: String(input.intent.currency || "USD").toUpperCase(),
-    status: normalizedStatus,
     metadata: input.intent as unknown as Json,
     updated_at: now,
   };
+  // Succeeded is claimed by applyAirwallexPaymentIntentStatus, so a duplicate
+  // return cannot upsert the row straight to paid and skip the conditional update.
+  if (!isSuccessfulPaymentStatus(normalizedStatus)) {
+    payload.status = normalizedStatus;
+  }
 
   const { data, error } = await supabase
     .from("payments")
@@ -339,6 +378,22 @@ export async function applyAirwallexPaymentIntentStatus(
 
   const payment = paymentData as unknown as PaymentRow;
   const currentStatus = normalizeAirwallexPaymentStatus(payment.status);
+
+  if (isSuccessfulPaymentStatus(currentStatus)) {
+    if (!isSuccessfulPaymentStatus(input.nextStatus)) {
+      return { applied: false, reason: "already_succeeded" as const, orderId: payment.order_id };
+    }
+    const { data: paidOrder, error: paidOrderError } = await supabase
+      .from("orders")
+      .select("payment_status")
+      .eq("id", payment.order_id)
+      .maybeSingle();
+    if (paidOrderError) throw paidOrderError;
+    if (paidOrder?.payment_status === "succeeded") {
+      return { applied: false, reason: "already_succeeded" as const, orderId: payment.order_id };
+    }
+  }
+
   const shouldApply =
     input.force ||
     shouldApplyPaymentStatusTransition(
@@ -353,18 +408,7 @@ export async function applyAirwallexPaymentIntentStatus(
   }
 
   const now = new Date().toISOString();
-
-  const { error: paymentUpdateError } = await supabase
-    .from("payments")
-    .update({
-      status: input.nextStatus,
-      last_event_id: input.providerEventId ?? null,
-      last_event_created_at: input.providerEventCreatedAt ?? now,
-      paid_at: isSuccessfulPaymentStatus(input.nextStatus) ? now : null,
-      updated_at: now,
-    })
-    .eq("id", payment.id);
-  if (paymentUpdateError) throw paymentUpdateError;
+  const claimingPaid = isSuccessfulPaymentStatus(input.nextStatus);
 
   const { data: orderData, error: orderError } = await supabase
     .from("orders")
@@ -377,26 +421,110 @@ export async function applyAirwallexPaymentIntentStatus(
 
   const order = orderData as unknown as OrderRow;
   const statusUpdate = deriveOrderStatusForPayment(order, input.nextStatus);
+  const orderPatch = {
+    payment_provider: AIRWALLEX_PROVIDER,
+    payment_status: statusUpdate.payment_status,
+    status: statusUpdate.status,
+    fulfillment_status: statusUpdate.fulfillment_status,
+    paid_at: statusUpdate.paid_at,
+    updated_at: now,
+  };
 
-  const { error: orderUpdateError } = await supabase
-    .from("orders")
-    .update({
-      payment_provider: AIRWALLEX_PROVIDER,
-      payment_status: statusUpdate.payment_status,
-      status: statusUpdate.status,
-      fulfillment_status: statusUpdate.fulfillment_status,
-      paid_at: statusUpdate.paid_at,
-      updated_at: now,
-    })
-    .eq("id", order.id);
-  if (orderUpdateError) throw orderUpdateError;
+  if (claimingPaid) {
+    // The order claim is the gate. NULL payment_status is unpaid in Postgres,
+    // so `<> 'succeeded'` alone would skip the row and leave it stuck.
+    const { data: claimedOrder, error: orderUpdateError } = await supabase
+      .from("orders")
+      .update(orderPatch)
+      .eq("id", order.id)
+      .or("payment_status.is.null,payment_status.neq.succeeded")
+      .select("id")
+      .maybeSingle();
+    if (orderUpdateError) throw orderUpdateError;
 
-  if (isTerminalFailedPaymentStatus(input.nextStatus) && order.inventory_reserved) {
-    await restoreInventoryForOrder(supabase, order.id);
+    if (!claimedOrder) {
+      const { data: currentOrder, error: rereadError } = await supabase
+        .from("orders")
+        .select("payment_status")
+        .eq("id", order.id)
+        .maybeSingle();
+      if (rereadError) throw rereadError;
+      if (currentOrder?.payment_status !== "succeeded") {
+        console.error("[airwallex-orders] payment succeeded but the order was not marked paid", {
+          orderId: order.id,
+          paymentIntentId: input.paymentIntentId,
+        });
+        return { applied: false, reason: "order_not_claimed" as const, orderId: order.id };
+      }
+    }
+
+    if (!isSuccessfulPaymentStatus(currentStatus)) {
+      const { error: paymentUpdateError } = await supabase
+        .from("payments")
+        .update({
+          status: input.nextStatus,
+          last_event_id: input.providerEventId ?? null,
+          last_event_created_at: input.providerEventCreatedAt ?? now,
+          paid_at: now,
+          updated_at: now,
+        })
+        .eq("id", payment.id)
+        .neq("status", "succeeded");
+      if (paymentUpdateError) throw paymentUpdateError;
+    }
+
+    await sendOrderEmailsIfNeeded(supabase, order.id);
+    return { applied: true, orderId: order.id };
   }
 
-  if (isSuccessfulPaymentStatus(input.nextStatus)) {
-    await sendOrderEmailsIfNeeded(supabase, order.id);
+  const { error: paymentUpdateError } = await supabase
+    .from("payments")
+    .update({
+      status: input.nextStatus,
+      last_event_id: input.providerEventId ?? null,
+      last_event_created_at: input.providerEventCreatedAt ?? now,
+      paid_at: null,
+      updated_at: now,
+    })
+    .eq("id", payment.id)
+    .neq("status", "succeeded");
+  if (paymentUpdateError) throw paymentUpdateError;
+
+  const { data: guardedOrder, error: orderUpdateError } = await supabase
+    .from("orders")
+    .update(orderPatch)
+    .eq("id", order.id)
+    .or("payment_status.is.null,payment_status.neq.succeeded")
+    .select("id")
+    .maybeSingle();
+  if (orderUpdateError) throw orderUpdateError;
+
+  if (!guardedOrder) {
+    const { data: currentOrder, error: rereadError } = await supabase
+      .from("orders")
+      .select("payment_status")
+      .eq("id", order.id)
+      .maybeSingle();
+    if (rereadError) throw rereadError;
+    if (currentOrder?.payment_status === "succeeded" || order.payment_status === "succeeded") {
+      const { error: reconcileError } = await supabase
+        .from("payments")
+        .update({
+          status: "succeeded",
+          last_event_id: input.providerEventId ?? null,
+          last_event_created_at: input.providerEventCreatedAt ?? now,
+          paid_at: order.paid_at ?? now,
+          updated_at: now,
+        })
+        .eq("id", payment.id)
+        .neq("status", "succeeded");
+      if (reconcileError) throw reconcileError;
+      return { applied: true, orderId: order.id };
+    }
+  }
+
+  if (guardedOrder && isTerminalFailedPaymentStatus(input.nextStatus) && order.inventory_reserved) {
+    await restoreInventoryForOrder(supabase, order.id);
   }
 
   return { applied: true, orderId: order.id };
@@ -562,8 +690,10 @@ export async function releaseExpiredAirwallexReservations(
   const staleOrders = (data ?? []) as Array<{ id: string; inventory_reserved: boolean }>;
   for (const order of staleOrders) {
     if (!order.inventory_reserved) continue;
-    await restoreInventoryForOrder(supabase, order.id);
-    const { error: updateError } = await supabase
+    // Claim the row before restore. restore_order_inventory returns no stock once
+    // inventory_reserved is false, so this update leaves that flag set and the
+    // restore below clears it.
+    const { data: released, error: updateError } = await supabase
       .from("orders")
       .update({
         payment_status: "abandoned",
@@ -571,7 +701,13 @@ export async function releaseExpiredAirwallexReservations(
         fulfillment_status: "payment_failed",
         updated_at: new Date().toISOString(),
       })
-      .eq("id", order.id);
+      .eq("id", order.id)
+      .eq("inventory_reserved", true)
+      .in("payment_status", pendingStatuses)
+      .select("id")
+      .maybeSingle();
     if (updateError) throw updateError;
+    if (!released) continue;
+    await restoreInventoryForOrder(supabase, order.id);
   }
 }

@@ -6,6 +6,11 @@ import Link from "next/link";
 import { ChevronLeft, CreditCard, Truck } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
+import {
+  markCheckoutAttemptSucceeded,
+  rememberCheckoutIntent,
+  resolveCheckoutAttempt,
+} from "@/lib/checkout-attempt";
 import { createClient } from "@/lib/supabase/client";
 import { computeShippingUsd } from "@/lib/shipping";
 import { formatPrice } from "@/lib/utils";
@@ -91,7 +96,7 @@ const countries = [
 export default function CheckoutPage() {
   const { items, subtotal, clearCart } = useCart();
   const { currency, formatFromUsd } = useCurrency();
-  const checkoutAttemptIdRef = useRef<string>(crypto.randomUUID());
+  const codAttemptIdRef = useRef<string>(crypto.randomUUID());
   const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
   const [method, setMethod] = useState<"airwallex" | "cod">("airwallex");
   const [loading, setLoading] = useState(false);
@@ -225,13 +230,17 @@ export default function CheckoutPage() {
     setLoading(true);
     setPaymentStage(method === "airwallex" ? "creating_payment" : "idle");
 
-    const idempotencyKey = checkoutAttemptIdRef.current;
+    const attempt =
+      method === "airwallex"
+        ? resolveCheckoutAttempt(payloadItems, window.sessionStorage, () => crypto.randomUUID())
+        : null;
     const payload = {
       items: payloadItems,
       customer: form,
       shipping,
       currency: method === "airwallex" ? "USD" : currency,
-      idempotencyKey,
+      idempotencyKey: attempt?.idempotencyKey ?? codAttemptIdRef.current,
+      ...(attempt?.paymentIntentId ? { paymentIntentId: attempt.paymentIntentId } : {}),
     };
 
     try {
@@ -245,10 +254,24 @@ export default function CheckoutPage() {
       if (!res.ok) throw new Error(data.error || "Checkout failed");
 
       if (method === "airwallex") {
+        if (data.alreadyPaid && data.orderId) {
+          markCheckoutAttemptSucceeded(window.sessionStorage);
+          clearCart();
+          const paidIntent = data.intentId
+            ? `&intent_id=${encodeURIComponent(data.intentId)}`
+            : "";
+          window.location.href = `/order-confirmation?provider=airwallex&order_id=${encodeURIComponent(data.orderId)}${paidIntent}`;
+          return;
+        }
+
         if (!data.intentId || !data.clientSecret || !data.orderId || !data.currency || !data.sdkEnv) {
           throw new Error("Airwallex checkout payload is incomplete");
         }
 
+        rememberCheckoutIntent(window.sessionStorage, {
+          paymentIntentId: data.intentId,
+          orderId: data.orderId,
+        });
         setPaymentStage("redirecting_to_airwallex");
 
         const sdk = await loadAirwallexSdk();
@@ -258,10 +281,10 @@ export default function CheckoutPage() {
         });
         const successUrl = `${window.location.origin}/order-confirmation?provider=airwallex&order_id=${encodeURIComponent(
           data.orderId
-        )}`;
+        )}&intent_id=${encodeURIComponent(data.intentId)}`;
         const failUrl = `${window.location.origin}/order-confirmation?provider=airwallex&order_id=${encodeURIComponent(
           data.orderId
-        )}&state=failed`;
+        )}&intent_id=${encodeURIComponent(data.intentId)}&state=failed`;
 
         await payments.redirectToCheckout({
           intent_id: data.intentId,

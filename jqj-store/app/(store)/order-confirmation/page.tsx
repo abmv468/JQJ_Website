@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import { markCheckoutAttemptSucceeded } from "@/lib/checkout-attempt";
 
 function Confirmation() {
   const params = useSearchParams();
@@ -20,13 +21,18 @@ function Confirmation() {
   const method = params.get("method");
   const provider = params.get("provider");
   const returnState = params.get("state");
+  const intentId = params.get("intent_id") ?? params.get("payment_intent_id");
 
   const verifyAirwallexOrder = useCallback(
     async (targetOrderId: string) => {
       const response = await fetch("/api/checkout/airwallex/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId: targetOrderId, refresh: true }),
+        body: JSON.stringify({
+          orderId: targetOrderId,
+          refresh: true,
+          ...(intentId ? { paymentIntentId: intentId } : {}),
+        }),
       });
       const data = await response.json();
 
@@ -41,6 +47,7 @@ function Confirmation() {
       }
 
       if (data.succeeded) {
+        markCheckoutAttemptSucceeded(window.sessionStorage);
         setStatus("success");
         clearCart();
         return;
@@ -65,7 +72,7 @@ function Confirmation() {
 
       setStatus("pending");
     },
-    [clearCart]
+    [clearCart, intentId]
   );
 
   useEffect(() => {
