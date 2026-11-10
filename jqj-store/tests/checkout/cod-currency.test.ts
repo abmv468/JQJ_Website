@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/checkout/cod/route";
+import { normalizeCurrency } from "@/lib/currency";
 import { sendOrderEmails } from "@/lib/email";
 import {
   checkoutCustomer,
@@ -42,7 +43,7 @@ describe("COD order currency", () => {
     );
   });
 
-  it.each(["EUR", "GBP", "USD"])(
+  it.each(["EUR", "GBP", "HKD", "USD"])(
     "stores and emails USD when the shopper display currency is %s",
     async (displayCurrency) => {
       const response = await POST(
@@ -64,7 +65,7 @@ describe("COD order currency", () => {
         shipping_address: expect.objectContaining({
           payment_method: "cod",
           cod_fee: 20,
-          currency: displayCurrency,
+          currency: normalizeCurrency(displayCurrency),
         }),
       });
       expect(sendOrderEmails).toHaveBeenCalledTimes(1);
