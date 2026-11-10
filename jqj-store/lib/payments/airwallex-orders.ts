@@ -89,6 +89,12 @@ const PAYMENT_STATUS_WEIGHT: Record<InternalPaymentStatus, number> = {
 export const PAYMENT_AFTER_EXPIRY_UNFULFILLED_EVENT =
   "airwallex.payment_after_expiry_unfulfilled";
 
+/**
+ * Stable event for BE-018. A paid compare-and-set lost the row, so the webhook
+ * must fail and Airwallex must redeliver. The payload is the order id only.
+ */
+export const PAID_CLAIM_LOST_EVENT = "airwallex.paid_claim_lost";
+
 export interface PaymentAfterExpiryShortfall {
   productId: string;
   variantId: string | null;
@@ -106,6 +112,13 @@ export function reportPaymentAfterExpiryUnfulfilled(input: {
     orderId: input.orderId,
     paymentIntentId: input.paymentIntentId,
     shortfall: input.shortfall,
+  });
+}
+
+export function reportPaidClaimLost(orderId: string) {
+  console.error("[airwallex-orders] paid_claim_lost", {
+    event: PAID_CLAIM_LOST_EVENT,
+    orderId,
   });
 }
 
@@ -269,12 +282,24 @@ async function getOrderItemReservations(supabase: SupabaseClient, orderId: strin
 }
 
 function orderReleasedByExpiry(order: OrderRow) {
-  return order.inventory_reserved !== true && order.payment_status === "abandoned";
+  // Any unreserved order that is not already paid. Abandoned is the sweep's
+  // status, but failed (and other unpaid statuses) can also hold no stock.
+  return order.inventory_reserved !== true && order.payment_status !== "succeeded";
+}
+
+function errorText(error: unknown) {
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string") return message;
+  }
+  return "";
 }
 
 function isUnavailableStock(error: unknown) {
-  const message = error instanceof Error ? error.message : "";
-  return /stock unavailable/i.test(message);
+  // supabase.rpc returns PostgREST's JSON body as a plain { message, code }
+  // object unless throwOnError is set. That object is not an Error.
+  return /stock unavailable/i.test(errorText(error));
 }
 
 async function readStockCount(
@@ -326,7 +351,7 @@ async function flagPaymentAfterExpiry(
     shortfall: PaymentAfterExpiryShortfall[];
   }
 ) {
-  const { data: flagged, error: flagError } = await supabase
+  let flagUpdate = supabase
     .from("orders")
     .update({
       payment_provider: AIRWALLEX_PROVIDER,
@@ -336,11 +361,16 @@ async function flagPaymentAfterExpiry(
       paid_at: input.order.paid_at ?? input.now,
       updated_at: input.now,
     })
-    .eq("id", input.order.id)
-    .eq("payment_status", "abandoned")
-    .select("id")
-    .maybeSingle();
+    .eq("id", input.order.id);
+  flagUpdate =
+    input.order.payment_status == null
+      ? flagUpdate.is("payment_status", null)
+      : flagUpdate.eq("payment_status", input.order.payment_status);
+  const { data: flagged, error: flagError } = await flagUpdate.select("id").maybeSingle();
   if (flagError) throw flagError;
+  if (!flagged) {
+    throw new Error("Inventory exception was not recorded");
+  }
 
   if (flagged) {
     reportPaymentAfterExpiryUnfulfilled({
@@ -804,11 +834,11 @@ export async function applyAirwallexPaymentIntentStatus(
         .maybeSingle();
       if (rereadError) throw rereadError;
       if (currentOrder?.payment_status !== "succeeded") {
-        console.error("[airwallex-orders] payment succeeded but the order was not marked paid", {
-          orderId: order.id,
-          paymentIntentId: input.paymentIntentId,
-        });
-        return { applied: false, reason: "order_not_claimed" as const, orderId: order.id };
+        // The reaper (or another writer) changed the row after we read it.
+        // Do not mark the webhook processed. Airwallex redelivers, and that
+        // delivery takes the re-reserve or inventory_exception path.
+        reportPaidClaimLost(order.id);
+        throw new Error("Paid claim did not match the order row");
       }
       if (currentOrder.status === "inventory_exception") {
         if (!isSuccessfulPaymentStatus(currentStatus)) {
