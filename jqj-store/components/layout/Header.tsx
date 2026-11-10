@@ -10,6 +10,7 @@ import { AnimatePresence, LazyMotion, domAnimation, m, useReducedMotion } from "
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
 import { createClient } from "@/lib/supabase/client";
+import { megaMenus, type MegaMenuKey } from "@/lib/mega-menu";
 
 const navLinks = [
   { label: "New", href: "/new" },
@@ -17,118 +18,6 @@ const navLinks = [
   { label: "Bracelets", href: "/bracelets" },
   { label: "Necklaces", href: "/necklaces" },
 ];
-
-type MegaMenuKey = "bracelets" | "necklaces";
-
-type CategoryRoute = MegaMenuKey;
-
-type MegaMenuItem = {
-  label: string;
-  href: string;
-};
-
-type MegaMenuConfig = {
-  key: MegaMenuKey;
-  label: string;
-  columns: Array<{
-    title: string;
-    items: MegaMenuItem[];
-  }>;
-  card: {
-    title: string;
-    href: string;
-    image: string;
-    alt: string;
-  };
-};
-
-const queryHref = (category: CategoryRoute, query: string) =>
-  `/${category}?q=${encodeURIComponent(query)}`;
-
-const tagHref = (category: CategoryRoute, tag: string) =>
-  `/${category}?tag=${encodeURIComponent(tag)}`;
-
-const megaMenus: Record<MegaMenuKey, MegaMenuConfig> = {
-  necklaces: {
-    key: "necklaces",
-    label: "Necklaces",
-    columns: [
-      {
-        title: "Style",
-        items: [
-          { label: "Chain Necklaces", href: queryHref("necklaces", "Chain Necklaces") },
-          { label: "Charm Necklaces", href: queryHref("necklaces", "Charm Necklaces") },
-          { label: "Initial Necklaces", href: queryHref("necklaces", "Initial Necklaces") },
-          { label: "Layered Necklaces", href: queryHref("necklaces", "Layered Necklaces") },
-          { label: "Pendant Necklaces", href: queryHref("necklaces", "Pendant Necklaces") },
-          { label: "Solitaire Necklaces", href: queryHref("necklaces", "Solitaire Necklaces") },
-          { label: "Station Necklaces", href: queryHref("necklaces", "Station Necklaces") },
-          { label: "Y & Lariat Necklaces", href: queryHref("necklaces", "Y and Lariat Necklaces") },
-        ],
-      },
-      {
-        title: "Collection",
-        items: [
-          { label: "Bestsellers", href: tagHref("necklaces", "top-rated") },
-          { label: "Birthstones Series", href: queryHref("necklaces", "Birthstones") },
-          { label: "Celestial Keepsakes", href: queryHref("necklaces", "Celestial") },
-          { label: "Initials Series", href: queryHref("necklaces", "Initials") },
-          { label: "Pearl Collective", href: queryHref("necklaces", "Pearl") },
-          { label: "Waterproof Edit", href: queryHref("necklaces", "Waterproof") },
-        ],
-      },
-      {
-        title: "Finishing Colour",
-        items: [
-          { label: "Silver", href: queryHref("necklaces", "Silver") },
-          { label: "Gold", href: queryHref("necklaces", "Gold") },
-          { label: "Rose Gold", href: queryHref("necklaces", "Rose Gold") },
-        ],
-      },
-    ],
-    card: {
-      title: "All Necklaces",
-      href: "/necklaces",
-      image: "/products/main-hover-card-necklaces.jpg",
-      alt: "Necklaces collection",
-    },
-  },
-  bracelets: {
-    key: "bracelets",
-    label: "Bracelets",
-    columns: [
-      {
-        title: "Shop by Color",
-        items: [
-          { label: "Black & Gray", href: queryHref("bracelets", "Black and Gray") },
-          { label: "Cool Blues", href: queryHref("bracelets", "Cool Blues") },
-          { label: "Earth Browns & Beige", href: queryHref("bracelets", "Earth Browns and Beige") },
-          { label: "Warm Reds & Orange", href: queryHref("bracelets", "Warm Reds and Orange") },
-          { label: "Royal Purple", href: queryHref("bracelets", "Royal Purple") },
-          { label: "Rich Green", href: queryHref("bracelets", "Rich Green") },
-          { label: "White & Light Tones", href: queryHref("bracelets", "White and Light Tones") },
-          { label: "Multi-color", href: queryHref("bracelets", "Multicolor") },
-        ],
-      },
-      {
-        title: "Shop by Bead Size",
-        items: [
-          { label: "Mini Beads", href: queryHref("bracelets", "Mini Beads") },
-          { label: "Small Beads", href: queryHref("bracelets", "Small Beads") },
-          { label: "Medium Beads", href: queryHref("bracelets", "Medium Beads") },
-          { label: "Big Beads", href: queryHref("bracelets", "Big Beads") },
-          { label: "Mixed Size Beads", href: queryHref("bracelets", "Mixed Size Beads") },
-        ],
-      },
-    ],
-    card: {
-      title: "All Bracelets",
-      href: "/bracelets",
-      image: "/products/main-hover-card-bracelets.jpg",
-      alt: "Bracelets collection",
-    },
-  },
-};
 
 const megaMenuRouteKeys = Object.keys(megaMenus) as MegaMenuKey[];
 

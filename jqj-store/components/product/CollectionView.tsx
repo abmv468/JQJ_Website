@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, LayoutGrid, Rows3, Search, SlidersHorizontal, X } from "lucide-react";
 import type { Product, ProductTag } from "@/data/products";
+import { productSearchText } from "@/lib/listing";
 import { formatPrice } from "@/lib/utils";
 import ProductCard from "./ProductCard";
 
@@ -212,9 +213,7 @@ export default function CollectionView({
     if (inStockOnly) list = list.filter((p) => p.inStock);
     if (normalizedQuery) {
       list = list.filter((p) => {
-        const haystack =
-          `${p.name} ${p.description} ${p.stone} ${p.tags.join(" ")} ${Object.values(p.specs).join(" ")}`.toLowerCase();
-        return haystack.includes(normalizedQuery);
+        return productSearchText(p).includes(normalizedQuery);
       });
     }
 
