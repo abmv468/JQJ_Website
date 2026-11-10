@@ -151,8 +151,10 @@ export function validateCheckoutCustomer(customer: CheckoutCustomer): CheckoutFi
   return errors;
 }
 
-function presentServerFieldMessage(message: string): string {
-  return INTERNAL_ERROR_COPY[message] ?? message;
+function presentServerFieldMessage(message: string, knownField: boolean): string {
+  if (Object.hasOwn(INTERNAL_ERROR_COPY, message)) return INTERNAL_ERROR_COPY[message];
+  if (knownField) return CHECKOUT_ERROR_FIELDS;
+  return customerSafeCheckoutMessage(message);
 }
 
 export type CheckoutFailure = {
@@ -182,8 +184,11 @@ function readFieldMap(value: unknown) {
     if (!Object.hasOwn(record, key)) continue;
     const message = record[key];
     if (typeof message !== "string" || message.trim() === "") continue;
-    const shown = presentServerFieldMessage(message);
-    if (isCheckoutCustomerField(key)) fields[key] = shown;
+    const knownField = isCheckoutCustomerField(key);
+    const shown = knownField
+      ? presentServerFieldMessage(message, true)
+      : customerSafeCheckoutMessage(message);
+    if (knownField) fields[key] = shown;
     else unknown.push(shown);
   }
 

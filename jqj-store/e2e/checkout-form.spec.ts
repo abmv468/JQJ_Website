@@ -177,13 +177,16 @@ test("server field errors land on the matching inputs", async ({ page }) => {
   await fillCheckout(page);
   await page.getByRole("button", { name: "Continue to Secure Payment" }).click();
 
-  await expect(page.locator("#checkout-postalCode-error")).toHaveText("Enter a valid postcode.");
+  await expect(page.locator("#checkout-postalCode-error")).toHaveText("Please check the highlighted fields.");
   await expect(page.locator("#checkout-postalCode")).toHaveAttribute(
     "aria-describedby",
     "checkout-postalCode-error"
   );
   await expect(page.locator("#checkout-postalCode")).toBeFocused();
-  await expect(page.locator("#checkout-form-error")).toHaveText("Delivery note was too long.");
+  const serverAlert = page.locator("#checkout-form-error");
+  await expect(serverAlert).toHaveText("Something went wrong. Please try again. You have not been charged.");
+  await expect(serverAlert).not.toContainText("Delivery note");
+  await expect(serverAlert).not.toContainText("AIRWALLEX");
   await expect(page).toHaveURL(/\/checkout$/);
 });
 
@@ -227,7 +230,7 @@ test("the fields map from checkout validation lands on the postcode input", asyn
   await page.locator("#checkout-postalCode").fill("7870");
   await page.getByRole("button", { name: "Continue to Secure Payment" }).click();
 
-  await expect(page.locator("#checkout-postalCode-error")).toHaveText("Enter a valid postcode.");
+  await expect(page.locator("#checkout-postalCode-error")).toHaveText("Please check the highlighted fields.");
   await expect(page.locator("#checkout-form-error")).toContainText(
     "Something went wrong. Please try again. You have not been charged."
   );

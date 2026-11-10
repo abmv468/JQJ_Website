@@ -154,12 +154,37 @@ describe("readCheckoutFailure", () => {
       })
     ).toEqual({
       fields: {
-        postalCode: "Enter a valid postcode.",
-        email: "Enter a valid email address.",
+        postalCode: CHECKOUT_ERROR_FIELDS,
+        email: CHECKOUT_ERROR_FIELDS,
       },
-      formMessage: "Delivery note was too long.",
+      formMessage: CHECKOUT_ERROR_GENERIC,
       reference: null,
     });
+    expect(JSON.stringify(readCheckoutFailure({
+      errors: {
+        postalCode: "Enter a valid postcode.",
+        email: "Enter a valid email address.",
+        note: "Delivery note was too long.",
+      },
+    }))).not.toContain("Delivery note was too long.");
+  });
+
+  it("does not render an unknown key's raw server text", () => {
+    const result = readCheckoutFailure({
+      errors: { note: "AIRWALLEX_API_KEY is missing" },
+    });
+    expect(result.fields).toEqual({});
+    expect(result.formMessage).toBe(CHECKOUT_ERROR_GENERIC);
+    expect(JSON.stringify(result)).not.toContain("AIRWALLEX_API_KEY");
+  });
+
+  it("shows safe copy for a known field with unlisted text", () => {
+    const result = readCheckoutFailure({
+      errors: { postalCode: "Enter a valid postcode." },
+    });
+    expect(result.fields.postalCode).toBe(CHECKOUT_ERROR_FIELDS);
+    expect(result.fields.postalCode).not.toContain("Enter a valid postcode");
+    expect(JSON.stringify(result)).not.toContain("Enter a valid postcode");
   });
 
   it("maps the fields map PR #26 returns today", () => {
@@ -169,7 +194,7 @@ describe("readCheckoutFailure", () => {
         fields: { postalCode: "Enter a valid postcode." },
       })
     ).toEqual({
-      fields: { postalCode: "Enter a valid postcode." },
+      fields: { postalCode: CHECKOUT_ERROR_FIELDS },
       formMessage: CHECKOUT_ERROR_GENERIC,
       reference: null,
     });
@@ -177,7 +202,7 @@ describe("readCheckoutFailure", () => {
 
   it("uses the field summary when every key is an input", () => {
     expect(readCheckoutFailure({ errors: { city: "Enter a city." } })).toEqual({
-      fields: { city: "Enter a city." },
+      fields: { city: CHECKOUT_ERROR_FIELDS },
       formMessage: CHECKOUT_ERROR_FIELDS,
       reference: null,
     });
@@ -201,7 +226,8 @@ describe("readCheckoutFailure", () => {
     errors.city = "Enter a city.";
     const result = readCheckoutFailure({ errors });
     expect(result.fields.postalCode).toBeUndefined();
-    expect(result.fields.city).toBe("Enter a city.");
+    expect(result.fields.city).toBe(CHECKOUT_ERROR_FIELDS);
+    expect(JSON.stringify(result)).not.toContain("Enter a city");
   });
 
   it("never shows a raw internal checkout string", () => {
