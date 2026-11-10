@@ -125,6 +125,13 @@ function hookCalls(spy: { mock: { calls: unknown[][] } }) {
   return spy.mock.calls.filter((call) => call[0] === HOOK);
 }
 
+function closedOrderAlerts(spy: { mock: { calls: unknown[][] } }) {
+  return spy.mock.calls
+    .map((call) => call[0])
+    .filter((value): value is string => typeof value === "string" && value.includes("jqd_alert"))
+    .map((value) => JSON.parse(value) as { tag: string; event: string; orderId: string });
+}
+
 describe("protected cancelled and test orders", () => {
   let db: MemoryDb;
   let errorSpy: ReturnType<typeof vi.spyOn>;
@@ -159,10 +166,18 @@ describe("protected cancelled and test orders", () => {
       fulfillment_status: "pending_payment",
       inventory_reserved: false,
     });
+    expect(db.rowsOf("payments")[0]).toMatchObject({ status: "succeeded", amount: 115 });
     expect(db.rowsOf("products")[0].stock_count).toBe(5);
     expect(stockMoves(db)).toHaveLength(0);
     expect(sendOrderEmails).not.toHaveBeenCalled();
     expect(hookCalls(errorSpy)).toHaveLength(1);
+    expect(closedOrderAlerts(errorSpy)).toEqual([
+      {
+        tag: "jqd_alert",
+        event: PAYMENT_ON_PROTECTED_ORDER_EVENT,
+        orderId: "order-cancelled",
+      },
+    ]);
     expect(hookCalls(errorSpy)[0][1]).toMatchObject({
       event: PAYMENT_ON_PROTECTED_ORDER_EVENT,
       orderId: "order-cancelled",
@@ -219,9 +234,17 @@ describe("protected cancelled and test orders", () => {
       fulfillment_status: "pending_payment",
       inventory_reserved: true,
     });
+    expect(db.rowsOf("payments")[0]).toMatchObject({ status: "succeeded", amount: 115 });
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
     expect(stockMoves(db)).toHaveLength(0);
     expect(sendOrderEmails).not.toHaveBeenCalled();
+    expect(closedOrderAlerts(errorSpy)).toEqual([
+      {
+        tag: "jqd_alert",
+        event: PAYMENT_ON_PROTECTED_ORDER_EVENT,
+        orderId: "order-test",
+      },
+    ]);
     expect(hookCalls(errorSpy)).toHaveLength(2);
     expect(hookCalls(errorSpy).map((call) => (call[1] as { reason: string }).reason)).toEqual([
       "test",
@@ -260,14 +283,21 @@ describe("protected cancelled and test orders", () => {
     expect(verified.status).toBe(202);
     expect(refreshed.status).toBe(200);
     expect(orderWrites(db)).toHaveLength(0);
-    expect(db.writes.filter((write) => write.table === "payments")).toHaveLength(0);
     expect(db.rowsOf("orders")[0]).toMatchObject({
       status: "cancelled",
       payment_status: "requires_payment_method",
       fulfillment_status: "pending_payment",
     });
-    expect(db.rowsOf("payments")[0].status).toBe("requires_payment_method");
+    expect(db.rowsOf("payments")[0]).toMatchObject({ status: "succeeded", amount: 115 });
+    expect(db.rowsOf("products")[0].stock_count).toBe(5);
     expect(stockMoves(db)).toHaveLength(0);
+    expect(closedOrderAlerts(errorSpy)).toEqual([
+      {
+        tag: "jqd_alert",
+        event: PAYMENT_ON_PROTECTED_ORDER_EVENT,
+        orderId: "order-cancelled",
+      },
+    ]);
     expect(sendOrderEmails).not.toHaveBeenCalled();
     expect(hookCalls(errorSpy)).toHaveLength(2);
   });
@@ -282,6 +312,8 @@ describe("protected cancelled and test orders", () => {
     expect(second.status).toBe(200);
     await expect(second.json()).resolves.toEqual({ received: true, duplicate: true });
     expect(hookCalls(errorSpy)).toHaveLength(1);
+    expect(closedOrderAlerts(errorSpy)).toHaveLength(1);
+    expect(db.rowsOf("payments")[0]).toMatchObject({ status: "succeeded", amount: 115 });
     expect(stockMoves(db)).toHaveLength(0);
     expect(sendOrderEmails).not.toHaveBeenCalled();
     expect(db.rowsOf("orders")[0].status).toBe("cancelled");

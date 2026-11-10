@@ -609,6 +609,7 @@ export async function applyAirwallexPaymentIntentStatus(
     providerEventId?: string | null;
     providerEventCreatedAt?: string | null;
     force?: boolean;
+    amount?: number | string | null;
   }
 ) {
   const { data: paymentData, error: paymentError } = await supabase
@@ -635,6 +636,30 @@ export async function applyAirwallexPaymentIntentStatus(
     .maybeSingle();
   if (protectedError) throw protectedError;
   if (protectedRow && isProtectedOrder(protectedRow)) {
+    if (isSuccessfulPaymentStatus(input.nextStatus)) {
+      const amount = input.amount == null ? toNumber(payment.amount) : toNumber(input.amount);
+      const { data: recorded, error: recordError } = await supabase
+        .from("payments")
+        .update({
+          status: "succeeded",
+          amount,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", payment.id)
+        .neq("status", "succeeded")
+        .select("id")
+        .maybeSingle();
+      if (recordError) throw recordError;
+      if (recorded) {
+        console.error(
+          JSON.stringify({
+            tag: "jqd_alert",
+            event: PAYMENT_ON_PROTECTED_ORDER_EVENT,
+            orderId: protectedRow.id,
+          })
+        );
+      }
+    }
     if (isSuccessfulPaymentStatus(input.nextStatus) || isTerminalFailedPaymentStatus(input.nextStatus)) {
       reportPaymentOnProtectedOrder({
         orderId: protectedRow.id,
