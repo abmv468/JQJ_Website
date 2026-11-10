@@ -2,10 +2,10 @@
  * Customer-facing checkout copy and the field-error contract for BE-011.
  *
  * Request body `customer` keys, also accepted in HTTP 400
- * `{ errors: { [field]: message } }`:
+ * `{ errors: { [field]: message } }` (and the same map under `fields`):
  * email, firstName, lastName, address, apartment, city, region, country,
- * phone, postcode.
- * `postcode` is the added key. Unknown `errors` keys are not inputs.
+ * phone, postalCode.
+ * `postalCode` is the postcode key. Unknown keys are not inputs.
  */
 
 export const CHECKOUT_CUSTOMER_FIELD_KEYS = [
@@ -18,7 +18,7 @@ export const CHECKOUT_CUSTOMER_FIELD_KEYS = [
   "region",
   "country",
   "phone",
-  "postcode",
+  "postalCode",
 ] as const;
 
 export type CheckoutCustomerField = (typeof CHECKOUT_CUSTOMER_FIELD_KEYS)[number];
@@ -34,7 +34,7 @@ export const CHECKOUT_REQUIRED_FIELDS = [
   "firstName",
   "address",
   "city",
-  "postcode",
+  "postalCode",
 ] as const satisfies readonly CheckoutCustomerField[];
 
 export const CHECKOUT_FIELD_FOCUS_ORDER: readonly CheckoutCustomerField[] = [
@@ -46,7 +46,7 @@ export const CHECKOUT_FIELD_FOCUS_ORDER: readonly CheckoutCustomerField[] = [
   "apartment",
   "city",
   "region",
-  "postcode",
+  "postalCode",
   "phone",
 ];
 
@@ -58,7 +58,7 @@ export const CHECKOUT_AUTOCOMPLETE: Record<CheckoutCustomerField, string> = {
   apartment: "address-line2",
   city: "address-level2",
   region: "address-level1",
-  postcode: "postal-code",
+  postalCode: "postal-code",
   country: "country",
   phone: "tel",
 };
@@ -89,6 +89,9 @@ export const CHECKOUT_FIELD_REQUIRED = "This field is required.";
 
 // awaiting BRAND v4
 export const CHECKOUT_FIELD_EMAIL = "Enter a valid email address.";
+
+// awaiting BRAND v4
+export const CHECKOUT_REFERENCE_PREFIX = "Reference:";
 
 const INTERNAL_ERROR_COPY: Record<string, string> = {
   "Failed to load Airwallex checkout SDK": CHECKOUT_ERROR_PAYMENT,
@@ -129,38 +132,66 @@ function presentServerFieldMessage(message: string): string {
   return INTERNAL_ERROR_COPY[message] ?? message;
 }
 
-export function readCheckoutFailure(body: unknown): {
+export type CheckoutFailure = {
   fields: CheckoutFieldErrors;
   formMessage: string;
-} {
+  reference: string | null;
+};
+
+export function formatCheckoutReference(reference: string) {
+  return `${CHECKOUT_REFERENCE_PREFIX} ${reference}`;
+}
+
+function readReference(value: unknown) {
+  if (typeof value !== "string") return null;
+  const reference = value.trim();
+  if (!reference || reference.length > 64) return null;
+  return reference;
+}
+
+function readFieldMap(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const fields: CheckoutFieldErrors = {};
+  const unknown: string[] = [];
+
+  for (const [key, message] of Object.entries(value)) {
+    if (typeof message !== "string" || message.trim() === "") continue;
+    const shown = presentServerFieldMessage(message);
+    if (isCheckoutCustomerField(key)) fields[key] = shown;
+    else unknown.push(shown);
+  }
+
+  if (Object.keys(fields).length === 0 && unknown.length === 0) return null;
+  return { fields, unknown };
+}
+
+export function readCheckoutFailure(body: unknown): CheckoutFailure {
   const record =
     body && typeof body === "object" && !Array.isArray(body)
       ? (body as Record<string, unknown>)
       : {};
-  const rawError = typeof record.error === "string" ? record.error : "";
-  const errors = record.errors;
+  const rawError = typeof record.error === "string" ? record.error.trim() : "";
+  const reference = readReference(record.reference);
+  const fieldMap = readFieldMap(record.errors) ?? readFieldMap(record.fields);
+  const safeError = rawError && !INTERNAL_ERROR_COPY[rawError] ? rawError : "";
 
-  if (errors && typeof errors === "object" && !Array.isArray(errors)) {
-    const fields: CheckoutFieldErrors = {};
-    const unknown: string[] = [];
+  if (fieldMap) {
+    return {
+      fields: fieldMap.fields,
+      formMessage: fieldMap.unknown.length
+        ? fieldMap.unknown.join(" ")
+        : safeError || CHECKOUT_ERROR_FIELDS,
+      reference,
+    };
+  }
 
-    for (const [key, value] of Object.entries(errors)) {
-      if (typeof value !== "string" || value.trim() === "") continue;
-      const shown = presentServerFieldMessage(value);
-      if (isCheckoutCustomerField(key)) fields[key] = shown;
-      else unknown.push(shown);
-    }
-
-    if (Object.keys(fields).length > 0 || unknown.length > 0) {
-      return {
-        fields,
-        formMessage: unknown.length > 0 ? unknown.join(" ") : CHECKOUT_ERROR_FIELDS,
-      };
-    }
+  if (reference && safeError) {
+    return { fields: {}, formMessage: safeError, reference };
   }
 
   return {
     fields: {},
     formMessage: customerSafeCheckoutMessage(rawError || "Checkout failed"),
+    reference,
   };
 }

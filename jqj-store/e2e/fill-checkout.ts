@@ -6,5 +6,5 @@ export async function fillCheckout(page: Page) {
   await page.locator("#checkout-lastName").fill("Lovelace");
   await page.locator("#checkout-address").fill("1 Example Street");
   await page.locator("#checkout-city").fill("Austin");
-  await page.locator("#checkout-postcode").fill("78701");
+  await page.locator("#checkout-postalCode").fill("78701");
 }

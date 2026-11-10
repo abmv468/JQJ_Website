@@ -75,7 +75,7 @@ test("checkout fields expose labels, autocomplete, and one heading", async ({ pa
     ["#checkout-apartment", "apartment", "address-line2"],
     ["#checkout-city", "city", "address-level2"],
     ["#checkout-region", "region", "address-level1"],
-    ["#checkout-postcode", "postcode", "postal-code"],
+    ["#checkout-postalCode", "postalCode", "postal-code"],
     ["#checkout-phone", "phone", "tel"],
   ];
 
@@ -106,7 +106,7 @@ test("an empty required field shows an inline error", async ({ page }) => {
   await expect(emailError).toHaveText("This field is required.");
   await expect(email).toHaveAttribute("aria-describedby", "checkout-email-error");
   await expect(email).toHaveAttribute("aria-invalid", "true");
-  await expect(page.locator("#checkout-postcode-error")).toHaveText("This field is required.");
+  await expect(page.locator("#checkout-postalCode-error")).toHaveText("This field is required.");
 
   const alert = page.locator("#checkout-form-error");
   await expect(alert).toHaveAttribute("role", "alert");
@@ -121,7 +121,7 @@ test("checkout inputs are at least 16px on a phone", async ({ page }) => {
     return Number.parseFloat(getComputedStyle(element).fontSize);
   });
   expect(fontSize).toBeGreaterThanOrEqual(16);
-  const postcodeSize = await page.locator("#checkout-postcode").evaluate((element) => {
+  const postcodeSize = await page.locator("#checkout-postalCode").evaluate((element) => {
     return Number.parseFloat(getComputedStyle(element).fontSize);
   });
   expect(postcodeSize).toBeGreaterThanOrEqual(16);
@@ -165,7 +165,7 @@ test("server field errors land on the matching inputs", async ({ page }) => {
       contentType: "application/json",
       body: JSON.stringify({
         errors: {
-          postcode: "Enter a postcode.",
+          postalCode: "Enter a valid postcode.",
           note: "Delivery note was too long.",
         },
       }),
@@ -176,11 +176,55 @@ test("server field errors land on the matching inputs", async ({ page }) => {
   await fillCheckout(page);
   await page.getByRole("button", { name: "Continue to Secure Payment" }).click();
 
-  await expect(page.locator("#checkout-postcode-error")).toHaveText("Enter a postcode.");
-  await expect(page.locator("#checkout-postcode")).toHaveAttribute(
+  await expect(page.locator("#checkout-postalCode-error")).toHaveText("Enter a valid postcode.");
+  await expect(page.locator("#checkout-postalCode")).toHaveAttribute(
     "aria-describedby",
-    "checkout-postcode-error"
+    "checkout-postalCode-error"
   );
   await expect(page.locator("#checkout-form-error")).toHaveText("Delivery note was too long.");
   await expect(page).toHaveURL(/\/checkout$/);
+});
+
+test("a checkout failure shows the server message and reference", async ({ page }) => {
+  await page.route(/\/api\/checkout\/cod$/, (route) =>
+    route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: "Something went wrong. Please try again.",
+        reference: "ab12cd34",
+      }),
+    })
+  );
+
+  await openCheckout(page);
+  await fillCheckout(page);
+  await page.getByText("Cash on Delivery", { exact: false }).first().click();
+  await page.getByRole("button", { name: "Place Order" }).click();
+
+  const alert = page.locator("#checkout-form-error");
+  await expect(alert).toContainText("Something went wrong. Please try again.");
+  await expect(alert).toContainText("Reference: ab12cd34");
+  await expect(page).toHaveURL(/\/checkout$/);
+});
+
+test("the fields map from checkout validation lands on the postcode input", async ({ page }) => {
+  await page.route(/\/api\/checkout\/airwallex$/, (route) =>
+    route.fulfill({
+      status: 400,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: "Check the highlighted fields.",
+        fields: { postalCode: "Enter a valid postcode." },
+      }),
+    })
+  );
+
+  await openCheckout(page);
+  await fillCheckout(page);
+  await page.locator("#checkout-postalCode").fill("7870");
+  await page.getByRole("button", { name: "Continue to Secure Payment" }).click();
+
+  await expect(page.locator("#checkout-postalCode-error")).toHaveText("Enter a valid postcode.");
+  await expect(page.locator("#checkout-form-error")).toContainText("Check the highlighted fields.");
 });

@@ -13,6 +13,7 @@ import {
   CHECKOUT_ERROR_FIELDS,
   CHECKOUT_FIELD_FOCUS_ORDER,
   CHECKOUT_SHIPPING_LABEL,
+  formatCheckoutReference,
   CHECKOUT_STATUS_PROCESSING,
   CHECKOUT_STATUS_REDIRECTING,
   customerSafeCheckoutMessage,
@@ -112,12 +113,14 @@ const emptyCustomer = (): CheckoutCustomer => ({
   region: "",
   country: "United States",
   phone: "",
-  postcode: "",
+  postalCode: "",
 });
 
 type CheckoutResponse = {
   error?: unknown;
   errors?: unknown;
+  fields?: unknown;
+  reference?: unknown;
   orderId?: string;
   intentId?: string;
   clientSecret?: string;
@@ -146,6 +149,7 @@ export default function CheckoutPage() {
     "idle" | "creating_payment" | "redirecting_to_airwallex"
   >("idle");
   const [error, setError] = useState<string | null>(null);
+  const [errorReference, setErrorReference] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<CheckoutFieldErrors>({});
   const [stockErrors, setStockErrors] = useState<string[]>([]);
   const [checkingStock, setCheckingStock] = useState(false);
@@ -192,7 +196,7 @@ export default function CheckoutPage() {
         region: prev.region || address?.region || "",
         country: prev.country || address?.country || "United States",
         phone: prev.phone || profile?.phone || address?.phone || "",
-        postcode: prev.postcode || address?.postal_code || "",
+        postalCode: prev.postalCode || address?.postal_code || "",
       }));
     }
 
@@ -260,6 +264,7 @@ export default function CheckoutPage() {
     if (Object.keys(clientErrors).length > 0) {
       setFieldErrors(clientErrors);
       setError(CHECKOUT_ERROR_FIELDS);
+      setErrorReference(null);
       const firstInvalid = CHECKOUT_FIELD_FOCUS_ORDER.find((key) => clientErrors[key]);
       if (firstInvalid) document.getElementById(`checkout-${firstInvalid}`)?.focus();
       return;
@@ -267,12 +272,14 @@ export default function CheckoutPage() {
     if (stockErrors.length > 0) {
       setFieldErrors({});
       setError(stockErrors[0]);
+      setErrorReference(null);
       return;
     }
 
     submittingRef.current = true;
     setFieldErrors({});
     setError(null);
+    setErrorReference(null);
     setLoading(true);
     setPaymentStage(method === "airwallex" ? "creating_payment" : "idle");
 
@@ -300,6 +307,7 @@ export default function CheckoutPage() {
         const failure = readCheckoutFailure(data);
         setFieldErrors(failure.fields);
         setError(failure.formMessage);
+        setErrorReference(failure.reference);
         return;
       }
 
@@ -339,6 +347,7 @@ export default function CheckoutPage() {
       const raw = err instanceof Error ? err.message : "Something went wrong";
       console.error(raw);
       setError(customerSafeCheckoutMessage(raw));
+      setErrorReference(null);
     } finally {
       if (!holdSubmitLock) {
         submittingRef.current = false;
@@ -366,6 +375,7 @@ export default function CheckoutPage() {
         ? CHECKOUT_STATUS_PROCESSING
         : null;
   const alertMessage = error ?? (stockErrors.length > 0 ? stockErrors[0] : null);
+  const showAlert = Boolean(alertMessage || errorReference);
 
   return (
     <div className="container-site py-12">
@@ -480,13 +490,13 @@ export default function CheckoutPage() {
                 />
               </div>
               <CheckoutTextField
-                id="checkout-postcode"
-                name="postcode"
+                id="checkout-postalCode"
+                name="postalCode"
                 label="Postcode"
                 required
-                value={form.postcode}
-                error={fieldErrors.postcode}
-                onChange={(value) => update("postcode", value)}
+                value={form.postalCode}
+                error={fieldErrors.postalCode}
+                onChange={(value) => update("postalCode", value)}
               />
               <CheckoutTextField
                 id="checkout-phone"
@@ -532,9 +542,12 @@ export default function CheckoutPage() {
             id="checkout-form-error"
             role="alert"
             aria-live="assertive"
-            className={alertMessage ? "mb-4 text-sm text-red-400" : "sr-only"}
+            className={showAlert ? "mb-4 text-sm text-red-400" : "sr-only"}
           >
             {alertMessage}
+            {errorReference ? (
+              <span className="mt-1 block">{formatCheckoutReference(errorReference)}</span>
+            ) : null}
           </p>
 
           <div className="flex flex-col-reverse items-start gap-4 sm:flex-row sm:items-center sm:justify-between">

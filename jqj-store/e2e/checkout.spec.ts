@@ -56,7 +56,7 @@ test("card checkout redirects through the stubbed Airwallex SDK and clears the c
       currency?: string;
       idempotencyKey?: string;
       items?: { slug?: string }[];
-      customer?: { postcode?: string; email?: string };
+      customer?: { postalCode?: string; email?: string };
     } | null;
   } = { body: null };
 
@@ -112,7 +112,8 @@ test("card checkout redirects through the stubbed Airwallex SDK and clears the c
   expect(captured.body?.idempotencyKey).toEqual(expect.any(String));
   expect(captured.body?.items?.[0]?.slug).toBe("amethyst-bracelet-xv");
   expect(captured.body?.customer?.email).toBe("buyer@example.com");
-  expect(captured.body?.customer?.postcode).toBe("78701");
+  expect(captured.body?.customer?.postalCode).toBe("78701");
+  expect(captured.body?.customer).not.toHaveProperty("postcode");
   const calls = await page.evaluate(() => JSON.parse(sessionStorage.getItem("aw-calls") ?? "[]"));
   expect(calls).toEqual(
     expect.arrayContaining([

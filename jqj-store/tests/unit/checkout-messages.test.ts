@@ -25,7 +25,7 @@ const emptyCustomer = (): CheckoutCustomer => ({
   region: "",
   country: "",
   phone: "",
-  postcode: "",
+  postalCode: "",
 });
 
 const readyCustomer = (): CheckoutCustomer => ({
@@ -38,11 +38,11 @@ const readyCustomer = (): CheckoutCustomer => ({
   region: "TX",
   country: "United States",
   phone: "5125550100",
-  postcode: "78701",
+  postalCode: "78701",
 });
 
 describe("checkout customer field contract", () => {
-  it("lists the request-body customer keys, including postcode", () => {
+  it("lists the request-body customer keys, including postalCode", () => {
     expect(CHECKOUT_CUSTOMER_FIELD_KEYS).toEqual([
       "email",
       "firstName",
@@ -53,8 +53,9 @@ describe("checkout customer field contract", () => {
       "region",
       "country",
       "phone",
-      "postcode",
+      "postalCode",
     ]);
+    expect(CHECKOUT_CUSTOMER_FIELD_KEYS).not.toContain("postcode");
   });
 
   it("uses the full autocomplete tokens", () => {
@@ -66,7 +67,7 @@ describe("checkout customer field contract", () => {
       apartment: "address-line2",
       city: "address-level2",
       region: "address-level1",
-      postcode: "postal-code",
+      postalCode: "postal-code",
       country: "country",
       phone: "tel",
     });
@@ -88,14 +89,14 @@ describe("checkout customer field contract", () => {
 });
 
 describe("validateCheckoutCustomer", () => {
-  it("requires postcode and the existing required fields", () => {
+  it("requires postalCode and the existing required fields", () => {
     expect(validateCheckoutCustomer(emptyCustomer())).toEqual({
       email: CHECKOUT_FIELD_REQUIRED,
       country: CHECKOUT_FIELD_REQUIRED,
       firstName: CHECKOUT_FIELD_REQUIRED,
       address: CHECKOUT_FIELD_REQUIRED,
       city: CHECKOUT_FIELD_REQUIRED,
-      postcode: CHECKOUT_FIELD_REQUIRED,
+      postalCode: CHECKOUT_FIELD_REQUIRED,
     });
   });
 
@@ -118,17 +119,31 @@ describe("readCheckoutFailure", () => {
     expect(
       readCheckoutFailure({
         errors: {
-          postcode: "Enter a postcode.",
+          postalCode: "Enter a valid postcode.",
           email: "Enter a valid email address.",
           note: "Delivery note was too long.",
         },
       })
     ).toEqual({
       fields: {
-        postcode: "Enter a postcode.",
+        postalCode: "Enter a valid postcode.",
         email: "Enter a valid email address.",
       },
       formMessage: "Delivery note was too long.",
+      reference: null,
+    });
+  });
+
+  it("maps the fields map PR #26 returns today", () => {
+    expect(
+      readCheckoutFailure({
+        error: "Check the highlighted fields.",
+        fields: { postalCode: "Enter a valid postcode." },
+      })
+    ).toEqual({
+      fields: { postalCode: "Enter a valid postcode." },
+      formMessage: "Check the highlighted fields.",
+      reference: null,
     });
   });
 
@@ -136,6 +151,20 @@ describe("readCheckoutFailure", () => {
     expect(readCheckoutFailure({ errors: { city: "Enter a city." } })).toEqual({
       fields: { city: "Enter a city." },
       formMessage: CHECKOUT_ERROR_FIELDS,
+      reference: null,
+    });
+  });
+
+  it("shows the server message with its reference", () => {
+    expect(
+      readCheckoutFailure({
+        error: "Something went wrong. Please try again.",
+        reference: "ab12cd34",
+      })
+    ).toEqual({
+      fields: {},
+      formMessage: "Something went wrong. Please try again.",
+      reference: "ab12cd34",
     });
   });
 
@@ -149,6 +178,7 @@ describe("readCheckoutFailure", () => {
     expect(readCheckoutFailure({ error: "Failed to load Airwallex checkout SDK" })).toEqual({
       fields: {},
       formMessage: CHECKOUT_ERROR_PAYMENT,
+      reference: null,
     });
     expect(
       readCheckoutFailure({
