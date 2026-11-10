@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  buildAirwallexRedirectToCheckoutProps,
+  type AirwallexHostedCheckoutProps,
+} from "@/lib/payments/airwallex-wallet";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, CreditCard, Truck } from "lucide-react";
@@ -21,15 +25,7 @@ declare global {
         enabledElements: string[];
       }) => Promise<{
         payments: {
-          redirectToCheckout: (props: {
-            intent_id: string;
-            client_secret: string;
-            currency: string;
-            successUrl: string;
-            failUrl?: string;
-            cancelUrl?: string;
-            country_code?: string;
-          }) => Promise<void> | void;
+          redirectToCheckout: (props: AirwallexHostedCheckoutProps) => Promise<void> | void;
         };
       }>;
     };
@@ -261,14 +257,16 @@ export default function CheckoutPage() {
           data.orderId
         )}&state=failed`;
 
-        await payments.redirectToCheckout({
-          intent_id: data.intentId,
-          client_secret: data.clientSecret,
-          currency: data.currency,
-          successUrl,
-          failUrl,
-          country_code: data.countryCode,
-        });
+        await payments.redirectToCheckout(
+          buildAirwallexRedirectToCheckoutProps({
+            intent_id: data.intentId,
+            client_secret: data.clientSecret,
+            currency: data.currency,
+            successUrl,
+            failUrl,
+            country_code: data.countryCode,
+          })
+        );
         setLoading(false);
         setPaymentStage("idle");
       } else {
