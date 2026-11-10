@@ -2,7 +2,7 @@ import { createHmac } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/webhooks/airwallex/route";
 import { applyAirwallexPaymentIntentStatus } from "@/lib/payments/airwallex-orders";
-import { createCheckoutDb, setActiveDb, type MemoryDb } from "../helpers/memory-db";
+import { createCheckoutDb, dbError, setActiveDb, type MemoryDb } from "../helpers/memory-db";
 
 vi.mock("@/lib/payments/airwallex-orders", async () => {
   const actual = await vi.importActual<typeof import("@/lib/payments/airwallex-orders")>(
@@ -184,5 +184,31 @@ describe("Airwallex webhook order_not_claimed", () => {
     expect(db.rowsOf("payment_webhook_events")).toHaveLength(1);
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
     expect(db.rowsOf("orders")[0].confirmation_email_sent_at).toEqual(expect.any(String));
+  });
+
+  it("returns a generic error body when processing throws", async () => {
+    const secretMessage = "boom-secret-token-xyz";
+    let webhookStored = false;
+    db.failWhen = (table, op) => {
+      if (table === "payment_webhook_events" && op === "insert") {
+        webhookStored = true;
+        return null;
+      }
+      if (webhookStored && table === "payments") {
+        return dbError(secretMessage, "XX000");
+      }
+      return null;
+    };
+
+    const response = await POST(signed(successEvent("evt_throw")));
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body).toEqual({ error: "Internal error" });
+    expect(JSON.stringify(body)).not.toContain(secretMessage);
+    expect(db.rowsOf("payment_webhook_events")[0]).toMatchObject({
+      provider_event_id: "evt_throw",
+      status: "failed",
+    });
   });
 });
