@@ -8,7 +8,7 @@ From `jqj-store/`:
 
 ```bash
 npm ci
-npm run lint
+npm run lint          # fails on any ESLint warning
 npm run typecheck
 npm test
 ```
