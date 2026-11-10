@@ -409,13 +409,48 @@ describe("Airwallex reservation release", () => {
 
   it("rejects a cron call when CRON_SECRET is unset or wrong", async () => {
     delete process.env.CRON_SECRET;
-    expect((await releaseReservations(cronRequest(CRON_SECRET))).status).toBe(401);
+    const missing = await releaseReservations(cronRequest(CRON_SECRET));
+    expect(missing.status).toBe(401);
+    expect(missing.headers.get("cache-control")).toBe("no-store");
     process.env.CRON_SECRET = CRON_SECRET;
-    expect((await releaseReservations(cronRequest("nope"))).status).toBe(401);
+    const wrong = await releaseReservations(cronRequest("nope"));
+    expect(wrong.status).toBe(401);
+    expect(wrong.headers.get("cache-control")).toBe("no-store");
     expect((await releaseReservations(cronRequest(null))).status).toBe(401);
     const ok = await releaseReservations(cronRequest());
     expect(ok.status).toBe(200);
+    expect(ok.headers.get("cache-control")).toBe("no-store");
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("does not cache a cron failure", async () => {
+    db.failWhen = () => dbError("database unavailable", "XX000");
+    const response = await releaseReservations(cronRequest());
+    expect(response.status).toBe(500);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({ error: "Reservation release failed" });
+  });
+
+  it("re-reserves when a payment succeeds between the Airwallex read and the release", async () => {
+    seedHeldOrder(db, { id: "order-race", createdAt: hoursAgo(2), stock: 4 });
+    const original = db.rpc.bind(db);
+    db.rpc = async (fn, args) => {
+      if (fn === "restore_order_inventory" && args?.p_order_id === "order-race") {
+        const order = db.rowsOf("orders").find((row) => row.id === "order-race");
+        if (order) order.payment_status = "succeeded";
+      }
+      return original(fn, args ?? {});
+    };
+
+    const response = await releaseReservations(cronRequest());
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ paid: 1, released: 0, errors: [] });
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      status: "paid",
+      payment_status: "succeeded",
+      inventory_reserved: true,
+    });
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
   });
 
   it("releases a failed hold at any age and leaves a young pending hold", async () => {

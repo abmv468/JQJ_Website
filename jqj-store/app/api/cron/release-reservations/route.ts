@@ -5,6 +5,8 @@ import { releaseExpiredAirwallexReservations } from "@/lib/payments/airwallex-or
 
 export const dynamic = "force-dynamic";
 
+const noStore = { headers: { "Cache-Control": "no-store" } };
+
 function authorized(req: Request) {
   const secret = process.env.CRON_SECRET?.trim();
   if (!secret) return false;
@@ -19,14 +21,14 @@ function authorized(req: Request) {
 
 export async function GET(req: Request) {
   if (!authorized(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401, ...noStore });
   }
 
   try {
     const summary = await releaseExpiredAirwallexReservations(createAdminClient());
-    return NextResponse.json(summary, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(summary, noStore);
   } catch (error) {
     console.error("[cron-release-reservations]", error);
-    return NextResponse.json({ error: "Reservation release failed" }, { status: 500 });
+    return NextResponse.json({ error: "Reservation release failed" }, { status: 500, ...noStore });
   }
 }

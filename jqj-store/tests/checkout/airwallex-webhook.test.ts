@@ -33,6 +33,7 @@ describe("POST /api/webhooks/airwallex", () => {
     db = createCheckoutDb();
     setActiveDb(db);
     process.env.AIRWALLEX_WEBHOOK_SECRET = SECRET;
+    delete process.env.AIRWALLEX_WEBHOOK_MAX_SKEW_SECONDS;
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => {
@@ -183,5 +184,62 @@ describe("POST /api/webhooks/airwallex", () => {
     await expect(duplicate.json()).resolves.toEqual({ received: true, duplicate: true });
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
     expect(db.rowsOf("payment_webhook_events")).toHaveLength(1);
+  });
+
+  it("returns the same generic 400 when the webhook secret is unset", async () => {
+    const body = JSON.stringify({
+      id: "evt_secret",
+      name: "payment_intent.succeeded",
+      data: { object: { id: "int_1", status: "SUCCEEDED" } },
+    });
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const badSignature = await POST(
+      webhookRequest(body, { "x-signature": "deadbeef", "x-timestamp": timestamp })
+    );
+    delete process.env.AIRWALLEX_WEBHOOK_SECRET;
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const missingSecret = await POST(
+      webhookRequest(body, { "x-signature": sign(timestamp, body), "x-timestamp": timestamp })
+    );
+
+    expect(missingSecret.status).toBe(400);
+    const missingBody = await missingSecret.json();
+    expect(missingBody).toEqual(await badSignature.json());
+    expect(JSON.stringify(missingBody)).not.toMatch(/AIRWALLEX|secret/i);
+    expect(db.rowsOf("payment_webhook_events")).toHaveLength(0);
+    expect(db.rowsOf("orders")[0].status).toBe("pending");
+    vi.restoreAllMocks();
+  });
+
+  it("uses a positive skew and falls back to 300 seconds otherwise", async () => {
+    const payload = {
+      id: "evt_skew",
+      name: "payment_intent.succeeded",
+      created_at: new Date().toISOString(),
+      data: { object: { id: "int_1", status: "SUCCEEDED", amount: 115, currency: "USD" } },
+    };
+    const raw = JSON.stringify(payload);
+    const timestamp = String(Math.floor(Date.now() / 1000) - 400);
+    const request = () =>
+      webhookRequest(raw, {
+        "x-signature": sign(timestamp, raw),
+        "x-timestamp": timestamp,
+      });
+
+    for (const skew of [undefined, "", "0", "-5", "nope", "Infinity"]) {
+      if (skew === undefined) delete process.env.AIRWALLEX_WEBHOOK_MAX_SKEW_SECONDS;
+      else process.env.AIRWALLEX_WEBHOOK_MAX_SKEW_SECONDS = skew;
+      const rejected = await POST(request());
+      expect(rejected.status, `skew ${String(skew)}`).toBe(400);
+    }
+    expect(db.rowsOf("payment_webhook_events")).toHaveLength(0);
+
+    process.env.AIRWALLEX_WEBHOOK_MAX_SKEW_SECONDS = "1000";
+    const accepted = await POST(request());
+    expect(accepted.status).toBe(200);
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      status: "paid",
+      payment_status: "succeeded",
+    });
   });
 });

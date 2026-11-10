@@ -754,7 +754,7 @@ async function reconcileStaleReservation(
   }
 
   const payment = await loadAirwallexPayment(supabase, order.id);
-  const intentId = payment?.provider_payment_intent_id || fresh.payment_reference;
+  const intentId = payment?.provider_payment_intent_id || fresh.payment_reference || null;
   if (intentId) {
     const intent = await retrieveAirwallexPaymentIntent(intentId);
     const decision = await decideStaleIntent(supabase, fresh, intent);
@@ -766,11 +766,31 @@ async function reconcileStaleReservation(
     return latest?.payment_status === "succeeded" ? "paid" : "skipped";
   }
 
-  // restore_order_inventory is the idempotency key. A later success re-reserves
-  // or flags inventory_exception. The read above and this restore are not one
-  // transaction; a migration could refuse the restore when payment_status is
-  // already succeeded.
+  // restore_order_inventory is idempotent via inventory_reserved. A payment can
+  // still commit after the Airwallex read and before this returns.
   await releaseOrderReservation(supabase, order.id);
+
+  const settled = await readStaleOrder(supabase, order.id);
+  if (settled?.payment_status === "succeeded") {
+    const recoverId =
+      intentId ||
+      settled.payment_reference ||
+      (await loadAirwallexPayment(supabase, order.id))?.provider_payment_intent_id;
+    if (!recoverId) {
+      throw new Error("Paid during release but the order has no payment intent");
+    }
+    const recovered = await recordSucceededIntent(supabase, {
+      id: recoverId,
+      status: "SUCCEEDED",
+      amount: 0,
+      currency: "USD",
+      updated_at: new Date().toISOString(),
+    });
+    if (!recovered) {
+      throw new Error("Could not reconcile a payment that succeeded during release");
+    }
+    return "paid";
+  }
 
   const now = new Date().toISOString();
   const paymentStatus = normalizeAirwallexPaymentStatus(latest.payment_status);
