@@ -249,6 +249,7 @@ class Query implements PromiseLike<QueryResult> {
   private onConflict: string[] = [];
   private filters: QueryFilter[] = [];
   private limitN: number | null = null;
+  private orderBy: { column: string; ascending: boolean } | null = null;
   private mode: "many" | "single" | "maybe" = "many";
   private head = false;
   private counted = false;
@@ -327,6 +328,11 @@ class Query implements PromiseLike<QueryResult> {
     return this;
   }
 
+  order(column: string, options?: { ascending?: boolean }) {
+    this.orderBy = { column, ascending: options?.ascending !== false };
+    return this;
+  }
+
   single() {
     this.mode = "single";
     return this;
@@ -366,6 +372,13 @@ class Query implements PromiseLike<QueryResult> {
     const fields = parseSelect(this.selectList);
     this.assertFields(fields);
     let rows = this.db.requireTable(this.table).filter((row) => matches(row, this.filters));
+    if (this.orderBy) {
+      const { column, ascending } = this.orderBy;
+      rows = [...rows].sort((left, right) => {
+        const compared = String(left[column] ?? "").localeCompare(String(right[column] ?? ""));
+        return ascending ? compared : -compared;
+      });
+    }
     if (this.limitN != null) rows = rows.slice(0, this.limitN);
     const count = this.counted ? rows.length : null;
     if (this.head) return { data: null, error: null, count };
