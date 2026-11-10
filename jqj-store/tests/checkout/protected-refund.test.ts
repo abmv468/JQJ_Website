@@ -169,6 +169,38 @@ describe("refunds on protected orders", () => {
     });
   });
 
+  it("does not touch stock when a protected order is refunded", async () => {
+    db.rowsOf("products")[0].stock_count = 4;
+    seedOrder(db, { id: "order-cancelled", status: "cancelled" });
+    db.rowsOf("orders")[0].inventory_reserved = true;
+
+    const result = await settle(db, "order-cancelled", "rf_stock", 20);
+
+    expect(result).toMatchObject({ applied: true, orderId: "order-cancelled" });
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      status: "cancelled",
+      inventory_reserved: true,
+      refunded_amount: 20,
+    });
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
+    expect(
+      db.rpcCalls.filter(
+        (call) =>
+          call.fn === "reserve_order_inventory" ||
+          call.fn === "restore_order_inventory" ||
+          call.fn === "reserve_inventory" ||
+          call.fn === "restore_inventory"
+      )
+    ).toEqual([]);
+    const orderWrites = db.writes.filter((write) => write.table === "orders" && write.op === "update");
+    expect(orderWrites.length).toBeGreaterThan(0);
+    for (const write of orderWrites) {
+      const payload = write.payload && !Array.isArray(write.payload) ? write.payload : {};
+      expect(payload).not.toHaveProperty("inventory_reserved");
+    }
+    expect(db.writes.filter((write) => write.table === "products")).toEqual([]);
+  });
+
   it("still applies a refund when the order is cancelled or a test order", async () => {
     seedOrder(db, { id: "order-cancelled", status: "cancelled" });
     const cancelled = await settle(db, "order-cancelled", "rf_allowed_cancelled", 20);

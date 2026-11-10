@@ -36,6 +36,12 @@ function refundCoversCapturedPayment(order: AttentionRow, paymentAmount: unknown
   return refunded >= captured;
 }
 
+function succeededPaymentStatus(value: unknown) {
+  return String(value ?? "").trim().toLowerCase() === "succeeded";
+}
+
+const PROTECTED_ORDER_FILTER = "status.ilike.*cancelled*,sales_channel.ilike.*test*";
+
 function attentionReason(row: AttentionRow) {
   if (isProtectedOrder(row)) return PROTECTED_ORDER_ALERT_EVENT;
   return "inventory_exception";
@@ -54,36 +60,62 @@ export async function GET(req: Request) {
     const supabase = createAdminClient();
     const columns =
       "id, created_at, total_amount, refunded_amount, currency, status, sales_channel, payment_status, fulfillment_status";
-    const listed = supabase
+    const inventory = supabase
       .from("orders")
       .select(columns)
       .eq("payment_status", "succeeded")
       .eq("status", "inventory_exception")
       .order("created_at", { ascending: false })
       .limit(PAGE_LIMIT + 1);
+    const protectedByOrder = supabase
+      .from("orders")
+      .select(columns)
+      .ilike("payment_status", "*succeeded*")
+      .or(PROTECTED_ORDER_FILTER)
+      .order("created_at", { ascending: false })
+      .limit(PAGE_LIMIT + 1);
     const protectedByPayment = supabase
       .from("payments")
       .select(`amount, orders!inner(${columns})`)
-      .eq("status", "succeeded");
-    const [byOrder, byPayment] = await Promise.all([listed, protectedByPayment]);
+      .eq("status", "succeeded")
+      .or(PROTECTED_ORDER_FILTER, { referencedTable: "orders" })
+      .order("created_at", { ascending: false, referencedTable: "orders" })
+      .limit(PAGE_LIMIT + 1);
+    const [byInventory, byOrder, byPayment] = await Promise.all([
+      inventory,
+      protectedByOrder,
+      protectedByPayment,
+    ]);
+    if (byInventory.error) throw byInventory.error;
     if (byOrder.error) throw byOrder.error;
     if (byPayment.error) throw byPayment.error;
 
     const merged = new Map<string, AttentionRow>();
-    for (const row of (byOrder.data ?? []) as AttentionRow[]) merged.set(row.id, row);
+    for (const row of (byInventory.data ?? []) as AttentionRow[]) merged.set(row.id, row);
+    for (const row of (byOrder.data ?? []) as AttentionRow[]) {
+      if (!succeededPaymentStatus(row.payment_status) || !isProtectedOrder(row)) continue;
+      if (refundCoversCapturedPayment(row, null)) continue;
+      merged.set(row.id, row);
+    }
     for (const row of (byPayment.data ?? []) as Array<{
       amount?: number | string | null;
       orders?: AttentionRow | AttentionRow[] | null;
     }>) {
       const order = embeddedOrder(row.orders);
       if (!order || !isProtectedOrder(order)) continue;
-      if (refundCoversCapturedPayment(order, row.amount)) continue;
+      if (refundCoversCapturedPayment(order, row.amount)) {
+        merged.delete(order.id);
+        continue;
+      }
       merged.set(order.id, order);
     }
     const rows = [...merged.values()].sort((left, right) =>
       String(right.created_at ?? "").localeCompare(String(left.created_at ?? ""))
     );
-    const truncated = rows.length > PAGE_LIMIT;
+    const capped = [byInventory.data, byOrder.data, byPayment.data].some(
+      (page) => (page?.length ?? 0) > PAGE_LIMIT
+    );
+    const truncated = capped || rows.length > PAGE_LIMIT;
     const orders = rows.slice(0, PAGE_LIMIT).map((row) => ({
       id: row.id,
       created_at: row.created_at,

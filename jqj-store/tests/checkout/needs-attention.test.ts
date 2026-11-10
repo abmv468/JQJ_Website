@@ -302,6 +302,94 @@ describe("GET /api/admin/orders/needs-attention", () => {
     ]);
   });
 
+  it("lists a cancelled order paid on the order row, and hides it after a full refund", async () => {
+    seedOrder(db, {
+      id: "order-paid-here",
+      status: "cancelled",
+      payment_status: "succeeded",
+      refunded_amount: 0,
+      created_at: "2026-11-10T08:00:00.000Z",
+    });
+    seedOrder(db, {
+      id: "order-paid-refunded",
+      status: "cancelled",
+      payment_status: "succeeded",
+      refunded_amount: 115,
+      created_at: "2026-11-10T09:00:00.000Z",
+    });
+    seedOrder(db, {
+      id: "order-paid-padded",
+      status: "cancelled",
+      payment_status: "Succeeded ",
+      refunded_amount: 0,
+      created_at: "2026-11-10T10:00:00.000Z",
+    });
+
+    const response = await GET(request("Bearer admin-token"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.truncated).toBe(false);
+    expect(body.orders.map((order: { id: string }) => order.id)).toEqual([
+      "order-paid-padded",
+      "order-paid-here",
+    ]);
+    expect(body.orders.every((order: { reason: string }) => order.reason === PROTECTED_ORDER_ALERT_EVENT)).toBe(
+      true
+    );
+  });
+
+  it("sets truncated when more than 100 protected payments match", async () => {
+    for (let index = 0; index < 101; index += 1) {
+      const id = `order-${String(index).padStart(3, "0")}`;
+      const stamp = new Date(Date.UTC(2026, 0, 1, 0, 0, index)).toISOString();
+      seedOrder(db, {
+        id,
+        status: "cancelled",
+        payment_status: "requires_payment_method",
+        created_at: stamp,
+      });
+      seedPayment(db, id);
+    }
+
+    const response = await GET(request("Bearer admin-token"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.truncated).toBe(true);
+    expect(body.orders).toHaveLength(100);
+    expect(body.orders[0].id).toBe("order-100");
+    expect(body.orders.map((order: { id: string }) => order.id)).not.toContain("order-000");
+  });
+
+  it("does not let ordinary succeeded payments crowd a protected order out of the page", async () => {
+    seedOrder(db, {
+      id: "order-closed",
+      status: "cancelled",
+      payment_status: "requires_payment_method",
+      created_at: "2026-01-01T00:00:00.000Z",
+    });
+    seedPayment(db, "order-closed");
+    for (let index = 0; index < 101; index += 1) {
+      const id = `order-paid-${String(index).padStart(3, "0")}`;
+      seedOrder(db, {
+        id,
+        status: "paid",
+        payment_status: "succeeded",
+        created_at: new Date(Date.UTC(2026, 5, 1, 0, 0, index)).toISOString(),
+      });
+      seedPayment(db, id);
+    }
+    db.rowsOf("orders").find((row) => row.id === "order-paid-000")!.status = "precancelled";
+
+    const response = await GET(request("Bearer admin-token"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.truncated).toBe(false);
+    expect(body.orders.map((order: { id: string }) => order.id)).toEqual(["order-closed"]);
+  });
+
   it("returns the 100 newest rows and sets truncated when more match", async () => {
     for (let index = 0; index < 101; index += 1) {
       const stamp = new Date(Date.UTC(2026, 0, 1, 0, 0, index)).toISOString();
@@ -424,6 +512,33 @@ describe("GET /api/admin/orders/needs-attention", () => {
         reason: PROTECTED_ORDER_ALERT_EVENT,
       },
     ]);
+  });
+
+  it("hides a payments query failure behind a generic body", async () => {
+    const injected = dbError("payments-secret-xyz", "XX000");
+    db.failWhen = (table, op) => (table === "payments" && op === "select" ? injected : null);
+
+    const response = await GET(request("Bearer admin-token"));
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body).toEqual({ error: "Internal error" });
+    expect(JSON.stringify(body)).not.toContain("payments-secret-xyz");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("hides an orders query failure behind a generic body", async () => {
+    const injected = dbError("orders-secret-xyz", "XX000");
+    expect(injected instanceof Error).toBe(false);
+    db.failWhen = (table, op) => (table === "orders" && op === "select" ? injected : null);
+
+    const response = await GET(request("Bearer admin-token"));
+    const body = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(body).toEqual({ error: "Internal error" });
+    expect(JSON.stringify(body)).not.toContain("orders-secret-xyz");
+    expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
   it("hides database errors behind a generic body", async () => {
