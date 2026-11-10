@@ -10,7 +10,7 @@ import {
 import { products } from "@/data/products";
 
 const BANNED =
-  /atelier|handmade|hand-made|hand made|hand-finished|handcrafted|worldwide|\bUPS\b/i;
+  /\b(?:hand-crafted|handcrafted|hand-finished|hand-made|hand made|handmade|craftsmanship|artisanal|artisan|atelier|crafted|craft)\b|worldwide|\bUPS\b/i;
 
 describe("BRAND v4 copy constants", () => {
   it("keeps the standard delivery sentence, including the en dashes", () => {

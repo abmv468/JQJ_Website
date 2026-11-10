@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const BANNED =
-  /atelier|handmade|hand-made|hand made|hand-finished|handcrafted|worldwide|\bUPS\b/i;
+  /\b(?:hand-crafted|handcrafted|hand-finished|hand-made|hand made|handmade|craftsmanship|artisanal|artisan|atelier|crafted|craft)\b|worldwide|\bUPS\b/i;
 
 const DELIVERY_RANGE =
   "Dispatched in 1–3 business days, then typically 7–12 days in transit. Customs and peak season can add time.";
