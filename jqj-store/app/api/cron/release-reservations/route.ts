@@ -1,6 +1,6 @@
-import { createHash, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { authorizeCronRequest } from "@/lib/payments/cron-auth";
 import { releaseExpiredAirwallexReservations } from "@/lib/payments/airwallex-orders";
 
 export const dynamic = "force-dynamic";
@@ -8,21 +8,9 @@ export const maxDuration = 60;
 
 const noStore = { headers: { "Cache-Control": "no-store" } };
 
-function secretsMatch(left: string, right: string) {
-  const leftDigest = createHash("sha256").update(left).digest();
-  const rightDigest = createHash("sha256").update(right).digest();
-  return timingSafeEqual(leftDigest, rightDigest);
-}
-
-/** Raw header compare. The secret and header are not trimmed. */
-export function cronRequestAuthorized(header: string | null) {
-  const secret = process.env.CRON_SECRET;
-  if (secret == null || secret.trim() === "" || !header) return false;
-  return secretsMatch(header, `Bearer ${secret}`);
-}
-
 export async function GET(req: Request) {
-  if (!cronRequestAuthorized(req.headers.get("authorization"))) {
+  const decision = authorizeCronRequest(req.headers.get("authorization"), process.env.CRON_SECRET);
+  if (!decision.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401, ...noStore });
   }
 
