@@ -144,7 +144,7 @@ describe("POST /api/checkout/cod", () => {
         subtotal_amount: usd,
         shipping_amount: shipping,
         total_amount: usd + shipping + codFee,
-        currency: "EUR",
+        currency: "USD",
         shipping_address: expect.objectContaining({
           payment_method: "cod",
           cod_fee: codFee,

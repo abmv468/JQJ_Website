@@ -97,6 +97,41 @@ describe("COD order currency", () => {
     expect(db.rowsOf("orders")[0].currency).toBe("USD");
   });
 
+  it("reuses the derived key when the same cart and address are retried with no client key", async () => {
+    const body = {
+      items: [checkoutItem()],
+      customer: checkoutCustomer,
+      currency: "USD",
+    };
+    const first = await POST(request(body));
+    const second = await POST(request(body));
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(await second.json()).toEqual(await first.json());
+    expect(db.rowsOf("orders")).toHaveLength(1);
+    expect(db.rowsOf("orders")[0].stripe_session_id).toMatch(/^COD-[0-9a-f]{24}$/);
+  });
+
+  it("derives a different key when the shipping quote changes for the same cart and address", async () => {
+    const body = {
+      items: [checkoutItem()],
+      customer: checkoutCustomer,
+      currency: "USD",
+    };
+    const first = await POST(request(body));
+    db.rowsOf("products")[0].price = 300;
+    const second = await POST(request(body));
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    const orders = db.rowsOf("orders");
+    expect(orders).toHaveLength(2);
+    expect(orders[0].stripe_session_id).not.toBe(orders[1].stripe_session_id);
+    expect(orders[0].shipping_amount).toBe(15);
+    expect(orders[1].shipping_amount).toBe(0);
+  });
+
   it("reuses one idempotency key when the same cart is submitted in EUR and then USD", async () => {
     const cart = {
       items: [checkoutItem()],
