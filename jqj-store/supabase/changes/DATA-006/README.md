@@ -1,6 +1,6 @@
 # DATA-006: orders.confirmation_email_claimed_at (PREPARE ONLY, nothing applied)
 
-Prepared by JQD-DATA, 10 Nov 2026 (r3 16:23 HKT: rollback guard has no override, CTO decision; r2 16:22 HKT: BE-016 protocol + test 005 §6; schema unchanged); r1 16:16 HKT. Production `dgeywuxelljfagnelxdg` not touched (no reads either). Separate from DATA-002 / PR #30; not folded into it.
+Prepared by JQD-DATA, 10 Nov 2026 (#34 r3: rollback locks orders before the claim count, verified on #30 r3; 16:23 HKT: rollback guard has no override, CTO decision; r2 16:22 HKT: BE-016 protocol + test 005 §6; schema unchanged); r1 16:16 HKT. Production `dgeywuxelljfagnelxdg` not touched (no reads either). Separate from DATA-002 / PR #30; not folded into it.
 
 **Gate:** a branch + PR with the migration and test that passes QA's required checks (never straight to main), and the Owner's own words for the apply and the route, relayed via CTO and CEO. Apply only after #30 (version order 20261110065700 < 20261110080000; no functional dependency).
 
@@ -13,24 +13,26 @@ Expected fingerprint delta: `count_columns +1`, `md5_columns` changes; nothing e
 |---|---|---|
 | `20261110080000_orders_confirmation_email_claimed_at.sql` | `jqj-store/supabase/migrations/20261110080000_orders_confirmation_email_claimed_at.sql` | `6351a988e18b0a422f019afdab4c1d6b0f8f02d603f91683d42f7bd50e05f763` |
 | `tests/005_orders_confirmation_email_claimed_at.sql` | `jqj-store/supabase/tests/005_orders_confirmation_email_claimed_at.sql` | `a6228923d1592e1b63bc4f6581be4a0f0681f546ac595cce3c33b772d6ee4cab` |
-| `rollback.sql` | `jqj-store/supabase/changes/DATA-006/rollback.sql` | `f791b338496041f20d5b697c3ac2fe1216b8397064464982ceecaef94cece777` |
+| `rollback.sql` | `jqj-store/supabase/changes/DATA-006/rollback.sql` | `e373ceb43aa7752ef5e57a82ba59315412f0a086958ee058b07b219ad985e5ed` |
 | `precheck.sql` | `jqj-store/supabase/changes/DATA-006/precheck.sql` | `fe752838d55973d81f29b2a516966b4b3b2b21859d4089fa055811ceffbd8914` |
-| `test_harness/run_verify.sh` | local only | `1433475f2016ebe99102ffa95f2f6e74486d0a190f4742b2de0d8c6857104681` |
+| `test_harness/run_verify.sh` | local only | `9107a137b6f9448aa3e1c3bf2410b24116094c14433cb68b0c8ee5db4fb5f66a` |
 (This README's own hash is in the handoff MANIFEST.)
 
 ## Rollback (`rollback.sql`)
-One transaction, `lock_timeout 3s`, idempotent. **Guarded, no override (CTO decision):** while any row has `confirmation_email_claimed_at` set it always refuses with P0001 `DATA-006 rollback guard: N orders row(s) have confirmation_email_claimed_at set; refusing to drop the column` and changes nothing; HINT: a rollback needs a new reviewed change approved by CTO and the Owner. Dropping the column would discard the email de-dup record and could cause a second confirmation email. Because BE-016's success step keeps claimed_at set, the guard will refuse once any confirmation email has been sent. With no claims it drops the column and deletes history row `20261110080000` if present; a second run is a no-op. First roll back app code that uses the column (otherwise PostgREST gets 42703/PGRST204).
+One transaction, `lock_timeout 3s`, idempotent. r3: takes `LOCK TABLE public.orders IN ACCESS EXCLUSIVE MODE` before counting claims, so the count and the drop are race-free (no claim can be written in between); under a held lock it fails after 3 s with nothing changed. **Guarded, no override (CTO decision):** while any row has `confirmation_email_claimed_at` set it always refuses with P0001 `DATA-006 rollback guard: N orders row(s) have confirmation_email_claimed_at set; refusing to drop the column` and changes nothing; HINT: a rollback needs a new reviewed change approved by CTO and the Owner. Dropping the column would discard the email de-dup record and could cause a second confirmation email. Because BE-016's success step keeps claimed_at set, the guard will refuse once any confirmation email has been sent. With no claims it drops the column and deletes history row `20261110080000` if present; a second run is a no-op. First roll back app code that uses the column (otherwise PostgREST gets 42703/PGRST204).
 
 ## Precheck (`precheck.sql`, read-only, counts + catalog only)
 Go before apply: `claimed_at_column = null`, `sent_at_column.type = timestamp with time zone`, `locks_on_orders_other_sessions = 0`, `idle_in_txn_sessions = 0`, `longest_open_xact_s < 5`, `migrations` lacks 20261110080000. After: `claimed_at_column = {timestamp with time zone, YES, null}`, `claimed_at_set = 0`, `orders_rows` unchanged.
 
 ## Test 005 (QA-002 framework, PR #8, unchanged)
+**Never run test 005 (or 003/004) against production:** it inserts and updates orders rows and is meant only for QA's throwaway db-gate database.
 Type is timestamptz, nullable, no default; sibling `confirmation_email_sent_at` still timestamptz; an existing-shape insert (column not named) works and leaves NULL; set + exact read-back; clear to NULL; conditional claim (`... where confirmation_email_claimed_at is null`) updates 1 row, a second claim 0 rows. §6 (r2) runs BACKEND's exact BE-016 statements: claim returns the stamp; second claim inside the window 0 rows; claim backdated 11 minutes is re-claimed with a new stamp; the stale worker's CAS success and CAS clear with the old stamp update 0 rows and leave the new holder's claim intact; the holder's CAS success sets sent_at and keeps claimed_at; a claim after sent_at (also with an expired claim) 0 rows; holder CAS clear on failure clears and allows a re-claim. `now()` is fixed per transaction, so expiry is simulated by backdating the stored stamp. Schema unchanged. Fixtures roll back.
 
-## Local verification (r3 16:23 HKT, Postgres 16.15 throwaway on 127.0.0.1:54329; log `evidence/local_verify_r3.log`, refusal output `evidence/v3_rollback_refusal_r3.txt`; earlier logs `local_verify_r1.log`, `local_verify_r2.log`)
-- V1 main + #7 + #8 + #30 r2 + DATA-006, db-gate tests 001–005 (005 incl. §6 BE-016 protocol): **ok**.
+## Local verification (#34 r3, Postgres 16.15 throwaway on 127.0.0.1:54329; log `evidence/local_verify_34r3.log`; earlier logs `local_verify_r1/r2/r3.log`)
+- V1 main + #7 + #8 + #30 r3 + DATA-006, db-gate tests 001–005 (005 incl. §6 BE-016 protocol): **ok**.
 - V1b re-apply (psql -f): orders schema identical (no-op).
 - V2 control without the DATA-006 migration: **005 fails** as expected.
+- V3b rollback under a held lock (another session holds ROW EXCLUSIVE on orders): `LOCK TABLE` fails with 55P03 after 3.0 s, column kept.
 - V3 rollback (no override): with a claimed row → refused (P0001, no-override HINT), column and claim kept; claims cleared → column dropped; re-run → no-op; re-apply → schema identical to V1; tests 001–005 ok again.
 - V4 lock held by another session → 55P03 after 3.0 s, column not added.
 - V5 real Supabase CLI 3.1.0 `migration up` → applied #30 r2 then DATA-006 (history 9 and 2 statements; `evidence/v5_cli_history_row_20261110080000.json`); orders schema identical to the db-gate build.

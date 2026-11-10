@@ -15,6 +15,8 @@
 -- removing the column after that needs a new reviewed change approved by CTO
 -- and the Owner. There is deliberately no session setting or flag to skip
 -- the guard.
+-- The count runs after LOCK TABLE public.orders IN ACCESS EXCLUSIVE MODE (inside
+-- this transaction, after lock_timeout), so the count and the drop are race-free.
 -- Only counts are read; no customer data.
 -- Idempotent: a no-op if the column (or the history row) is not there.
 
@@ -28,6 +30,9 @@ begin
   if exists (select 1 from pg_attribute
              where attrelid = 'public.orders'::regclass
                and attname = 'confirmation_email_claimed_at' and not attisdropped) then
+    -- Lock first (r3, SECOPS/CTO): no claim can be written between the count
+    -- and the drop. Waits at most lock_timeout (3s), then fails, nothing changed.
+    lock table public.orders in access exclusive mode;
     execute 'select count(*) from public.orders where confirmation_email_claimed_at is not null'
       into v_claimed;
     if v_claimed > 0 then
