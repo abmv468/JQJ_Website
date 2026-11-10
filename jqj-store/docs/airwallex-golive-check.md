@@ -1,46 +1,66 @@
 # Airwallex go-live check
 
-Production Airwallex is still sandbox until this checklist is finished. Card checkout creation can be stopped without a deploy by setting `CARD_PAYMENTS_ENABLED` to `false`. Any other value, including leaving it unset, leaves card checkout enabled. Webhook delivery and `POST /api/checkout/airwallex/verify` stay on, so a return for an order that already exists can still complete.
+Production Airwallex is still sandbox until this checklist is finished. Do these steps in order. The live webhook route is `POST /api/webhooks/airwallex`, from `jqj-store/app/api/webhooks/airwallex/route.ts`.
 
-The live webhook route is `POST /api/webhooks/airwallex`, from `jqj-store/app/api/webhooks/airwallex/route.ts`.
+Use env var names only. Do not copy secret values into this doc, a ticket, or chat.
 
-## 1. Owner registers the live webhook
+## (a) Webhook secret in Vercel Production
 
-In the Airwallex dashboard, register this URL:
+Owner/SECOPS confirm the live webhook secret is set in Vercel Production:
+
+- `AIRWALLEX_WEBHOOK_SECRET`
+
+These other names must also hold live values:
+
+- `AIRWALLEX_ENV`
+- `AIRWALLEX_CLIENT_ID`
+- `AIRWALLEX_API_KEY`
+- `AIRWALLEX_PRODUCTION_ENABLED`
+- `CARD_PAYMENTS_ENABLED`
+- `NEXT_PUBLIC_SITE_URL`
+
+## (b) Register the live webhook URL
+
+Owner registers this URL in the Airwallex dashboard:
 
 `https://jqd.app/api/webhooks/airwallex`
 
-Subscribe the payment and refund events the route already handles (`payment_intent.*` and `refund.*`). The route checks the `x-signature` and `x-timestamp` headers against the raw body.
+## (c) Dashboard test event, then DATA confirms the row
 
-## 2. Owner sends the dashboard test event
+Owner sends the dashboard's test event.
 
-Use the dashboard control that sends a test event to that endpoint. This check is the first live delivery: `payment_webhook_events` has had no rows.
-
-## 3. DATA confirms a row
-
-DATA runs this read in the store database:
+DATA then runs:
 
 ```sql
-select provider, provider_event_id, event_name, status, received_at
+select
+  id,
+  provider,
+  provider_event_id,
+  event_name,
+  status,
+  received_at,
+  (payload::text ilike '%client_secret%') as payload_has_client_secret
 from payment_webhook_events
 order by received_at desc
 limit 20;
 ```
 
-A row must exist. `event_name` must be the event type the dashboard sent.
+A row must exist. `event_name` must be the event type the dashboard sent, and `status` must be the status that event is expected to store. After BE-020, `payload_has_client_secret` must be false. Until BE-020 is in production, record the payload check as waiting on BE-020.
 
-## 4. Live card charge
+## (d) Tampered or unsigned POST
 
-Place a small live card payment, then refund it, only after the Owner's explicit yes. Do not charge or refund a live card without that yes.
+Send a POST to `https://jqd.app/api/webhooks/airwallex` with no signature, and a POST whose body does not match its signature. Each response must be 4xx. This route returns 400 when `x-signature` or `x-timestamp` is missing, and when the body does not match `x-signature`. That rejection happens before any insert.
 
-## Environment variable names that must be live values
+DATA repeats the SELECT from (c). No new `payment_webhook_events` row.
 
-Names only:
+## (e) Failed-match alert (BE-018)
 
-- `AIRWALLEX_ENV`
-- `AIRWALLEX_CLIENT_ID`
-- `AIRWALLEX_API_KEY`
-- `AIRWALLEX_WEBHOOK_SECRET`
-- `AIRWALLEX_PRODUCTION_ENABLED`
-- `CARD_PAYMENTS_ENABLED`
-- `NEXT_PUBLIC_SITE_URL`
+Confirm the failed-match alert path (BE-018), or leave it pending until Resend is verified. Do not mark this step confirmed before that verification is recorded.
+
+## (f) Live card test
+
+Place a small live card payment and refund it only after the Owner's explicit yes. Do not charge or refund without that yes.
+
+## (g) Rollback
+
+Set `CARD_PAYMENTS_ENABLED=false` and redeploy.
