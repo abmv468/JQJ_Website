@@ -24,10 +24,13 @@ export const dynamic = "force-dynamic";
 
 const noStore = { "Cache-Control": "no-store" };
 
+const ADMIN_ORDER_RELATIONS_SELECT =
+  "*, order_items(*), order_refunds(*), payments(provider, status, provider_payment_intent_id, payment_refunds(*))";
+
 async function loadOrderWithRelations(supabase: ReturnType<typeof createAdminClient>, id: string) {
   const { data, error } = await supabase
     .from("orders")
-    .select("*, order_items(*), order_refunds(*), payments(*, payment_refunds(*))")
+    .select(ADMIN_ORDER_RELATIONS_SELECT)
     .eq("id", id)
     .single();
   if (error) throw error;
@@ -42,7 +45,7 @@ export async function GET(req: Request) {
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from("orders")
-      .select("*, order_items(*), order_refunds(*), payments(*, payment_refunds(*))")
+      .select(ADMIN_ORDER_RELATIONS_SELECT)
       .order("created_at", { ascending: false });
     if (error) throw error;
     return NextResponse.json({ orders: data }, { headers: noStore });

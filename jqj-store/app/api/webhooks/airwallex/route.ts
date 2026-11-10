@@ -27,6 +27,22 @@ function truncateError(input: string, maxLength = 1000) {
   return `${input.slice(0, maxLength - 3)}...`;
 }
 
+function isClientSecretKey(key: string) {
+  return key.replace(/[_-]/g, "").toLowerCase() === "clientsecret";
+}
+
+function withoutClientSecret(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map((entry) => withoutClientSecret(entry));
+  if (!value || typeof value !== "object") return value;
+
+  const copy: Record<string, unknown> = {};
+  for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+    if (isClientSecretKey(key)) continue;
+    copy[key] = withoutClientSecret(nested);
+  }
+  return copy;
+}
+
 export async function POST(req: Request) {
   const webhookSecret = process.env.AIRWALLEX_WEBHOOK_SECRET;
   if (!webhookSecret) {
@@ -75,7 +91,7 @@ export async function POST(req: Request) {
       provider: "airwallex",
       provider_event_id: event.id,
       event_name: event.name,
-      payload: event as unknown as Record<string, unknown>,
+      payload: withoutClientSecret(event) as Record<string, unknown>,
       event_created_at: event.created_at ?? null,
       status: "received",
     })

@@ -296,6 +296,76 @@ export async function findAirwallexPaymentByIntent(
   return (data as PaymentRow | null) ?? null;
 }
 
+const PERSISTED_INTENT_FIELDS = [
+  "id",
+  "request_id",
+  "status",
+  "amount",
+  "currency",
+  "merchant_order_id",
+  "created_at",
+  "updated_at",
+  "captured_amount",
+  "original_amount",
+  "original_currency",
+  "descriptor",
+] as const;
+
+function persistedScalar(value: unknown): Json | undefined {
+  if (value === null) return null;
+  if (typeof value === "string" || typeof value === "boolean") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  return undefined;
+}
+
+function persistedPaymentAttempt(value: unknown): { [key: string]: Json } | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const attempt = value as Record<string, unknown>;
+  const persisted: { [key: string]: Json } = {};
+
+  const status = persistedScalar(attempt.status);
+  if (status !== undefined) persisted.status = status;
+
+  const methodValue = attempt.payment_method;
+  if (methodValue && typeof methodValue === "object" && !Array.isArray(methodValue)) {
+    const method = methodValue as Record<string, unknown>;
+    const persistedMethod: { [key: string]: Json } = {};
+    const type = persistedScalar(method.type);
+    if (type !== undefined) persistedMethod.type = type;
+
+    const cardValue = method.card;
+    if (cardValue && typeof cardValue === "object" && !Array.isArray(cardValue)) {
+      const card = cardValue as Record<string, unknown>;
+      const persistedCard: { [key: string]: Json } = {};
+      const brand = persistedScalar(card.brand);
+      const last4 = persistedScalar(card.last4);
+      if (brand !== undefined) persistedCard.brand = brand;
+      if (last4 !== undefined) persistedCard.last4 = last4;
+      if (Object.keys(persistedCard).length > 0) persistedMethod.card = persistedCard;
+    }
+
+    if (Object.keys(persistedMethod).length > 0) persisted.payment_method = persistedMethod;
+  }
+
+  return persisted;
+}
+
+export function toPersistedIntent(intent: AirwallexPaymentIntent): Json {
+  const persisted: { [key: string]: Json } = {};
+  for (const field of PERSISTED_INTENT_FIELDS) {
+    if (!Object.prototype.hasOwnProperty.call(intent, field)) continue;
+    const value = persistedScalar(intent[field]);
+    if (value !== undefined) persisted[field] = value;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(intent, "latest_payment_attempt")) {
+    const attempt = persistedPaymentAttempt(intent.latest_payment_attempt);
+    if (attempt) persisted.latest_payment_attempt = attempt;
+  }
+
+  return persisted;
+}
+
 export async function upsertAirwallexPaymentIntent(
   supabase: SupabaseClient,
   input: {
@@ -334,7 +404,7 @@ export async function upsertAirwallexPaymentIntent(
     provider_request_id: input.intent.request_id ?? input.requestId,
     amount,
     currency: String(input.intent.currency || "USD").toUpperCase(),
-    metadata: input.intent as unknown as Json,
+    metadata: toPersistedIntent(input.intent),
     updated_at: now,
   };
   // Succeeded is claimed by applyAirwallexPaymentIntentStatus, so a duplicate
@@ -553,6 +623,28 @@ function mapRefundStatusFromEventName(eventName: string) {
   }
 }
 
+const PERSISTED_REFUND_FIELDS = [
+  "id",
+  "request_id",
+  "payment_intent_id",
+  "amount",
+  "currency",
+  "status",
+  "reason",
+  "created_at",
+  "updated_at",
+] as const;
+
+export function toPersistedRefund(refund: Record<string, unknown>): Json {
+  const persisted: { [key: string]: Json } = {};
+  for (const field of PERSISTED_REFUND_FIELDS) {
+    if (!Object.prototype.hasOwnProperty.call(refund, field)) continue;
+    const value = persistedScalar(refund[field]);
+    if (value !== undefined) persisted[field] = value;
+  }
+  return persisted;
+}
+
 export async function applyAirwallexRefundEvent(
   supabase: SupabaseClient,
   input: {
@@ -619,7 +711,7 @@ export async function applyAirwallexRefundEvent(
     reason: typeof input.refundObject.reason === "string" ? input.refundObject.reason : null,
     status: nextStatus,
     settled_at: nextStatus === "settled" ? now : existingRefund?.settled_at ?? null,
-    metadata: input.refundObject as unknown as Json,
+    metadata: toPersistedRefund(input.refundObject),
     updated_at: now,
   };
 
