@@ -40,16 +40,15 @@ npm run test:e2e
 - Webhook HMAC: valid signature, tampered body, bad signature, missing headers, stale timestamp.
 - Cash on delivery: server price plus $15 shipping plus $20 fee, one reservation, the same idempotency key returns the same order, and a failed save restores stock. No `RESEND_API_KEY` means no email request.
 - Browser: add to cart, card checkout through a stubbed SDK, failed return, and cash on delivery. No live payment page.
+- Unpaid Airwallex reservations: a failed retry releases stock, a failed order is not reused, `GET /api/cron/release-reservations` expires stale holds, and a late capture re-reserves or sets `inventory_exception`.
 
 ## What is not covered
 
 - The live Supabase project. Migration history there is still empty, so drift between the database and `supabase/migrations/` is invisible to CI.
 - Real Airwallex, Stripe, or Resend calls, including refunds and the legacy Stripe checkout routes.
-- Concurrent reservations. The in-memory RPCs mirror the SQL guard (`inventory_reserved` makes a second restore a no-op) but they do not take a Postgres row lock.
+- Concurrent reservations against Postgres. The in-memory RPCs mirror the `inventory_reserved` guard, so a second restore is a no-op, but they do not take the live function's row lock.
 - Admin, account, and catalog pages beyond the one product used by the browser smoke.
-- Two known bugs, recorded as expected failures so they do not block merges:
-  - A payment that succeeds after the 75-minute sweep can become paid with no stock held.
-  - An error from that sweep makes every new card checkout return 500.
+- A sweep can still release stock if a payment is marked succeeded in the gap between the status read and the restore. Closing that needs a database function that restores only when `payment_status` is not `succeeded`. No migration is in this change.
 
 ## CI
 
@@ -62,4 +61,4 @@ npm run test:e2e
 
 The build in `verify` proves production compilation needs no secrets. The e2e job repeats the build because `NEXT_PUBLIC_*` values are baked into the browser bundle.
 
-Environment names the build or server reads, when they are set at all: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `AIRWALLEX_ENV`, `NEXT_PUBLIC_SITE_URL`. Webhook route tests set `AIRWALLEX_WEBHOOK_SECRET` themselves. CI does not use repository secrets.
+Environment names the build or server reads, when they are set at all: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `AIRWALLEX_ENV`, `NEXT_PUBLIC_SITE_URL`. Webhook route tests set `AIRWALLEX_WEBHOOK_SECRET` themselves. Reservation-release tests also set `AIRWALLEX_CLIENT_ID`, `AIRWALLEX_API_KEY`, and `CRON_SECRET` to the dummy value `test_dummy`. CI does not use repository secrets.

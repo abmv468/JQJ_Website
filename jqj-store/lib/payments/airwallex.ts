@@ -366,6 +366,22 @@ export async function retrieveAirwallexPaymentIntent(paymentIntentId: string) {
   );
 }
 
+export async function cancelAirwallexPaymentIntent(paymentIntentId: string, requestId: string) {
+  return airwallexRequest<AirwallexPaymentIntent>(
+    `/api/v1/pa/payment_intents/${encodeURIComponent(paymentIntentId)}/cancel`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        request_id: requestId,
+        cancellation_reason: "Order expired before payment",
+      }),
+    },
+    {
+      maxRetries: DEFAULT_MAX_RETRIES,
+    }
+  );
+}
+
 export interface CreateAirwallexRefundInput {
   paymentIntentId: string;
   requestId: string;

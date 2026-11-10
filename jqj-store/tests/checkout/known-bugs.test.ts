@@ -23,13 +23,11 @@ vi.mock("@/lib/payments/airwallex", async () => {
 });
 
 /**
- * These assertions describe the behaviour we want. They fail on purpose.
- * Flip `it.fails` to `it` when the bug is fixed. Do not weaken the assertion.
- *
- * Bug #1: a payment that succeeds after the 75-minute reservation sweep becomes
- * a paid order while stock stays released.
- * Bug #3: releaseExpiredAirwallexReservations runs before a new card checkout,
- * so a sweep error returns 500 for every new Airwallex checkout.
+ * Regressions for the reservation bugs that used to be `it.fails`.
+ * Bug #1: a success after the reservation was released must not become paid
+ * with no stock held.
+ * Bug #3: a sweep error must not fail a new card checkout. The sweep no longer
+ * runs inside checkout.
  */
 
 describe("known checkout bugs", () => {
@@ -41,7 +39,7 @@ describe("known checkout bugs", () => {
     delete process.env.RESEND_API_KEY;
   });
 
-  it.fails(
+  it(
     "known bug #1: a late success after the reservation sweep must not leave a paid order with no stock held",
     async () => {
       db.rowsOf("products")[0].stock_count = 5;
@@ -109,7 +107,7 @@ describe("known checkout bugs", () => {
     }
   );
 
-  it.fails(
+  it(
     "known bug #3: a reservation sweep error must not fail a new card checkout",
     async () => {
       db.failWhen = (table, _op, filters) =>

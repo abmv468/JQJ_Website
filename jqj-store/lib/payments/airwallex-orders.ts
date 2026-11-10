@@ -1,13 +1,17 @@
+import { randomUUID } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { sendOrderEmails } from "@/lib/email";
+import { sendInventoryExceptionAlert, sendOrderEmails } from "@/lib/email";
 import { normalizeCurrency } from "@/lib/currency";
+import type { ResolvedCheckoutItem } from "@/lib/inventory";
 import {
   AIRWALLEX_PROVIDER,
+  cancelAirwallexPaymentIntent,
   isPendingPaymentStatus,
   isSuccessfulPaymentStatus,
   isTerminalFailedPaymentStatus,
   normalizeAirwallexPaymentStatus,
   normalizeAirwallexRefundStatus,
+  retrieveAirwallexPaymentIntent,
   type AirwallexPaymentIntent,
   type InternalPaymentStatus,
 } from "@/lib/payments/airwallex";
@@ -202,9 +206,51 @@ async function getOrderItemReservations(supabase: SupabaseClient, orderId: strin
   return Array.from(aggregate.values());
 }
 
-async function restoreInventoryForOrder(supabase: SupabaseClient, orderId: string) {
-  const reservations = await getOrderItemReservations(supabase, orderId);
-  if (!reservations.length) return;
+function reservationsFromResolvedItems(items: ResolvedCheckoutItem[]) {
+  const aggregate = new Map<string, { product_id: string; variant_id: string | null; quantity: number }>();
+  for (const line of items) {
+    const variantId = line.variant?.id ?? null;
+    const key = variantId ? `v:${variantId}` : `p:${line.product.id}`;
+    const existing = aggregate.get(key);
+    if (existing) {
+      existing.quantity += line.requestedQuantity;
+      continue;
+    }
+    aggregate.set(key, {
+      product_id: line.product.id,
+      variant_id: variantId,
+      quantity: line.requestedQuantity,
+    });
+  }
+  return Array.from(aggregate.values());
+}
+
+/**
+ * Restores stock once for an order. `restore_order_inventory` locks the order
+ * row and returns without changing stock when `inventory_reserved` is already
+ * false, so duplicate and overlapping calls are safe.
+ */
+export async function releaseOrderReservation(
+  supabase: SupabaseClient,
+  orderId: string,
+  fallbackItems?: ResolvedCheckoutItem[]
+) {
+  let reservations = await getOrderItemReservations(supabase, orderId);
+  if (!reservations.length && fallbackItems?.length) {
+    reservations = reservationsFromResolvedItems(fallbackItems);
+  }
+  if (!reservations.length) {
+    const { data, error } = await supabase
+      .from("orders")
+      .select("inventory_reserved")
+      .eq("id", orderId)
+      .maybeSingle();
+    if (error) throw error;
+    if (data?.inventory_reserved) {
+      throw new Error("Order holds a reservation but has no items to restore");
+    }
+    return { released: false, alreadyReleased: true };
+  }
 
   const { data, error } = await supabase.rpc("restore_order_inventory", {
     p_order_id: orderId,
@@ -212,9 +258,37 @@ async function restoreInventoryForOrder(supabase: SupabaseClient, orderId: strin
   });
   if (error) throw error;
 
-  const result = (data ?? []) as Array<{ success: boolean; message: string }>;
+  const result = (data ?? []) as Array<{ success: boolean; was_reserved?: boolean; message: string }>;
   const failed = result.find((entry) => !entry.success);
   if (failed) throw new Error(failed.message || "Failed to restore inventory");
+  const released = Boolean(result[0]?.was_reserved);
+  return { released, alreadyReleased: !released };
+}
+
+async function reserveInventoryForReleasedOrder(supabase: SupabaseClient, orderId: string) {
+  const reservations = await getOrderItemReservations(supabase, orderId);
+  if (!reservations.length) return { reserved: false };
+
+  const { data, error } = await supabase.rpc("reserve_order_inventory", {
+    p_order_id: orderId,
+    order_items: reservations as unknown as Json,
+  });
+  if (error) {
+    if (isStockUnavailable(error.message)) return { reserved: false };
+    throw error;
+  }
+
+  const result = (data ?? []) as Array<{ success: boolean; message: string }>;
+  const failed = result.find((entry) => !entry.success);
+  if (failed) {
+    if (isStockUnavailable(failed.message)) return { reserved: false };
+    throw new Error(failed.message || "Inventory reservation failed");
+  }
+  return { reserved: true };
+}
+
+function isStockUnavailable(message: string | undefined) {
+  return /stock|unavailable/i.test(message ?? "");
 }
 
 async function sendOrderEmailsIfNeeded(supabase: SupabaseClient, orderId: string) {
@@ -369,14 +443,35 @@ export async function applyAirwallexPaymentIntentStatus(
   const { data: orderData, error: orderError } = await supabase
     .from("orders")
     .select(
-      "id, status, fulfillment_status, payment_status, inventory_reserved, paid_at, updated_at, total_amount, refunded_amount"
+      "id, status, fulfillment_status, payment_status, inventory_reserved, paid_at, updated_at, total_amount, refunded_amount, customer_email, currency"
     )
     .eq("id", payment.order_id)
     .single();
   if (orderError) throw orderError;
 
-  const order = orderData as unknown as OrderRow;
-  const statusUpdate = deriveOrderStatusForPayment(order, input.nextStatus);
+  const order = orderData as unknown as OrderRow & {
+    customer_email?: string | null;
+    currency?: string | null;
+  };
+
+  let inventoryException = false;
+  if (isSuccessfulPaymentStatus(input.nextStatus) && !order.inventory_reserved) {
+    if (order.status === "inventory_exception") {
+      inventoryException = true;
+    } else {
+      const reservation = await reserveInventoryForReleasedOrder(supabase, order.id);
+      inventoryException = !reservation.reserved;
+    }
+  }
+
+  const statusUpdate = inventoryException
+    ? {
+        status: "inventory_exception",
+        fulfillment_status: "inventory_exception",
+        payment_status: "succeeded" as const,
+        paid_at: order.paid_at ?? now,
+      }
+    : deriveOrderStatusForPayment(order, input.nextStatus);
 
   const { error: orderUpdateError } = await supabase
     .from("orders")
@@ -392,7 +487,19 @@ export async function applyAirwallexPaymentIntentStatus(
   if (orderUpdateError) throw orderUpdateError;
 
   if (isTerminalFailedPaymentStatus(input.nextStatus) && order.inventory_reserved) {
-    await restoreInventoryForOrder(supabase, order.id);
+    await releaseOrderReservation(supabase, order.id);
+  }
+
+  if (inventoryException) {
+    if (order.status !== "inventory_exception") {
+      await sendInventoryExceptionAlert({
+        orderId: order.id,
+        customerEmail: order.customer_email,
+        totalAmount: toNumber(order.total_amount),
+        currency: order.currency,
+      });
+    }
+    return { applied: true, orderId: order.id, inventoryException: true as const };
   }
 
   if (isSuccessfulPaymentStatus(input.nextStatus)) {
@@ -536,42 +643,242 @@ export async function applyAirwallexRefundEvent(
   return { applied: true, orderId: paymentData.order_id };
 }
 
+const PENDING_PAYMENT_STATUSES = [
+  "requires_payment_method",
+  "requires_customer_action",
+  "pending",
+  "pending_review",
+  "unknown",
+];
+
+const CANCELLABLE_INTENT_STATUSES = new Set<InternalPaymentStatus>([
+  "requires_payment_method",
+  "requires_customer_action",
+]);
+
+const STALE_ORDER_COLUMNS =
+  "id, status, payment_status, inventory_reserved, payment_reference, created_at";
+
+interface StaleOrderRow {
+  id: string;
+  status: string | null;
+  payment_status: string | null;
+  inventory_reserved: boolean | null;
+  payment_reference: string | null;
+  created_at?: string | null;
+}
+
+interface StalePaymentRow {
+  id: string;
+  status: string;
+  provider_payment_intent_id: string;
+}
+
+export interface ReservationReleaseSummary {
+  examined: number;
+  released: number;
+  paid: number;
+  skipped: number;
+  errors: Array<{ orderId: string; message: string }>;
+}
+
 export async function releaseExpiredAirwallexReservations(
   supabase: SupabaseClient,
   olderThanMinutes = 75
-) {
-  const cutoff = new Date(Date.now() - olderThanMinutes * 60_000).toISOString();
-  const pendingStatuses = [
-    "requires_payment_method",
-    "requires_customer_action",
-    "pending",
-    "pending_review",
-    "unknown",
-  ];
+): Promise<ReservationReleaseSummary> {
+  const summary: ReservationReleaseSummary = {
+    examined: 0,
+    released: 0,
+    paid: 0,
+    skipped: 0,
+    errors: [],
+  };
+  const orders = await selectReservationReleaseCandidates(supabase, olderThanMinutes);
 
-  const { data, error } = await supabase
+  for (const order of orders) {
+    summary.examined += 1;
+    try {
+      const outcome = await reconcileStaleReservation(supabase, order);
+      if (outcome === "released") summary.released += 1;
+      else if (outcome === "paid") summary.paid += 1;
+      else summary.skipped += 1;
+    } catch (error) {
+      summary.skipped += 1;
+      summary.errors.push({
+        orderId: order.id,
+        message: error instanceof Error ? error.message : "Reservation release failed",
+      });
+      console.error("[reservation-release]", order.id, error);
+    }
+  }
+
+  return summary;
+}
+
+async function selectReservationReleaseCandidates(supabase: SupabaseClient, olderThanMinutes: number) {
+  const cutoff = new Date(Date.now() - olderThanMinutes * 60_000).toISOString();
+  const failed = await supabase
     .from("orders")
-    .select("id, payment_status, inventory_reserved")
+    .select(STALE_ORDER_COLUMNS)
     .eq("payment_provider", AIRWALLEX_PROVIDER)
     .eq("inventory_reserved", true)
-    .in("payment_status", pendingStatuses)
+    .eq("status", "failed")
+    .neq("payment_status", "succeeded")
+    .limit(50);
+  if (failed.error) throw failed.error;
+
+  const pending = await supabase
+    .from("orders")
+    .select(STALE_ORDER_COLUMNS)
+    .eq("payment_provider", AIRWALLEX_PROVIDER)
+    .eq("inventory_reserved", true)
+    .in("payment_status", PENDING_PAYMENT_STATUSES)
     .lt("created_at", cutoff)
     .limit(50);
-  if (error) throw error;
+  if (pending.error) throw pending.error;
 
-  const staleOrders = (data ?? []) as Array<{ id: string; inventory_reserved: boolean }>;
-  for (const order of staleOrders) {
-    if (!order.inventory_reserved) continue;
-    await restoreInventoryForOrder(supabase, order.id);
-    const { error: updateError } = await supabase
+  const byId = new Map<string, StaleOrderRow>();
+  for (const row of [...(failed.data ?? []), ...(pending.data ?? [])] as StaleOrderRow[]) {
+    byId.set(row.id, row);
+  }
+  return Array.from(byId.values());
+}
+
+async function reconcileStaleReservation(
+  supabase: SupabaseClient,
+  order: StaleOrderRow
+): Promise<"released" | "paid" | "skipped"> {
+  const fresh = await readStaleOrder(supabase, order.id);
+  if (!fresh || fresh.inventory_reserved !== true || fresh.payment_status === "succeeded") {
+    return fresh?.payment_status === "succeeded" ? "paid" : "skipped";
+  }
+
+  const payment = await loadAirwallexPayment(supabase, order.id);
+  const intentId = payment?.provider_payment_intent_id || fresh.payment_reference;
+  if (intentId) {
+    const intent = await retrieveAirwallexPaymentIntent(intentId);
+    const decision = await decideStaleIntent(supabase, fresh, intent);
+    if (decision !== "release") return decision;
+  }
+
+  const latest = await readStaleOrder(supabase, order.id);
+  if (!latest || latest.inventory_reserved !== true || latest.payment_status === "succeeded") {
+    return latest?.payment_status === "succeeded" ? "paid" : "skipped";
+  }
+
+  // restore_order_inventory is the idempotency key. A later success re-reserves
+  // or flags inventory_exception. The read above and this restore are not one
+  // transaction; a migration could refuse the restore when payment_status is
+  // already succeeded.
+  await releaseOrderReservation(supabase, order.id);
+
+  const now = new Date().toISOString();
+  const paymentStatus = normalizeAirwallexPaymentStatus(latest.payment_status);
+  if (isPendingPaymentStatus(paymentStatus) || (latest.status ?? "").toLowerCase() !== "failed") {
+    const { error: orderError } = await supabase
       .from("orders")
       .update({
         payment_status: "abandoned",
         status: "failed",
         fulfillment_status: "payment_failed",
-        updated_at: new Date().toISOString(),
+        updated_at: now,
       })
-      .eq("id", order.id);
-    if (updateError) throw updateError;
+      .eq("id", order.id)
+      .neq("payment_status", "succeeded");
+    if (orderError) throw orderError;
   }
+
+  if (payment && payment.status !== "succeeded") {
+    const { error: paymentError } = await supabase
+      .from("payments")
+      .update({ status: "cancelled", updated_at: now })
+      .eq("id", payment.id)
+      .neq("status", "succeeded");
+    if (paymentError) throw paymentError;
+  }
+
+  return "released";
+}
+
+async function decideStaleIntent(
+  supabase: SupabaseClient,
+  order: StaleOrderRow,
+  intent: AirwallexPaymentIntent
+): Promise<"paid" | "skipped" | "release"> {
+  let status = normalizeAirwallexPaymentStatus(intent.status);
+  if (status === "succeeded") {
+    return (await recordSucceededIntent(supabase, intent)) ? "paid" : "skipped";
+  }
+
+  if (CANCELLABLE_INTENT_STATUSES.has(status)) {
+    try {
+      const cancelled = await cancelAirwallexPaymentIntent(intent.id, randomUUID());
+      status = normalizeAirwallexPaymentStatus(cancelled.status);
+    } catch (error) {
+      let latest: AirwallexPaymentIntent;
+      try {
+        latest = await retrieveAirwallexPaymentIntent(intent.id);
+      } catch (retrieveError) {
+        console.error("[reservation-release] could not re-check intent after cancel", order.id, retrieveError);
+        throw error;
+      }
+      status = normalizeAirwallexPaymentStatus(latest.status);
+      if (status === "succeeded") {
+        return (await recordSucceededIntent(supabase, latest)) ? "paid" : "skipped";
+      }
+      if (!isTerminalFailedPaymentStatus(status)) {
+        console.error("[reservation-release] left stock held; intent is not cancellable", order.id, status);
+        return "skipped";
+      }
+    }
+    if (status === "succeeded") {
+      return (await recordSucceededIntent(supabase, intent)) ? "paid" : "skipped";
+    }
+    if (!isTerminalFailedPaymentStatus(status)) {
+      console.error("[reservation-release] left stock held after cancel", order.id, status);
+      return "skipped";
+    }
+    return "release";
+  }
+
+  if (!isTerminalFailedPaymentStatus(status)) {
+    console.error("[reservation-release] left stock held; intent is still in progress", order.id, status);
+    return "skipped";
+  }
+  return "release";
+}
+
+async function recordSucceededIntent(supabase: SupabaseClient, intent: AirwallexPaymentIntent) {
+  const result = await applyAirwallexPaymentIntentStatus(supabase, {
+    paymentIntentId: intent.id,
+    nextStatus: "succeeded",
+    providerEventCreatedAt: intent.updated_at ?? null,
+  });
+  if (!result.applied) {
+    console.error("[reservation-release] succeeded intent was not applied", intent.id, result.reason);
+    return false;
+  }
+  return true;
+}
+
+async function readStaleOrder(supabase: SupabaseClient, orderId: string) {
+  const { data, error } = await supabase
+    .from("orders")
+    .select("id, status, payment_status, inventory_reserved, payment_reference")
+    .eq("id", orderId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data ?? null) as StaleOrderRow | null;
+}
+
+async function loadAirwallexPayment(supabase: SupabaseClient, orderId: string) {
+  const { data, error } = await supabase
+    .from("payments")
+    .select("id, status, provider_payment_intent_id")
+    .eq("order_id", orderId)
+    .eq("provider", AIRWALLEX_PROVIDER)
+    .limit(1);
+  if (error) throw error;
+  const rows = (data ?? []) as StalePaymentRow[];
+  return rows[0] ?? null;
 }
