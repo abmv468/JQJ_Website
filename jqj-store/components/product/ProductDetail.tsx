@@ -23,7 +23,7 @@ const accordionData = (product: Product) => [
   {
     title: "Shipping & Return",
     content:
-      "Complimentary UPS shipping and returns. 30-day satisfaction guarantee, plus a complimentary first resize for new customers.",
+      "Complimentary shipping and returns. 30-day satisfaction guarantee, plus a complimentary first resize for new customers.",
   },
 ];
 

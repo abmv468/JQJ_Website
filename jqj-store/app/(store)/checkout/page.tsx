@@ -95,6 +95,8 @@ export default function CheckoutPage() {
   const checkoutAttemptIdRef = useRef<string>(crypto.randomUUID());
   const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
   const [method, setMethod] = useState<"airwallex" | "cod">("airwallex");
+  const [shippingMethod, setShippingMethod] = useState<"standard" | "expedited">("standard");
+  const [expressShippingEnabled, setExpressShippingEnabled] = useState(false);
   const [loading, setLoading] = useState(false);
   const [paymentStage, setPaymentStage] = useState<
     "idle" | "creating_payment" | "redirecting_to_airwallex"
@@ -159,6 +161,26 @@ export default function CheckoutPage() {
     }
 
     void prefillFromAccount();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetch("/api/checkout/shipping", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then((data: { expressShippingEnabled?: boolean }) => {
+        if (!isMounted) return;
+        const enabled = data.expressShippingEnabled === true;
+        setExpressShippingEnabled(enabled);
+        if (!enabled) setShippingMethod("standard");
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setExpressShippingEnabled(false);
+        setShippingMethod("standard");
+      });
     return () => {
       isMounted = false;
     };
@@ -237,6 +259,7 @@ export default function CheckoutPage() {
       items: payloadItems,
       customer: form,
       shipping,
+      shippingMethod: expressShippingEnabled ? shippingMethod : "standard",
       currency: method === "airwallex" ? "USD" : currency,
       idempotencyKey,
     };
@@ -309,7 +332,33 @@ export default function CheckoutPage() {
         <form onSubmit={handleSubmit} className="order-2 lg:order-1">
           <div className="mb-8 flex flex-wrap items-center gap-4 border border-brand-border p-4 sm:gap-6 sm:p-5">
             <div className="flex items-center gap-2 text-xs text-brand-muted">
-              <Truck className="h-4 w-4 text-brand-gold" /> UPS Express — Tracked delivery
+              <Truck className="h-4 w-4 text-brand-gold" />
+              {expressShippingEnabled ? (
+                <span className="flex flex-wrap items-center gap-3">
+                  <label className="flex items-center gap-1.5">
+                    <input
+                      type="radio"
+                      name="shippingMethod"
+                      checked={shippingMethod === "standard"}
+                      onChange={() => setShippingMethod("standard")}
+                      className="accent-brand-gold"
+                    />
+                    Standard shipping
+                  </label>
+                  <label className="flex items-center gap-1.5">
+                    <input
+                      type="radio"
+                      name="shippingMethod"
+                      checked={shippingMethod === "expedited"}
+                      onChange={() => setShippingMethod("expedited")}
+                      className="accent-brand-gold"
+                    />
+                    Expedited shipping
+                  </label>
+                </span>
+              ) : (
+                "Standard shipping"
+              )}
             </div>
             <div className="flex items-center gap-2 text-xs text-brand-muted">
               <CreditCard className="h-4 w-4 text-brand-gold" /> Secure payment

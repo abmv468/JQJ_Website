@@ -4,6 +4,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeCurrency, type SupportedCurrency } from "@/lib/currency";
+import { rejectUnavailableShippingMethod } from "@/lib/express-shipping";
 import { computeShippingUsd } from "@/lib/shipping";
 import {
   fetchInventoryBySlugs,
@@ -92,12 +93,16 @@ export async function POST(req: Request) {
   let resolvedItems: ResolvedCheckoutItem[] = [];
 
   try {
-    const { items, customer, idempotencyKey, currency } = (await req.json()) as {
+    const { items, customer, idempotencyKey, currency, shippingMethod } = (await req.json()) as {
       items: CheckoutItemInput[];
       customer: Record<string, string>;
       idempotencyKey?: string;
       currency?: string;
+      shippingMethod?: unknown;
     };
+
+    const rejectedShipping = rejectUnavailableShippingMethod(shippingMethod);
+    if (rejectedShipping) return rejectedShipping;
 
     if (!items?.length) {
       return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
