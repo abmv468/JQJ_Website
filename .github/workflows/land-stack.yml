@@ -32,7 +32,7 @@ jobs:
     env:
       # Passing stack used for pull_request runs of this file.
       # workflow_dispatch replaces it with the prs input.
-      LAND_STACK_DEFAULT: "20 31"
+      LAND_STACK_DEFAULT: "14 15"
       # Matches ci.yml job verify. No repository secrets and no API keys.
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
