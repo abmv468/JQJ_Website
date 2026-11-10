@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   DELIVERY_RANGE,
@@ -11,6 +13,26 @@ import { products } from "@/data/products";
 
 const BANNED =
   /\b(?:hand-crafted|handcrafted|hand-finished|hand-made|hand made|handmade|craftsmanship|artisanal|artisan|atelier|crafted|craft)\b|worldwide|\bUPS\b/i;
+
+function walkTs(dir: string): string[] {
+  const absolute = path.resolve(process.cwd(), dir);
+  const files: string[] = [];
+  for (const entry of readdirSync(absolute, { withFileTypes: true })) {
+    const full = path.join(absolute, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...walkTs(path.relative(process.cwd(), full)));
+    } else if (/\.(ts|tsx)$/.test(entry.name)) {
+      files.push(path.relative(process.cwd(), full));
+    }
+  }
+  return files;
+}
+
+function stringLiterals(source: string): string[] {
+  return source.match(/`(?:\\`|[^`])*`|"(?:\\"|[^"\n])*"|'(?:\\'|[^'\n])*'/g) ?? [];
+}
+
+const COPY_SOURCES = [...walkTs("app"), ...walkTs("components"), "lib/brand-copy.ts"];
 
 describe("BRAND v4 copy constants", () => {
   it("keeps the standard delivery sentence, including the en dashes", () => {
@@ -34,9 +56,23 @@ describe("BRAND v4 copy constants", () => {
   });
 });
 
+describe("customer copy sources", () => {
+  it("app, components, and brand-copy do not use banned craft words", () => {
+    const hits: string[] = [];
+    for (const relativePath of COPY_SOURCES) {
+      const source = readFileSync(path.resolve(process.cwd(), relativePath), "utf8");
+      for (const literal of stringLiterals(source)) {
+        if (BANNED.test(literal)) hits.push(`${relativePath}: ${literal}`);
+      }
+    }
+    expect(hits).toEqual([]);
+  });
+});
+
 describe("catalog copy", () => {
   it("sets Origin to Designed in Hong Kong and drops craft, worldwide, and UPS wording", () => {
     expect(products.length).toBeGreaterThan(0);
+    const hits: string[] = [];
     for (const product of products) {
       expect(product.specs.Origin).toBe("Designed in Hong Kong");
       const copy = [
@@ -44,8 +80,9 @@ describe("catalog copy", () => {
         ...product.features,
         ...Object.entries(product.specs).map(([key, value]) => `${key}: ${value}`),
       ].join("\n");
-      expect(copy, product.slug).not.toMatch(BANNED);
+      if (BANNED.test(copy)) hits.push(`${product.slug}: ${copy.replaceAll("\n", " | ")}`);
     }
+    expect(hits).toEqual([]);
   });
 
   it("does not name a clasp on necklaces", () => {
