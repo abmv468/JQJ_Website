@@ -6,7 +6,7 @@ import StarRating from "@/components/ui/StarRating";
 const guarantees = [
   "Tailored to your preferred fit",
   "30-day Satisfaction Guarantee",
-  "Museum-inspired craftsmanship since 2015",
+  "Museum-inspired since 2015",
 ];
 
 export default function Hero() {
@@ -15,7 +15,7 @@ export default function Hero() {
       <div className="relative min-h-[540px] overflow-hidden border border-white/10 bg-black shadow-[0_36px_100px_rgba(0,0,0,0.34)] sm:min-h-[620px]">
         <Image
           src="/products/hero-image.jpg"
-          alt="JQD Group craftsmanship"
+          alt="JQD Group"
           fill
           priority
           sizes="100vw"
@@ -33,10 +33,10 @@ export default function Hero() {
               Natural Stones. Cultured Design.
             </h1>
             <p className="mt-5 px-2 font-heading text-[11px] uppercase tracking-[0.18em] text-brand-gold-light sm:mt-6 sm:px-0 sm:text-sm sm:tracking-[0.22em]">
-              Inspired by Eastern heritage and modern craftsmanship
+              Designed in Hong Kong · Natural stones
             </p>
             <p className="mx-auto mt-6 max-w-3xl text-[15px] leading-7 text-white/74 sm:mt-7 sm:text-lg">
-              Hand-finished bracelets and necklaces shaped by Eastern heritage,
+              Bracelets and necklaces shaped by Eastern heritage,
               museum-inspired restraint, and the quiet character of natural
               gemstones.
             </p>
