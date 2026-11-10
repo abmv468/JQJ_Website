@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
-import { RETURNS_DAYS } from "@/lib/policy";
+import {
+  DISPATCH_BUSINESS_DAYS_MAX,
+  DISPATCH_BUSINESS_DAYS_MIN,
+  RETURNS_DAYS,
+  TRANSIT_DAYS_MAX,
+  TRANSIT_DAYS_MIN,
+} from "@/lib/policy";
+import { FREE_SHIPPING_THRESHOLD_USD } from "@/lib/shipping";
 
 export const metadata: Metadata = {
   title: "Shipping Policy",
@@ -20,9 +27,15 @@ export default function ShippingPage() {
       ]}
       sections={[
         {
+          title: "Shipping Cost",
+          bullets: [
+            `Free shipping on orders over $${FREE_SHIPPING_THRESHOLD_USD}.`,
+          ],
+        },
+        {
           title: "Processing Times",
           bullets: [
-            "In-stock orders are typically processed within 1–3 business days.",
+            `In-stock orders are typically processed within ${DISPATCH_BUSINESS_DAYS_MIN}–${DISPATCH_BUSINESS_DAYS_MAX} business days.`,
             "Custom, resized, or made-to-order pieces may require 5–10 business days before shipment.",
             "Orders placed on weekends or holidays begin processing on the next business day.",
           ],
@@ -30,9 +43,9 @@ export default function ShippingPage() {
         {
           title: "Delivery Timelines",
           bullets: [
-            "Domestic standard shipping: 3–7 business days after dispatch.",
+            `Domestic standard shipping: typically ${TRANSIT_DAYS_MIN}–${TRANSIT_DAYS_MAX} days after dispatch.`,
             "Domestic expedited shipping: 1–3 business days after dispatch.",
-            "International shipping (where available): 7–14 business days, excluding customs delays.",
+            `International shipping (where available): typically ${TRANSIT_DAYS_MIN}–${TRANSIT_DAYS_MAX} days, excluding customs delays.`,
           ],
         },
         {

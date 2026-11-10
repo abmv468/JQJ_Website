@@ -98,11 +98,14 @@ describe("trust copy", () => {
       "app/(store)/returns/page.tsx",
       "app/(store)/shipping/page.tsx",
       "app/(store)/faqs/page.tsx",
-      "components/product/ProductDetail.tsx",
     ]) {
       const text = source(relative);
       expect(text, relative).toContain("Customers pay return shipping");
       expect(text, relative).not.toMatch(/complimentary .*returns/i);
     }
+
+    const productDetail = source("components/product/ProductDetail.tsx");
+    expect(productDetail).toContain("return shipping is paid by the customer");
+    expect(productDetail).not.toMatch(/complimentary .*returns/i);
   });
 });
