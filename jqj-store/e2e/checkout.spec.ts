@@ -1,6 +1,45 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const CART_KEY = "JQD-cart";
+const CARD_RADIO_NAME = "Credit / Debit Card (Airwallex Hosted Checkout)";
+const CARD_UNAVAILABLE =
+  "Card payments are temporarily unavailable — please choose cash on delivery or try again later.";
+
+async function openCheckout(page: Page) {
+  await page.goto("/products/amethyst-bracelet-xv");
+  await page.getByRole("button", { name: "Add to Cart" }).click();
+  await page.waitForFunction((key) => {
+    const raw = localStorage.getItem(key);
+    return Boolean(raw && JSON.parse(raw).length > 0);
+  }, CART_KEY);
+  await page.goto("/checkout");
+}
+
+function deferCardConfig(page: Page) {
+  let release: (cardEnabled: boolean) => void = () => {};
+  const result = new Promise<boolean>((resolve) => {
+    release = resolve;
+  });
+  let markRequested: () => void = () => {};
+  const requested = new Promise<void>((resolve) => {
+    markRequested = resolve;
+  });
+  const installed = page.route(/\/api\/checkout\/airwallex$/, async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.fallback();
+      return;
+    }
+    markRequested();
+    const cardEnabled = await result;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: { "cache-control": "no-store" },
+      body: JSON.stringify({ cardEnabled }),
+    });
+  });
+  return { installed, requested, release };
+}
 
 async function fillCheckout(page: Page) {
   await page.getByPlaceholder("Email", { exact: true }).fill("buyer@example.com");
@@ -163,7 +202,25 @@ test("a failed Airwallex return keeps the cart and shows support copy", async ({
     .toContain("amethyst-bracelet-xv");
 });
 
-test("disabled card payments select cash on delivery and disable the card radio", async ({
+test("a pending card config leaves the card selected and enabled", async ({ page }) => {
+  const config = deferCardConfig(page);
+  await config.installed;
+  await openCheckout(page);
+  await config.requested;
+
+  const card = page.getByRole("radio", { name: CARD_RADIO_NAME });
+  await expect(card).toBeChecked();
+  await expect(card).toBeEnabled();
+  await expect(card).not.toHaveAttribute("aria-describedby");
+  await expect(page.getByRole("radio", { name: /Cash on Delivery/ })).not.toBeChecked();
+  await expect(page.locator("#card-payments-unavailable")).toHaveCount(0);
+
+  config.release(true);
+  await expect(card).toBeChecked();
+  await expect(card).toBeEnabled();
+});
+
+test("disabled card payments select cash on delivery and describe the card radio", async ({
   page,
 }) => {
   await page.route(/\/api\/checkout\/airwallex$/, async (route) => {
@@ -179,21 +236,32 @@ test("disabled card payments select cash on delivery and disable the card radio"
     });
   });
 
-  await page.goto("/products/amethyst-bracelet-xv");
-  await page.getByRole("button", { name: "Add to Cart" }).click();
-  await page.waitForFunction((key) => {
-    const raw = localStorage.getItem(key);
-    return Boolean(raw && JSON.parse(raw).length > 0);
-  }, CART_KEY);
-  await page.goto("/checkout");
+  await openCheckout(page);
 
-  const unavailable =
-    "Card payments are temporarily unavailable — please choose cash on delivery or try again later.";
-  await expect(page.getByText(unavailable)).toBeVisible();
-  await expect(
-    page.getByRole("radio", { name: "Credit / Debit Card (Airwallex Hosted Checkout)" })
-  ).toBeDisabled();
+  const card = page.getByRole("radio", { name: CARD_RADIO_NAME });
   await expect(page.getByRole("radio", { name: /Cash on Delivery/ })).toBeChecked();
+  await expect(card).toBeDisabled();
+  await expect(card).toHaveAttribute("aria-describedby", "card-payments-unavailable");
+  await expect(page.locator("#card-payments-unavailable")).toHaveText(CARD_UNAVAILABLE);
+});
+
+test("a selected card switches to cash on delivery and announces it", async ({ page }) => {
+  const config = deferCardConfig(page);
+  await config.installed;
+  await openCheckout(page);
+  await config.requested;
+
+  const card = page.getByRole("radio", { name: CARD_RADIO_NAME });
+  await expect(card).toBeEnabled();
+  await card.check();
+  await expect(card).toBeChecked();
+
+  config.release(false);
+
+  await expect(page.getByRole("radio", { name: /Cash on Delivery/ })).toBeChecked();
+  await expect(card).toBeDisabled();
+  await expect(card).toHaveAttribute("aria-describedby", "card-payments-unavailable");
+  await expect(page.getByRole("status")).toHaveText(CARD_UNAVAILABLE);
 });
 
 test("cash on delivery shows the fee and confirms the order", async ({ page }) => {

@@ -175,7 +175,7 @@ export default function CheckoutPage() {
       .then((data) => {
         if (!isMounted || data.cardEnabled !== false) return;
         setCardEnabled(false);
-        setMethod("cod");
+        setMethod((current) => (current === "airwallex" ? "cod" : current));
       })
       .catch(() => {
         // Config fetch failed: leave card checkout selectable. The server 503 is the backstop.
@@ -401,13 +401,16 @@ export default function CheckoutPage() {
                   name="method"
                   checked={method === "airwallex"}
                   disabled={!cardEnabled}
+                  aria-describedby={cardEnabled ? undefined : "card-payments-unavailable"}
                   onChange={() => setMethod("airwallex")}
                   className="accent-brand-gold"
                 />
                 <span className="text-sm">Credit / Debit Card (Airwallex Hosted Checkout)</span>
               </label>
               {!cardEnabled && (
-                <p className="text-sm text-red-400">{CARD_PAYMENTS_UNAVAILABLE_MESSAGE}</p>
+                <p id="card-payments-unavailable" role="status" className="text-sm text-red-400">
+                  {CARD_PAYMENTS_UNAVAILABLE_MESSAGE}
+                </p>
               )}
               <label className={`flex cursor-pointer items-center gap-3 border p-4 ${method === "cod" ? "border-brand-gold" : "border-brand-border"}`}>
                 <input type="radio" name="method" checked={method === "cod"} onChange={() => setMethod("cod")} className="accent-brand-gold" />
