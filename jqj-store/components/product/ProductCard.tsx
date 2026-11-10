@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import type { Product } from "@/data/products";
-import { getStockState } from "@/lib/product-stock";
 import StarRating from "@/components/ui/StarRating";
 import { useCurrency } from "@/context/CurrencyContext";
 
@@ -26,16 +25,6 @@ export default function ProductCard({
   const { formatFromUsd } = useCurrency();
   const primaryTag = product.tags[0];
   const hoverImage = product.hoverImage;
-  const stock = getStockState({
-    stockCount: product.stockCount,
-    inStock: product.inStock,
-    lowStockThreshold: product.lowStockThreshold,
-    variants:
-      product.variants?.map((variant) => ({
-        ...variant,
-        stockCount: variant.stockCount,
-      })) ?? [],
-  });
 
   return (
     <Link href={`/products/${product.slug}`} className="group block h-full">
@@ -49,21 +38,6 @@ export default function ProductCard({
               {tagLabels[primaryTag] ?? primaryTag}
             </span>
           )}
-          {!stock.inStock ? (
-            <span
-              className="absolute right-3 top-3 z-10 rounded-full border border-red-500/45 bg-black/58 px-2.5 py-1 text-[9px] uppercase text-red-200 backdrop-blur-md"
-              style={{ letterSpacing: "0.18em" }}
-            >
-              Out of stock
-            </span>
-          ) : stock.isLowStock ? (
-            <span
-              className="absolute right-3 top-3 z-10 rounded-full border border-brand-gold/45 bg-black/58 px-2.5 py-1 text-[9px] uppercase text-brand-gold backdrop-blur-md"
-              style={{ letterSpacing: "0.18em" }}
-            >
-              Low stock
-            </span>
-          ) : null}
           <Image
             src={product.images[0]}
             alt={product.name}

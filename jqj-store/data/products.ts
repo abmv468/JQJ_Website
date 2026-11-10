@@ -14,13 +14,14 @@ export interface Product {
   images: string[];
   hoverImage?: string;
   inStock: boolean;
-  stockCount: number;
+  /** Live counts come from Supabase. Catalog rows must not set this. */
+  stockCount?: number;
   lowStockThreshold?: number;
   variants?: Array<{
     size?: string;
     material?: string;
     sku: string;
-    stockCount: number;
+    stockCount?: number;
   }>;
   rating: number;
   reviewCount: number;
@@ -29,17 +30,6 @@ export interface Product {
   features: string[];
   specs: Record<string, string>;
 }
-
-// Stone filters used on listing pages and the home "Shop by Stone" section.
-export const stones = [
-  "Sodalite",
-  "Tiger Eye",
-  "Carnelian",
-  "Tourmaline",
-  "Aquamarine",
-  "Amethyst",
-  "Lapis Lazuli",
-] as const;
 
 export const categories: { slug: CategorySlug; name: string }[] = [
   { slug: "bracelets", name: "Bracelets" },
@@ -74,12 +64,11 @@ export const products: Product[] = [
     ],
     hoverImage: "/products/red-leopard-skin-jasper-bracelet-hover.jpg",
     inStock: true,
-    stockCount: 12,
     lowStockThreshold: 5,
     variants: [
-      { size: "Small", material: "Sterling Silver", sku: "JQJ-RLSJ-III-S-SS", stockCount: 4 },
-      { size: "Medium", material: "Sterling Silver", sku: "JQJ-RLSJ-III-M-SS", stockCount: 5 },
-      { size: "Large", material: "Sterling Silver", sku: "JQJ-RLSJ-III-L-SS", stockCount: 3 },
+      { size: "Small", material: "Sterling Silver", sku: "JQJ-RLSJ-III-S-SS" },
+      { size: "Medium", material: "Sterling Silver", sku: "JQJ-RLSJ-III-M-SS" },
+      { size: "Large", material: "Sterling Silver", sku: "JQJ-RLSJ-III-L-SS" },
     ],
     rating: 4.8,
     reviewCount: 28,
@@ -105,18 +94,13 @@ export const products: Product[] = [
     compareAtPrice: null,
     sku: "JQJ-TOURM-I",
     category: "bracelets",
-    images: [
-      "/products/raw-brown-tourmaline-bracelet-i-2.jpg",
-      "/products/raw-brown-tourmaline-bracelet-i-3.jpg",
-      "/products/brown-tourmaline-bracelet.webp",
-    ],
+    images: ["/products/brown-tourmaline-bracelet.webp"],
     inStock: true,
-    stockCount: 8,
     lowStockThreshold: 5,
     rating: 4.7,
     reviewCount: 19,
     tags: ["new"],
-    stone: "Tourmaline",
+    stone: "Brown Tourmaline",
     features: baseFeatures,
     specs: {
       Color: "Brown",
@@ -137,9 +121,8 @@ export const products: Product[] = [
     compareAtPrice: null,
     sku: "JQJ-SOD-VIII",
     category: "bracelets",
-    images: ["/products/sodalite-bracelet-viii-1.jpg", "/products/sodalite-bracelet.webp"],
+    images: ["/products/sodalite-bracelet.webp"],
     inStock: true,
-    stockCount: 15,
     lowStockThreshold: 5,
     rating: 4.9,
     reviewCount: 41,
@@ -165,9 +148,8 @@ export const products: Product[] = [
     compareAtPrice: null,
     sku: "JQJ-AMETH-XV",
     category: "bracelets",
-    images: ["/products/amethyst-bracelet-xv-1.jpg", "/products/amethyst-bracelet.webp"],
+    images: ["/products/amethyst-bracelet.webp"],
     inStock: true,
-    stockCount: 20,
     lowStockThreshold: 5,
     rating: 4.6,
     reviewCount: 33,
@@ -193,20 +175,19 @@ export const products: Product[] = [
     compareAtPrice: 499.99,
     sku: "JQJ-SIL-IV",
     category: "bracelets",
-    images: ["/products/silver-bracelet-iv-2.jpg", "/products/silver-bracelet.webp"],
+    images: ["/products/silver-bracelet.webp"],
     inStock: true,
-    stockCount: 9,
     lowStockThreshold: 5,
     rating: 4.8,
     reviewCount: 26,
     tags: ["restocked", "sale"],
-    stone: "Tiger Eye",
+    stone: "Hematite",
     features: baseFeatures,
     specs: {
       Color: "Silver",
       "Bead Size": "4mm",
       "Bead Shape": "Round",
-      Stone: "Hematite Silver",
+      Stone: "Hematite",
       Clasp: "Sterling Silver",
       Origin: "Hand-made",
     },
@@ -221,14 +202,13 @@ export const products: Product[] = [
     compareAtPrice: null,
     sku: "JQJ-LABR-V",
     category: "bracelets",
-    images: ["/products/labradorite-bracelet-v-1.jpg", "/products/labradorite-bracelet.webp"],
+    images: ["/products/labradorite-bracelet.webp"],
     inStock: true,
-    stockCount: 6,
     lowStockThreshold: 5,
     rating: 4.9,
     reviewCount: 22,
     tags: ["limited"],
-    stone: "Lapis Lazuli",
+    stone: "Labradorite",
     features: baseFeatures,
     specs: {
       Color: "Gray",
@@ -249,19 +229,18 @@ export const products: Product[] = [
     compareAtPrice: null,
     sku: "JQJ-BLAPEN",
     category: "necklaces",
-    images: ["/products/blue-lace-agate-silver-pendant-1.jpg", "/products/blue-lace-agate-pendant.webp"],
+    images: ["/products/blue-lace-agate-pendant.webp"],
     inStock: true,
-    stockCount: 18,
     lowStockThreshold: 5,
     variants: [
-      { size: "45cm", material: "Sterling Silver", sku: "JQJ-BLAPEN-45-SS", stockCount: 7 },
-      { size: "55cm", material: "Sterling Silver", sku: "JQJ-BLAPEN-55-SS", stockCount: 8 },
-      { size: "55cm", material: "Gold Vermeil", sku: "JQJ-BLAPEN-55-GV", stockCount: 3 },
+      { size: "45cm", material: "Sterling Silver", sku: "JQJ-BLAPEN-45-SS" },
+      { size: "55cm", material: "Sterling Silver", sku: "JQJ-BLAPEN-55-SS" },
+      { size: "55cm", material: "Gold Vermeil", sku: "JQJ-BLAPEN-55-GV" },
     ],
     rating: 4.7,
     reviewCount: 14,
     tags: ["new"],
-    stone: "Aquamarine",
+    stone: "Blue Lace Agate",
     features: baseFeatures,
     specs: {
       "Chain Length": "55cm",
@@ -280,14 +259,13 @@ export const products: Product[] = [
     compareAtPrice: null,
     sku: "JQJ-LABPEN",
     category: "necklaces",
-    images: ["/products/labradorite-silver-pendant-1.jpg", "/products/labradorite-pendant.webp"],
+    images: ["/products/labradorite-pendant.webp"],
     inStock: true,
-    stockCount: 11,
     lowStockThreshold: 5,
     rating: 4.8,
     reviewCount: 17,
     tags: ["restocked"],
-    stone: "Lapis Lazuli",
+    stone: "Labradorite",
     features: baseFeatures,
     specs: {
       "Chain Length": "55cm",
@@ -306,18 +284,13 @@ export const products: Product[] = [
     compareAtPrice: null,
     sku: "JQJ-PEARL-V",
     category: "necklaces",
-    images: [
-      "/products/pearl-silver-necklace-v-1.jpg",
-      "/products/pearl-silver-necklace-v-2.jpg",
-      "/products/pearl-silver-necklace.webp",
-    ],
+    images: ["/products/pearl-silver-necklace.webp"],
     inStock: true,
-    stockCount: 5,
     lowStockThreshold: 5,
     rating: 4.9,
     reviewCount: 9,
     tags: ["limited", "top-rated"],
-    stone: "Tiger Eye",
+    stone: "Freshwater Pearl",
     features: baseFeatures,
     specs: {
       "Bead Size": "7mm",
@@ -327,6 +300,32 @@ export const products: Product[] = [
     },
   },
 ];
+
+/** Unique, non-empty stone names. Pass a category when the listing is category-scoped. */
+export function getStoneFilters(
+  list: readonly Pick<Product, "stone" | "category">[] = products,
+  category?: CategorySlug
+): string[] {
+  return Array.from(
+    new Set(
+      list
+        .filter((product) => (category ? product.category === category : true))
+        .map((product) => product.stone.trim())
+        .filter((stone) => stone.length > 0)
+    )
+  ).sort((a, b) => a.localeCompare(b, "en"));
+}
+
+export const stones: string[] = getStoneFilters();
+
+/** One listing that contains every product of this stone. */
+export function stoneListingHref(stone: string): string {
+  const matches = Array.from(
+    new Set(products.filter((product) => product.stone === stone).map((product) => product.category))
+  );
+  if (matches.length !== 1) return `/new?stone=${encodeURIComponent(stone)}`;
+  return `/${matches[0]}?stone=${encodeURIComponent(stone)}`;
+}
 
 export function getProductBySlug(slug: string): Product | undefined {
   return products.find((p) => p.slug === slug);

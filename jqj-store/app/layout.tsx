@@ -3,6 +3,7 @@ import { Instrument_Sans, Manrope } from "next/font/google";
 import "./globals.css";
 import { CurrencyProvider } from "@/context/CurrencyContext";
 import { absoluteUrl, jsonLd, siteUrl } from "@/lib/seo";
+import { HERO_IMAGE_PATH } from "@/lib/site-images";
 
 const heading = Instrument_Sans({
   subsets: ["latin"],
@@ -36,7 +37,7 @@ export const metadata: Metadata = {
       "Handcrafted bracelets and necklaces inspired by Eastern cultural heritage, museum collaborations, and natural gemstone artistry.",
     images: [
       {
-        url: "/products/hero-image.jpg",
+        url: HERO_IMAGE_PATH,
         width: 1200,
         height: 630,
         alt: "JQD Group natural stone jewelry",
@@ -48,7 +49,7 @@ export const metadata: Metadata = {
     title: "JQD Group | Natural Stone Jewelry with Cultural Craft",
     description:
       "Handcrafted bracelets and necklaces inspired by Eastern cultural heritage, museum collaborations, and natural gemstone artistry.",
-    images: ["/products/hero-image.jpg"],
+    images: [HERO_IMAGE_PATH],
   },
   robots: {
     index: true,

@@ -10,6 +10,7 @@ import { AnimatePresence, LazyMotion, domAnimation, m, useReducedMotion } from "
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
 import { createClient } from "@/lib/supabase/client";
+import { MEGA_MENU_CARD_IMAGES } from "@/lib/site-images";
 
 const navLinks = [
   { label: "New", href: "/new" },
@@ -89,7 +90,7 @@ const megaMenus: Record<MegaMenuKey, MegaMenuConfig> = {
     card: {
       title: "All Necklaces",
       href: "/necklaces",
-      image: "/products/main-hover-card-necklaces.jpg",
+      image: MEGA_MENU_CARD_IMAGES.necklaces,
       alt: "Necklaces collection",
     },
   },
@@ -124,7 +125,7 @@ const megaMenus: Record<MegaMenuKey, MegaMenuConfig> = {
     card: {
       title: "All Bracelets",
       href: "/bracelets",
-      image: "/products/main-hover-card-bracelets.jpg",
+      image: MEGA_MENU_CARD_IMAGES.bracelets,
       alt: "Bracelets collection",
     },
   },

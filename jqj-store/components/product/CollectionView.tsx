@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, LayoutGrid, Rows3, Search, SlidersHorizontal, X } from "lucide-react";
-import type { Product, ProductTag } from "@/data/products";
+import { getStoneFilters, type Product, type ProductTag } from "@/data/products";
 import { formatPrice } from "@/lib/utils";
 import ProductCard from "./ProductCard";
 
@@ -148,10 +148,7 @@ export default function CollectionView({
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [page, setPage] = useState(1);
 
-  const stones = useMemo(
-    () => Array.from(new Set(products.map((p) => p.stone))).sort(),
-    [products]
-  );
+  const stones = useMemo(() => getStoneFilters(products), [products]);
 
   const colorOptions = useMemo(
     () => getFacetOptions(products, (product) => product.specs.Color),

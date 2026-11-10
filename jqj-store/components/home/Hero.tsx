@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, Check } from "lucide-react";
 import StarRating from "@/components/ui/StarRating";
+import { HERO_IMAGE_PATH } from "@/lib/site-images";
 
 const guarantees = [
   "Tailored to your preferred fit",
@@ -14,7 +15,7 @@ export default function Hero() {
     <section className="container-site pt-6 sm:pt-8">
       <div className="relative min-h-[540px] overflow-hidden border border-white/10 bg-black shadow-[0_36px_100px_rgba(0,0,0,0.34)] sm:min-h-[620px]">
         <Image
-          src="/products/hero-image.jpg"
+          src={HERO_IMAGE_PATH}
           alt="JQD Group craftsmanship"
           fill
           priority
