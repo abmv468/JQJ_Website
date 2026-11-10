@@ -167,6 +167,7 @@ export async function POST(req: Request) {
       city: customer.city,
       region: customer.region || "",
       country: customer.country || "",
+      postal_code: customerValidation.postalCode,
       phone: customer.phone || "",
       payment_method: "airwallex" as const,
       currency: selectedCurrency,

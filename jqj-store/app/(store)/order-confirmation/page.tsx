@@ -10,7 +10,7 @@ function Confirmation() {
   const params = useSearchParams();
   const { clearCart } = useCart();
   const [status, setStatus] = useState<
-    "loading" | "pending" | "success" | "failed" | "cancelled" | "error"
+    "loading" | "pending" | "success" | "failed" | "cancelled" | "error" | "unavailable"
   >("loading");
   const [orderId, setOrderId] = useState<string | null>(null);
   const ran = useRef(false);
@@ -86,27 +86,12 @@ function Confirmation() {
     }
 
     if (sessionId) {
-      fetch("/api/checkout/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId }),
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.orderId) {
-            setOrderId(data.orderId);
-            setStatus("success");
-            clearCart();
-          } else {
-            setStatus("failed");
-          }
-        })
-        .catch(() => setStatus("failed"));
+      setStatus("unavailable");
       return;
     }
 
     setStatus("error");
-  }, [sessionId, codOrderId, method, provider, returnState, verifyAirwallexOrder, clearCart]);
+  }, [sessionId, codOrderId, method, provider, returnState, verifyAirwallexOrder]);
 
   if (status === "loading") {
     return (
@@ -115,6 +100,18 @@ function Confirmation() {
           ? "Verifying your payment status…"
           : "Confirming your order…"}
       </p>
+    );
+  }
+
+  if (status === "unavailable") {
+    return (
+      <div className="text-center">
+        <h1 className="font-heading text-2xl uppercase tracking-wider2">Order link</h1>
+        {/* awaiting BRAND */}
+        <p className="mt-3 text-sm text-brand-muted">
+          This order link is no longer available. Please check your confirmation email or contact us.
+        </p>
+      </div>
     );
   }
 

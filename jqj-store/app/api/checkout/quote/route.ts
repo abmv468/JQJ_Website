@@ -1,54 +1,17 @@
 import { NextResponse } from "next/server";
 import { checkoutErrorResponse } from "@/lib/checkout-error";
 import { computeShippingUsd, type MerchandiseLine } from "@/lib/checkout-shipping";
-import { fetchInventoryBySlugs, type InventoryProduct } from "@/lib/inventory";
+import {
+  fetchInventoryBySlugs,
+  validateCheckoutItems,
+  type CheckoutItemInput,
+} from "@/lib/inventory";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
-const PRODUCT_COLUMNS =
-  "id, slug, name, price, stock_count, in_stock, low_stock_threshold, sku, product_variants(id, product_id, size, material, sku, stock_count)";
-
-type QuoteItem = {
-  id: string;
-  slug: string;
-  quantity: number;
-  sku: string;
-  size: string;
-  material: string;
-  variantId: string;
-};
-
-function normalize(value: string) {
-  return value.trim().toLowerCase();
-}
-
-function matchVariant(product: InventoryProduct, item: QuoteItem) {
-  const variants = product.product_variants ?? [];
-  if (!variants.length) return null;
-  if (!item.variantId && !item.sku && !item.size && !item.material) return null;
-
-  if (item.variantId) {
-    const byId = variants.find((variant) => variant.id === item.variantId);
-    if (byId) return byId;
-  }
-  if (item.sku) {
-    const bySku = variants.find((variant) => variant.sku === item.sku);
-    if (bySku) return bySku;
-  }
-  if (item.size || item.material) {
-    return (
-      variants.find((variant) => {
-        const sizeMatch = item.size ? normalize(variant.size ?? "") === normalize(item.size) : true;
-        const materialMatch = item.material
-          ? normalize(variant.material ?? "") === normalize(item.material)
-          : true;
-        return sizeMatch && materialMatch;
-      }) ?? null
-    );
-  }
-  return null;
-}
+const MAX_QUOTE_LINES = 50;
+const MAX_QUOTE_QUANTITY = 99;
 
 function usdCents(amount: number | string) {
   const cents = Math.round(Number(amount) * 100);
@@ -56,78 +19,64 @@ function usdCents(amount: number | string) {
   return cents;
 }
 
-async function fetchProductsById(
-  supabase: ReturnType<typeof createAdminClient>,
-  ids: string[]
-) {
-  if (!ids.length) return new Map<string, InventoryProduct>();
-  const { data, error } = await supabase.from("products").select(PRODUCT_COLUMNS).in("id", ids);
-  if (error) throw error;
-  return new Map((data ?? []).map((product) => [product.id, product as InventoryProduct]));
+function invalidRequest() {
+  return NextResponse.json({ error: "Invalid request" }, { status: 400 });
 }
 
 export async function POST(req: Request) {
   try {
-    let body: { items?: unknown };
+    let body: unknown;
     try {
-      body = (await req.json()) as { items?: unknown };
+      body = await req.json();
     } catch {
-      return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
+      return invalidRequest();
+    }
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return invalidRequest();
     }
 
-    const items = Array.isArray(body.items) ? body.items : [];
-    if (!items.length) {
+    // shippingCountry is accepted and unused. Shipping is still the flat USD rule.
+    const items = (body as { items?: unknown }).items;
+    if (!Array.isArray(items)) {
       return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
     }
+    if (items.length === 0) {
+      return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
+    }
+    if (items.length > MAX_QUOTE_LINES) {
+      return NextResponse.json({ error: "Your cart has too many items." }, { status: 400 });
+    }
 
-    const parsed: QuoteItem[] = [];
+    const parsed: CheckoutItemInput[] = [];
     for (const entry of items) {
-      const item = entry as {
-        id?: unknown;
-        slug?: unknown;
-        quantity?: unknown;
-        sku?: unknown;
-        size?: unknown;
-        material?: unknown;
-        variantId?: unknown;
-      };
-      const id = typeof item?.id === "string" ? item.id.trim() : "";
-      const slug = typeof item?.slug === "string" ? item.slug.trim() : "";
-      const quantity = Math.floor(Number(item?.quantity));
-      if (!id && !slug) {
-        return NextResponse.json(
-          { error: "An item in your cart is unavailable." },
-          { status: 400 }
-        );
-      }
-      if (!Number.isFinite(quantity) || quantity < 1) {
-        return NextResponse.json(
-          { error: "Check the highlighted fields.", fields: { quantity: "Enter a quantity of at least 1." } },
-          { status: 400 }
-        );
+      if (!entry || typeof entry !== "object") return invalidRequest();
+      const item = entry as Record<string, unknown>;
+      const quantity = Number(item.quantity);
+      if (!Number.isInteger(quantity) || quantity < 1 || quantity > MAX_QUOTE_QUANTITY) {
+        return NextResponse.json({ error: "Enter a quantity from 1 to 99." }, { status: 400 });
       }
       parsed.push({
-        id,
-        slug,
+        id: typeof item.id === "string" ? item.id : undefined,
+        slug: typeof item.slug === "string" ? item.slug : undefined,
+        name: typeof item.name === "string" ? item.name : "",
+        price: typeof item.price === "number" ? item.price : 0,
         quantity,
-        sku: typeof item.sku === "string" ? item.sku.trim() : "",
-        size: typeof item.size === "string" ? item.size.trim() : "",
-        material: typeof item.material === "string" ? item.material.trim() : "",
-        variantId: typeof item.variantId === "string" ? item.variantId.trim() : "",
+        size: typeof item.size === "string" ? item.size : undefined,
+        material: typeof item.material === "string" ? item.material : undefined,
+        sku: typeof item.sku === "string" ? item.sku : undefined,
       });
     }
 
     const supabase = createAdminClient();
-    const slugs = Array.from(new Set(parsed.map((item) => item.slug).filter(Boolean)));
-    const bySlug = await fetchInventoryBySlugs(supabase, slugs);
-    const missingIds = Array.from(
-      new Set(
-        parsed
-          .filter((item) => !(item.slug && bySlug.get(item.slug)) && item.id)
-          .map((item) => item.id)
-      )
-    );
-    const byId = await fetchProductsById(supabase, missingIds);
+    const slugs = Array.from(new Set(parsed.map((item) => item.slug?.trim()).filter(Boolean) as string[]));
+    const inventoryBySlug = await fetchInventoryBySlugs(supabase, slugs);
+    const validation = validateCheckoutItems(parsed, inventoryBySlug);
+    if (!validation.ok) {
+      return NextResponse.json(
+        { error: validation.errors[0] || "An item in your cart is unavailable." },
+        { status: 409 }
+      );
+    }
 
     const merchandise: MerchandiseLine[] = [];
     const lines: {
@@ -138,26 +87,18 @@ export async function POST(req: Request) {
       lineTotalUsd: number;
     }[] = [];
     let subtotalCents = 0;
-    for (const item of parsed) {
-      const product = (item.slug && bySlug.get(item.slug)) || (item.id && byId.get(item.id)) || null;
-      if (!product) {
-        return NextResponse.json(
-          { error: "An item in your cart is unavailable." },
-          { status: 400 }
-        );
-      }
-      const variant = matchVariant(product, item);
-      const unitCents = usdCents(product.price);
-      const lineCents = unitCents * item.quantity;
+    for (const line of validation.resolved) {
+      const unitCents = usdCents(line.product.price);
+      const lineCents = unitCents * line.requestedQuantity;
       subtotalCents += lineCents;
       lines.push({
-        productId: product.id,
-        ...(variant ? { variantId: variant.id } : {}),
-        quantity: item.quantity,
+        productId: line.product.id,
+        ...(line.variant ? { variantId: line.variant.id } : {}),
+        quantity: line.requestedQuantity,
         unitPriceUsd: unitCents / 100,
         lineTotalUsd: lineCents / 100,
       });
-      merchandise.push({ unitPriceUsd: unitCents / 100, quantity: item.quantity });
+      merchandise.push({ unitPriceUsd: unitCents / 100, quantity: line.requestedQuantity });
     }
 
     const subtotalUsd = subtotalCents / 100;

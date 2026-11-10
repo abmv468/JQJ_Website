@@ -87,6 +87,8 @@ function postcodeRequiredForCountry(country: string) {
   return CHECKOUT_POSTCODE_REQUIRED[name];
 }
 
+const POSTCODE_CHARSET = /^[A-Za-z0-9 -]{0,12}$/;
+
 function readPostcode(customer: CheckoutCustomerInput) {
   return (customer.postalCode ?? customer.postcode ?? customer.zip ?? customer.postal_code ?? "").trim();
 }
@@ -121,15 +123,23 @@ export function validateCheckoutCustomer(customer: CheckoutCustomerInput | null 
 
   const country = (source.country ?? "").trim();
   const postcode = readPostcode(source);
+  if (!POSTCODE_CHARSET.test(postcode)) {
+    fields.postalCode = "Enter a valid postcode.";
+  }
   if (!country) {
     fields.country = "Choose a country.";
-  } else if (POSTCODE_REQUIRED_ENFORCED.enabled && postcodeRequiredForCountry(country) && !postcode) {
+  } else if (
+    !fields.postalCode &&
+    POSTCODE_REQUIRED_ENFORCED.enabled &&
+    postcodeRequiredForCountry(country) &&
+    !postcode
+  ) {
     fields.postalCode = "Enter a valid postcode.";
-  } else if (postcode && !isValidPostcode(countryCode(country), postcode)) {
+  } else if (!fields.postalCode && postcode && !isValidPostcode(countryCode(country), postcode)) {
     fields.postalCode = "Enter a valid postcode.";
   }
 
   // Phone stays optional. The checkout form does not require it.
   if (Object.keys(fields).length > 0) return { ok: false as const, fields };
-  return { ok: true as const };
+  return { ok: true as const, postalCode: postcode };
 }

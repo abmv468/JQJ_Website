@@ -3,6 +3,7 @@ import { POST as postAirwallex } from "@/app/api/checkout/airwallex/route";
 import { POST as postCod } from "@/app/api/checkout/cod/route";
 import * as checkoutCustomerModule from "@/lib/checkout-customer";
 import { validateCheckoutCustomer } from "@/lib/checkout-customer";
+import { renderOrderEmailHtml, type OrderEmailData } from "@/lib/email";
 import { createAirwallexPaymentIntent } from "@/lib/payments/airwallex";
 import {
   checkoutCustomer,
@@ -262,5 +263,100 @@ describe("checkout customer validation", () => {
     } finally {
       checkoutCustomerModule.POSTCODE_REQUIRED_ENFORCED.enabled = false;
     }
+  });
+
+  it("stores a trimmed postcode and rejects characters that cannot be stored safely", async () => {
+    const uk = {
+      ...checkoutCustomer,
+      city: "London",
+      region: "",
+      country: "United Kingdom",
+      postalCode: "  SW1A 1AA  ",
+    };
+    const cod = await postCod(request("/api/checkout/cod", uk, `${REQUEST_ID}-uk-cod`));
+    expect(cod.status).toBe(200);
+    expect(db.rowsOf("orders")[0].shipping_address).toEqual(
+      expect.objectContaining({ postal_code: "SW1A 1AA" })
+    );
+
+    const card = await postAirwallex(
+      request("/api/checkout/airwallex", uk, "44444444-4444-4444-8444-444444444444")
+    );
+    expect(card.status).toBe(200);
+    expect(db.rowsOf("orders").at(-1)?.shipping_address).toEqual(
+      expect.objectContaining({ postal_code: "SW1A 1AA" })
+    );
+
+    const hk = await postCod(
+      request(
+        "/api/checkout/cod",
+        { ...checkoutCustomer, city: "Central", country: "Hong Kong SAR", postalCode: "" },
+        `${REQUEST_ID}-hk-empty-post`
+      )
+    );
+    expect(hk.status).toBe(200);
+    expect(db.rowsOf("orders").at(-1)?.shipping_address).toEqual(
+      expect.objectContaining({ postal_code: "" })
+    );
+
+    for (const postalCode of ["<b>", "a,b"]) {
+      const rejected = await postAirwallex(
+        request(
+          "/api/checkout/airwallex",
+          { ...checkoutCustomer, postalCode },
+          `${REQUEST_ID}-bad-${postalCode.length}`
+        )
+      );
+      expect(rejected.status).toBe(400);
+      expect((await rejected.json()).fields).toEqual({ postalCode: "Enter a valid postcode." });
+    }
+    expect(db.rowsOf("orders")).toHaveLength(3);
+    expect(createAirwallexPaymentIntent).toHaveBeenCalledTimes(1);
+  });
+});
+
+function emailFixture(postalCode: string): OrderEmailData {
+  return {
+    orderId: "order-1",
+    customerName: "Ada Lovelace",
+    customerEmail: "buyer@example.com",
+    items: [{ name: "Bracelet", quantity: 1, price: 100 }],
+    subtotal: 100,
+    shipping: 15,
+    total: 115,
+    paymentMethod: "cod",
+    currency: "USD",
+    shippingAddress: {
+      address: "1 Example Lane",
+      city: "London",
+      region: "",
+      country: "United Kingdom",
+      postal_code: postalCode,
+    },
+  };
+}
+
+describe("order email postcode", () => {
+  it("prints a US or UK postcode in the customer and admin html and skips an empty one", () => {
+    const uk = renderOrderEmailHtml(emailFixture("SW1A 1AA"), "Thank you for your order");
+    const ukAdmin = renderOrderEmailHtml(emailFixture("SW1A 1AA"), "New order received");
+    const us = renderOrderEmailHtml({
+      ...emailFixture("78701"),
+      shippingAddress: {
+        address: "1 Example Lane",
+        city: "Austin",
+        region: "TX",
+        country: "United States",
+        postal_code: "78701",
+      },
+    });
+    expect(uk).toContain("SW1A 1AA");
+    expect(ukAdmin).toContain("SW1A 1AA");
+    expect(us).toContain("78701");
+
+    const blank = renderOrderEmailHtml(emailFixture(""));
+    expect(blank).not.toContain("SW1A 1AA");
+    expect(blank).not.toContain("78701");
+    expect(blank).not.toMatch(/postal/i);
   });
 });

@@ -125,6 +125,23 @@ test("card checkout redirects through the stubbed Airwallex SDK and clears the c
   );
 });
 
+test("a legacy session link does not call retired card verify", async ({ page }) => {
+  const verifyHits: string[] = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.pathname === "/api/checkout/verify") verifyHits.push(url.pathname);
+  });
+
+  await page.goto("/order-confirmation?session_id=cs_test_x");
+  await expect(
+    page.getByText(
+      "This order link is no longer available. Please check your confirmation email or contact us."
+    )
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Payment was not completed" })).toHaveCount(0);
+  expect(verifyHits).toEqual([]);
+});
+
 test("a failed Airwallex return keeps the cart and shows support copy", async ({ page }) => {
   await page.addInitScript((key) => {
     localStorage.setItem(

@@ -83,6 +83,7 @@ export async function POST(req: Request) {
       city: customer.city,
       region: customer.region,
       country: customer.country,
+      postal_code: customerValidation.postalCode,
       phone: customer.phone,
       payment_method: "cod" as const,
       cod_fee: COD_FEE,

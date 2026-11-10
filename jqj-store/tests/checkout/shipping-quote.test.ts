@@ -87,7 +87,7 @@ describe("POST /api/checkout/quote", () => {
 
     const response = await postQuote(
       quoteRequest({
-        items: [{ id: "prod-amethyst", quantity: 1, price: 1 }],
+        items: [checkoutItem({ id: "prod-amethyst", price: 1, quantity: 1 })],
         discountCode: "HALF",
       })
     );
@@ -153,14 +153,60 @@ describe("POST /api/checkout/quote", () => {
     expect(body.totalUsd).toBe(175);
   });
 
+  it("rejects an id-only item the same way cash on delivery does, without a database call for capped carts", async () => {
+    const idOnly = {
+      items: [{ id: "prod-amethyst", name: "Amethyst Bracelet XV (5mm)", price: 1, quantity: 1 }],
+      customer: checkoutCustomer,
+      currency: "USD",
+      idempotencyKey: "cod-id-only",
+    };
+    const quote = await postQuote(quoteRequest(idOnly));
+    const cod = await postCod(
+      new Request("http://localhost:3000/api/checkout/cod", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(idOnly),
+      })
+    );
+    expect(quote.status).toBe(cod.status);
+    expect(await quote.json()).toEqual(await cod.json());
+    expect(db.rowsOf("orders")).toHaveLength(0);
+
+    const from = vi.spyOn(db, "from");
+    const tooMany = await postQuote(
+      quoteRequest({ items: Array.from({ length: 51 }, () => checkoutItem()) })
+    );
+    expect(tooMany.status).toBe(400);
+    expect(await tooMany.json()).toEqual({ error: "Your cart has too many items." });
+
+    const tooLarge = await postQuote(
+      quoteRequest({ items: [checkoutItem({ quantity: 100 })] })
+    );
+    const tooLargeBody = await tooLarge.json();
+    expect(tooLarge.status).toBe(400);
+    expect(tooLargeBody).toEqual({ error: "Enter a quantity from 1 to 99." });
+    expect(tooLargeBody.fields).toBeUndefined();
+
+    const badJson = await postQuote(
+      new Request("http://localhost:3000/api/checkout/quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{",
+      })
+    );
+    expect(badJson.status).toBe(400);
+    expect(await badJson.json()).toEqual({ error: "Invalid request" });
+    expect(from).not.toHaveBeenCalled();
+  });
+
   it("rejects an unknown item with 400 and does not write", async () => {
     const response = await postQuote(
       quoteRequest({ items: [{ id: "missing-product", quantity: 1, price: 250 }] })
     );
     const body = await response.json();
 
-    expect(response.status).toBe(400);
-    expect(body.error).toBe("An item in your cart is unavailable.");
+    expect(response.status).toBe(409);
+    expect(body.error).toMatch(/unavailable/);
     expect(JSON.stringify(body)).not.toMatch(/UPS|Express|expedited/);
     expect(db.rowsOf("orders")).toHaveLength(0);
     expect(db.rowsOf("products")[0].stock_count).toBe(5);

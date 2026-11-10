@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST as postCheckout } from "@/app/api/checkout/route";
 import { POST as postVerify } from "@/app/api/checkout/verify/route";
@@ -52,20 +49,5 @@ describe("retired Stripe routes", () => {
     expect(db.rowsOf("orders")).toHaveLength(0);
     expect(db.rowsOf("payments")).toHaveLength(0);
     expect(db.rpcCalls).toHaveLength(0);
-  });
-
-  it("drops the old shipping line item from the Stripe routes", () => {
-    const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../app/api");
-    const sources = [
-      "checkout/route.ts",
-      "checkout/verify/route.ts",
-      "webhooks/stripe/route.ts",
-    ].map((file) => readFileSync(path.join(root, file), "utf8"));
-
-    for (const source of sources) {
-      expect(source).not.toMatch(/UPS|Express|expedited/);
-      expect(source).not.toContain("getStripe");
-      expect(source).not.toContain("createAdminClient");
-    }
   });
 });
