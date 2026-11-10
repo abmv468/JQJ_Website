@@ -8,16 +8,34 @@
 --    Airwallex request id for the attempt (a UUID; see RUNBOOK.md, PR #20).
 --    NULLs stay distinct (Postgres default; NOT using NULLS NOT DISTINCT), so
 --    existing rows and any writer that does not send an attempt id are fine.
--- B) public.orders.payment_status: guarded backfill (no-op when there are no
---    NULLs), DEFAULT 'unpaid' (unchanged; every code path sets it explicitly),
---    SET NOT NULL. No CHECK on the allowed values.
+--    CHECK orders_checkout_attempt_requires_provider_chk: an attempt id needs
+--    a provider, so (NULL provider, attempt) can't slip past the UNIQUE
+--    (NULLs distinct). BE-009b writes the column only on Airwallex inserts
+--    with payment_provider 'airwallex'; COD leaves it NULL. Safe to add: the
+--    column is new, so every existing row has checkout_attempt_id NULL.
+-- B) public.orders.payment_status: DEFAULT 'unpaid' (unchanged; every code
+--    path sets it explicitly), then SET NOT NULL behind a guard. There is NO
+--    backfill: if any row has payment_status IS NULL the migration RAISEs and
+--    changes nothing, instead of guessing payment truth from orders.status
+--    (r1 mapped inventory_exception -> 'failed', but since PR #9 that status
+--    means paid with no stock). Production had 0 NULL rows at 14:55 HKT,
+--    10 Nov 2026. No CHECK on the allowed values.
 --
--- Transaction: this file has no BEGIN/COMMIT of its own. Supabase CLI 3.1.0
--- runs each migration file in a transaction by default, and the connector
--- route in RUNBOOK.md wraps it in BEGIN/COMMIT. That is why the index is a
--- plain CREATE UNIQUE INDEX, not CONCURRENTLY: CONCURRENTLY cannot run in a
--- transaction block, and on an 11-row table the plain build holds its lock
--- for milliseconds.
+-- Atomicity: the NULL guard and SET NOT NULL are ONE DO statement, so they
+-- are atomic even when the file runs under autocommit (QA's db-gate runs
+-- psql -f without a wrapper). The DO block sets its own transaction-scoped
+-- lock_timeout and takes the ACCESS EXCLUSIVE lock before counting, so no
+-- NULL row can be written between the check and the ALTER.
+-- Transaction: this file has no BEGIN/COMMIT of its own, on purpose. Supabase
+-- CLI 3.1.0 (`db push` / `migration up`) runs each file plus its history-row
+-- insert as one implicit transaction (one extended-protocol batch with a
+-- single Sync). If the file contained BEGIN/COMMIT, the CLI would switch to
+-- running the statements as written and insert the history row AFTER the
+-- file's COMMIT, outside it (see RUNBOOK.md section 2). The connector route
+-- in RUNBOOK.md wraps the file in BEGIN/COMMIT. The index is a plain CREATE
+-- UNIQUE INDEX, not CONCURRENTLY: CONCURRENTLY cannot run in a transaction
+-- block, and on an 11-row table the plain build holds its lock for
+-- milliseconds.
 -- lock_timeout is transaction-scoped (set_config(..., true)), so a long
 -- transaction already holding a lock on orders makes this fail fast and roll
 -- back instead of queueing (a queued ACCESS EXCLUSIVE request would stall every
@@ -57,19 +75,62 @@ begin
 end
 $attach$;
 
--- ---------- B) payment_status ----------
--- Guarded backfill: touches only NULL rows (0 on production at 14:55 HKT,
--- 10 Nov 2026). Same mapping 20261023190000_airwallex_payments.sql used.
-update public.orders
-set payment_status = case
-    when lower(status) in ('paid', 'packed', 'shipped', 'delivered', 'refunded') then 'succeeded'
-    when lower(status) in ('failed', 'failed_fulfillment', 'inventory_exception') then 'failed'
-    else 'pending'
-  end
-where payment_status is null;
+do $check$
+begin
+  perform set_config('lock_timeout', '3s', true);
+  if not exists (
+    select 1
+    from pg_constraint
+    where conrelid = 'public.orders'::regclass
+      and conname = 'orders_checkout_attempt_requires_provider_chk'
+  ) then
+    -- An attempt id without a provider would never conflict on the UNIQUE
+    -- above (NULLs distinct), so it is refused outright.
+    alter table public.orders
+      add constraint orders_checkout_attempt_requires_provider_chk
+      check (checkout_attempt_id is null or payment_provider is not null);
+  end if;
+end
+$check$;
 
+-- ---------- B) payment_status ----------
 alter table public.orders
   alter column payment_status set default 'unpaid';
 
-alter table public.orders
-  alter column payment_status set not null;
+-- Guard + SET NOT NULL in ONE statement (atomic under autocommit too).
+-- No backfill: NULL rows stop the migration; nothing is derived from
+-- orders.status (inventory_exception = paid with no stock since PR #9).
+do $not_null$
+declare
+  v_null_rows bigint;
+begin
+  perform set_config('lock_timeout', '3s', true);
+
+  if (select a.attnotnull
+        from pg_attribute a
+       where a.attrelid = 'public.orders'::regclass
+         and a.attname = 'payment_status'
+         and not a.attisdropped) then
+    return; -- already NOT NULL: re-run is a no-op (no lock taken)
+  end if;
+
+  -- SET NOT NULL needs ACCESS EXCLUSIVE anyway; taking it first means no
+  -- NULL row can appear between the count and the ALTER.
+  lock table public.orders in access exclusive mode;
+
+  select count(*) into v_null_rows
+  from public.orders
+  where payment_status is null;
+
+  if v_null_rows > 0 then
+    raise exception
+      'DATA-002 guard: % orders row(s) have payment_status IS NULL; refusing to SET NOT NULL', v_null_rows
+      using errcode = 'P0001',
+            detail = 'No backfill by design: payment truth is not derived from orders.status (inventory_exception means paid with no stock since PR #9). Nothing was changed by this statement.',
+            hint = 'Set each NULL payment_status explicitly from payments / Airwallex records (Owner-approved data fix), then re-run this migration.';
+  end if;
+
+  alter table public.orders
+    alter column payment_status set not null;
+end
+$not_null$;

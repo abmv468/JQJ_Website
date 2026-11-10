@@ -12,9 +12,14 @@
 --   5. an explicit NULL payment_status is rejected (23502), on INSERT and UPDATE
 --   6. schema shape: checkout_attempt_id is a nullable uuid; the unique is a
 --      real constraint over exactly (payment_provider, checkout_attempt_id),
---      NULLs distinct; payment_status is NOT NULL; RLS on orders still enabled
---   7. documented gap: a NULL payment_provider does not take part in the
---      uniqueness (NULLs are distinct), so two such rows are allowed
+--      NULLs distinct; the CHECK orders_checkout_attempt_requires_provider_chk
+--      exists, is validated and has the exact expression; payment_status is
+--      NOT NULL; RLS on orders still enabled
+--   7. NULL-provider gap is CLOSED by the CHECK: (provider NULL, attempt set)
+--      fails 23514 naming orders_checkout_attempt_requires_provider_chk, on
+--      INSERT and UPDATE; (provider NULL, attempt NULL) is allowed;
+--      (airwallex, attempt) is allowed
+-- The payment_status NULL guard (no backfill, RAISE) is tested in 004.
 
 begin;
 
@@ -27,6 +32,8 @@ declare
   v_cols text[];
   v_nulls_not_distinct boolean;
   v_contype "char";
+  v_validated boolean;
+  v_checkdef text;
 begin
   select data_type, is_nullable into strict v_type, v_nullable
   from information_schema.columns
@@ -57,6 +64,17 @@ begin
   where table_schema = 'public' and table_name = 'orders' and column_name = 'payment_status';
   if v_nullable <> 'NO' or v_default is distinct from '''unpaid''::text' then
     raise exception 'orders.payment_status nullable=% default=%; expected NO / ''unpaid''::text', v_nullable, v_default;
+  end if;
+
+  select co.contype, co.convalidated, pg_get_constraintdef(co.oid)
+    into strict v_contype, v_validated, v_checkdef
+  from pg_constraint co
+  where co.conrelid = 'public.orders'::regclass
+    and co.conname = 'orders_checkout_attempt_requires_provider_chk';
+  if v_contype <> 'c' or not v_validated
+     or v_checkdef <> 'CHECK (((checkout_attempt_id IS NULL) OR (payment_provider IS NOT NULL)))' then
+    raise exception 'orders_checkout_attempt_requires_provider_chk is % validated=% def=%; expected a validated CHECK ((checkout_attempt_id IS NULL) OR (payment_provider IS NOT NULL))',
+      v_contype, v_validated, v_checkdef;
   end if;
 
   if not (select relrowsecurity from pg_class where oid = 'public.orders'::regclass) then
@@ -195,17 +213,60 @@ begin
 end
 $$;
 
--- ---------- 7. documented gap: NULL provider ----------
+-- ---------- 7. NULL-provider gap closed by the CHECK ----------
 do $$
 declare
+  v_constraint text;
+  v_id uuid;
   v_n int;
 begin
-  perform pg_temp.new_order(null, 'a0000000-0000-4000-8000-0000000000ff', 'pending');
-  perform pg_temp.new_order(null, 'a0000000-0000-4000-8000-0000000000ff', 'pending');
+  -- (provider NULL, attempt set) is rejected, naming the CHECK.
+  begin
+    perform pg_temp.new_order(null, 'a0000000-0000-4000-8000-0000000000ff', 'pending');
+    raise exception 'INSERT (provider NULL, attempt set) was accepted';
+  exception when check_violation then
+    get stacked diagnostics v_constraint = constraint_name;
+    if v_constraint is distinct from 'orders_checkout_attempt_requires_provider_chk' then
+      raise exception 'check violation on %, expected orders_checkout_attempt_requires_provider_chk', v_constraint;
+    end if;
+  end;
+
+  -- (provider NULL, attempt NULL) is allowed, twice.
+  v_id := pg_temp.new_order(null, null, 'pending');
+  perform pg_temp.new_order(null, null, 'pending');
+
+  -- An UPDATE that gives a NULL-provider row an attempt id is rejected too.
+  begin
+    update public.orders set checkout_attempt_id = 'a0000000-0000-4000-8000-0000000000fe'
+    where id = v_id;
+    raise exception 'UPDATE to (provider NULL, attempt set) was accepted';
+  exception when check_violation then
+    get stacked diagnostics v_constraint = constraint_name;
+    if v_constraint is distinct from 'orders_checkout_attempt_requires_provider_chk' then
+      raise exception 'UPDATE check violation on %, expected orders_checkout_attempt_requires_provider_chk', v_constraint;
+    end if;
+  end;
+
+  -- Clearing the provider on a row that has an attempt id is rejected.
+  begin
+    update public.orders set payment_provider = null
+    where payment_provider = 'airwallex'
+      and checkout_attempt_id = 'a0000000-0000-4000-8000-000000000001';
+    raise exception 'UPDATE payment_provider -> NULL on a row with an attempt id was accepted';
+  exception when check_violation then
+    null;
+  end;
+
+  -- (airwallex, attempt) is allowed.
+  perform pg_temp.new_order('airwallex', 'a0000000-0000-4000-8000-0000000000ff');
+
   select count(*) into v_n from public.orders
   where checkout_attempt_id = 'a0000000-0000-4000-8000-0000000000ff';
-  if v_n <> 2 then
-    raise exception 'NULL provider + same attempt: expected 2 rows (NULLs distinct), got %', v_n;
+  if v_n <> 1 then
+    raise exception 'attempt ...ff: expected exactly 1 row (airwallex), got %', v_n;
+  end if;
+  if exists (select 1 from public.orders where checkout_attempt_id is not null and payment_provider is null) then
+    raise exception 'a row with an attempt id and NULL provider exists';
   end if;
 end
 $$;

@@ -10,11 +10,16 @@
 -- reads them, so this loses the duplicate-order guard, not order data.
 -- payment_status values are untouched; only NOT NULL is lifted. The default
 -- stays 'unpaid' (it was 'unpaid' before the migration, so it is restored as is).
+-- The migration has no backfill (r2), so there are no backfilled values to
+-- undo. If the migration stopped on its NULL guard, nothing from the guard
+-- step was applied; running this file is still safe (all IF EXISTS).
 -- Idempotent: safe to run twice, and a no-op if the migration never ran.
 
 begin;
 select set_config('lock_timeout', '3s', true);
 
+alter table public.orders
+  drop constraint if exists orders_checkout_attempt_requires_provider_chk;
 alter table public.orders
   drop constraint if exists orders_provider_checkout_attempt_key;
 drop index if exists public.orders_provider_checkout_attempt_key;
