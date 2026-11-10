@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST as postAirwallex } from "@/app/api/checkout/airwallex/route";
 import { POST as postCod } from "@/app/api/checkout/cod/route";
 import { products } from "@/data/products";
@@ -97,6 +97,10 @@ describe("real checkout routes match quoteCheckout", () => {
       client_secret: "secret_parity",
       merchant_order_id: "order",
     });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   async function place(

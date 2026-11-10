@@ -30,6 +30,8 @@ npm run test:e2e
 
 `http://127.0.0.1:54399` is a closed port so a stray Supabase call fails immediately. `test_dummy` is not a credential.
 
+`reuseExistingServer` is false, so `npm run test:e2e` always starts its own server with that fake env. It will not attach to a dev server already on the port, including one loaded from `.env.local` with a real Supabase project.
+
 ## What is covered
 
 - Store migrations still define the tables, columns, and RPCs checkout uses (`orders`, `order_items`, `payments`, `payment_webhook_events`, `products`, `product_variants`, `reserve_order_inventory`, `restore_order_inventory`, and the other `.from()` / `.rpc()` names in `app/` and `lib/`).

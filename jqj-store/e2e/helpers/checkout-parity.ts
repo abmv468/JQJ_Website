@@ -27,13 +27,29 @@ type ServerPricing = {
   codFee: number;
 };
 
+const DEFAULT_APP_ORIGIN = "http://127.0.0.1:3000";
+
 /**
- * Same isolation as the original checkout smoke: the browser never reaches
- * Supabase or Airwallex, and the availability call is fulfilled locally.
- * Checkout create/verify routes are stubbed per test so no order is inserted
- * and no stock is reserved.
+ * Allow only the app origin, plus data: and blob: URLs. Anything else is
+ * aborted, including Supabase and Airwallex. Registered first so later
+ * page.route stubs (availability, checkout create/verify) still win.
  */
-export async function installCheckoutIsolation(page: Page) {
+function isAllowedBrowserUrl(url: string, appOrigin: string) {
+  if (url.startsWith("data:") || url.startsWith("blob:")) return true;
+  try {
+    return new URL(url).origin === appOrigin;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The browser never leaves the app origin. Checkout create/verify routes are
+ * stubbed per test, after this allowlist, so no order is inserted and no
+ * stock is reserved.
+ */
+export async function installCheckoutIsolation(page: Page, baseURL?: string) {
+  const appOrigin = new URL(baseURL ?? DEFAULT_APP_ORIGIN).origin;
   await page.addInitScript(() => {
     const store: { type: string; env?: string; intent_id?: string }[] = JSON.parse(
       sessionStorage.getItem("aw-calls") ?? "[]"
@@ -56,15 +72,9 @@ export async function installCheckoutIsolation(page: Page) {
   });
 
   await page.route("**/*", (route) => {
-    const url = route.request().url();
-    if (
-      url.includes("supabase.co") ||
-      url.includes("127.0.0.1:54399") ||
-      url.includes("airwallex.com")
-    ) {
-      return route.abort();
-    }
-    return route.continue();
+    if (isAllowedBrowserUrl(route.request().url(), appOrigin)) return route.continue();
+    // blockedbyclient is distinct from a network failure (net::ERR_FAILED).
+    return route.abort("blockedbyclient");
   });
 
   await page.route(/\/api\/products\/availability$/, (route) =>

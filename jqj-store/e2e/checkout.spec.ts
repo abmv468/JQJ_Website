@@ -19,8 +19,27 @@ import {
 const UNDER_THRESHOLD_SLUG = "blue-lace-agate-silver-pendant";
 const OVER_THRESHOLD_SLUG = "amethyst-bracelet-xv";
 
-test.beforeEach(async ({ page }) => {
-  await installCheckoutIsolation(page);
+test.beforeEach(async ({ page, baseURL }) => {
+  await installCheckoutIsolation(page, baseURL);
+});
+
+test("aborts a browser request to an external host", async ({ page }) => {
+  await page.goto("/");
+  const [failed, result] = await Promise.all([
+    page.waitForEvent("requestfailed", {
+      predicate: (request) => request.url() === "https://example.com/",
+    }),
+    page.evaluate(async () => {
+      try {
+        await fetch("https://example.com/");
+        return "fulfilled";
+      } catch {
+        return "rejected";
+      }
+    }),
+  ]);
+  expect(result).toBe("rejected");
+  expect(failed.failure()?.errorText ?? "").toContain("ERR_BLOCKED_BY_CLIENT");
 });
 
 test("card checkout under the free-shipping announcement matches the server total", async ({
