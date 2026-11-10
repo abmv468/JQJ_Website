@@ -151,11 +151,9 @@ export function reportPaymentOnProtectedOrder(input: {
   reason: ProtectedOrderReason;
 }) {
   console.error("[airwallex-orders] payment_on_protected_order", {
+    tag: "jqd_alert",
     event: PAYMENT_ON_PROTECTED_ORDER_EVENT,
     orderId: input.orderId,
-    paymentIntentId: input.paymentIntentId,
-    status: input.status,
-    reason: input.reason,
   });
 }
 
