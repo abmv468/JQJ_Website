@@ -239,6 +239,8 @@ async function sendOrderEmailsIfNeeded(supabase: SupabaseClient, orderId: string
   const city = typeof shippingAddress.city === "string" ? shippingAddress.city : "";
   const region = typeof shippingAddress.region === "string" ? shippingAddress.region : "";
   const country = typeof shippingAddress.country === "string" ? shippingAddress.country : "";
+  const postalCode =
+    typeof shippingAddress.postal_code === "string" ? shippingAddress.postal_code : "";
 
   await sendOrderEmails({
     orderId: order.id,
@@ -269,6 +271,7 @@ async function sendOrderEmailsIfNeeded(supabase: SupabaseClient, orderId: string
       city,
       region,
       country,
+      postal_code: postalCode,
     },
   });
 

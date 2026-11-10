@@ -3,6 +3,9 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { validateCheckoutCustomer } from "@/lib/checkout-customer";
+import { checkoutErrorResponse } from "@/lib/checkout-error";
+import { resolveCheckoutSiteUrl } from "@/lib/checkout-site-url";
 import { normalizeCurrency, type SupportedCurrency } from "@/lib/currency";
 import { computeShippingUsd } from "@/lib/shipping";
 import {
@@ -102,9 +105,10 @@ export async function POST(req: Request) {
     if (!items?.length) {
       return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
     }
-    if (!customer?.email || !customer?.firstName || !customer?.address || !customer?.city) {
+    const customerValidation = validateCheckoutCustomer(customer);
+    if (!customerValidation.ok) {
       return NextResponse.json(
-        { error: "Missing required customer checkout details" },
+        { error: "Check the highlighted fields.", fields: customerValidation.fields },
         { status: 400 }
       );
     }
@@ -123,7 +127,12 @@ export async function POST(req: Request) {
     const userId = await getAuthenticatedUserId();
     const customerName = `${customer.firstName} ${customer.lastName ?? ""}`.trim();
     const requestId = asUuid(idempotencyKey) ?? randomUUID();
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    let siteUrl: string;
+    try {
+      siteUrl = resolveCheckoutSiteUrl();
+    } catch (error) {
+      return checkoutErrorResponse("airwallex-checkout", error);
+    }
     const returnUrl = `${siteUrl}/order-confirmation?provider=airwallex`;
 
     supabase = createAdminClient();
@@ -158,6 +167,7 @@ export async function POST(req: Request) {
       city: customer.city,
       region: customer.region || "",
       country: customer.country || "",
+      postal_code: customerValidation.postalCode,
       phone: customer.phone || "",
       payment_method: "airwallex" as const,
       currency: selectedCurrency,
@@ -306,16 +316,7 @@ export async function POST(req: Request) {
       try {
         await restoreStockForOrder(supabase, orderId, resolvedItems);
       } catch (restoreError) {
-        console.error("[airwallex-checkout] failed to restore stock after error", restoreError);
-        return NextResponse.json(
-          {
-            error:
-              restoreError instanceof Error
-                ? restoreError.message
-                : "Checkout failed and inventory restore could not complete",
-          },
-          { status: 500 }
-        );
+        return checkoutErrorResponse("airwallex-checkout", restoreError);
       }
     }
 
@@ -335,12 +336,6 @@ export async function POST(req: Request) {
       }
     }
 
-    console.error("[airwallex-checkout]", error);
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Unable to initialize Airwallex payment",
-      },
-      { status: 500 }
-    );
+    return checkoutErrorResponse("airwallex-checkout", error);
   }
 }

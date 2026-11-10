@@ -123,6 +123,7 @@ describe("POST /api/checkout/airwallex", () => {
   });
 
   it("restores the reservation when Airwallex fails and does not restore it twice", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.mocked(createAirwallexPaymentIntent).mockRejectedValue(new Error("Airwallex unavailable"));
 
     const response = await POST(
@@ -134,7 +135,14 @@ describe("POST /api/checkout/airwallex", () => {
     );
 
     expect(response.status).toBe(500);
-    expect(await response.json()).toMatchObject({ error: "Airwallex unavailable" });
+    const body = await response.json();
+    expect(body.error).toBe("Something went wrong. Please try again.");
+    expect(body.reference).toMatch(/^[0-9a-f]{8}$/);
+    expect(JSON.stringify(body)).not.toContain("Airwallex unavailable");
+    expect(JSON.stringify(body)).not.toMatch(/stack|UPS|Express|expedited/);
+    const logged = errorSpy.mock.calls.flat().map((part) => String(part)).join(" ");
+    expect(logged).toContain(body.reference);
+    expect(logged).toContain("Airwallex unavailable");
     expect(db.rowsOf("products")[0].stock_count).toBe(5);
     expect(db.rowsOf("orders")[0]).toMatchObject({
       status: "failed",

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createHash } from "crypto";
+import { validateCheckoutCustomer } from "@/lib/checkout-customer";
+import { checkoutErrorResponse } from "@/lib/checkout-error";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendOrderEmails } from "@/lib/email";
 import { normalizeCurrency } from "@/lib/currency";
@@ -62,6 +64,13 @@ export async function POST(req: Request) {
     if (!items?.length) {
       return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
     }
+    const customerValidation = validateCheckoutCustomer(customer);
+    if (!customerValidation.ok) {
+      return NextResponse.json(
+        { error: "Check the highlighted fields.", fields: customerValidation.fields },
+        { status: 400 }
+      );
+    }
 
     const selectedCurrency = normalizeCurrency(currency);
     const customerName = `${customer.firstName} ${customer.lastName}`.trim();
@@ -73,6 +82,7 @@ export async function POST(req: Request) {
       city: customer.city,
       region: customer.region,
       country: customer.country,
+      postal_code: customerValidation.postalCode,
       phone: customer.phone,
       payment_method: "cod" as const,
       cod_fee: COD_FEE,
@@ -365,10 +375,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ orderId }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
-    console.error("[cod]", err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Order failed" },
-      { status: 500 }
-    );
+    return checkoutErrorResponse("cod", err);
   }
 }

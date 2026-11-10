@@ -5,12 +5,13 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import { EXPIRED_ORDER_LINK_HEADING, SUPPORT_EMAIL, supportMailto } from "@/lib/support";
 
 function Confirmation() {
   const params = useSearchParams();
   const { clearCart } = useCart();
   const [status, setStatus] = useState<
-    "loading" | "pending" | "success" | "failed" | "cancelled" | "error"
+    "loading" | "pending" | "success" | "failed" | "cancelled" | "error" | "unavailable"
   >("loading");
   const [orderId, setOrderId] = useState<string | null>(null);
   const ran = useRef(false);
@@ -86,27 +87,12 @@ function Confirmation() {
     }
 
     if (sessionId) {
-      fetch("/api/checkout/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId }),
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.orderId) {
-            setOrderId(data.orderId);
-            setStatus("success");
-            clearCart();
-          } else {
-            setStatus("failed");
-          }
-        })
-        .catch(() => setStatus("failed"));
+      setStatus("unavailable");
       return;
     }
 
     setStatus("error");
-  }, [sessionId, codOrderId, method, provider, returnState, verifyAirwallexOrder, clearCart]);
+  }, [sessionId, codOrderId, method, provider, returnState, verifyAirwallexOrder]);
 
   if (status === "loading") {
     return (
@@ -115,6 +101,27 @@ function Confirmation() {
           ? "Verifying your payment status…"
           : "Confirming your order…"}
       </p>
+    );
+  }
+
+  if (status === "unavailable") {
+    return (
+      <div className="text-center">
+        <h1 className="font-heading text-2xl uppercase tracking-wider2">
+          {EXPIRED_ORDER_LINK_HEADING}
+        </h1>
+        <p className="mt-3 text-sm text-brand-muted">
+          This order link is no longer active. Your order details are in your confirmation email — or
+          contact us at{" "}
+          <a className="text-brand-gold underline" href={supportMailto()}>
+            {SUPPORT_EMAIL}
+          </a>{" "}
+          and we&apos;ll be glad to help.
+        </p>
+        <div className="mt-8 flex justify-center gap-4">
+          <Link href="/new" className="btn-secondary">Continue Shopping</Link>
+        </div>
+      </div>
     );
   }
 

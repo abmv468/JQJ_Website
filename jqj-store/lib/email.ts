@@ -25,6 +25,7 @@ export interface OrderEmailData {
     city: string;
     region: string;
     country: string;
+    postal_code?: string;
   };
 }
 
@@ -86,11 +87,16 @@ function buildHtml(data: OrderEmailData, heading: string): string {
       <p style="color:#444;line-height:1.5;">
         ${addr.address}${addr.apartment ? ", " + addr.apartment : ""}<br/>
         ${addr.city}, ${addr.region}<br/>
+        ${addr.postal_code ? `${addr.postal_code}<br/>` : ""}
         ${addr.country}
       </p>
       <p style="margin-top:24px;color:#777;font-size:12px;">Thank you for choosing ${BRAND}.</p>
     </div>
   </div>`;
+}
+
+export function renderOrderEmailHtml(data: OrderEmailData, heading = "Thank you for your order") {
+  return buildHtml(data, heading);
 }
 
 export async function sendOrderEmails(data: OrderEmailData): Promise<void> {

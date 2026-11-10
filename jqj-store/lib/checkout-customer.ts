@@ -1,0 +1,182 @@
+export type CheckoutCustomerInput = {
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  name?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  phone?: string;
+  postalCode?: string;
+  postcode?: string;
+  zip?: string;
+  postal_code?: string;
+};
+
+export type CheckoutFieldErrors = Record<string, string>;
+
+// Same eight checkout countries and postcode flags as PR #24.
+// Hong Kong is optional. The other seven are required. A country not listed is optional.
+// https://github.com/abmv468/JQJ_Website/pull/24
+export const CHECKOUT_POSTCODE_REQUIRED = {
+  "United States": true,
+  "United Kingdom": true,
+  Canada: true,
+  Australia: true,
+  "Hong Kong SAR": false,
+  Singapore: true,
+  Netherlands: true,
+  Germany: true,
+} as const;
+
+// Flip enabled to true once WEB-008 sends postalCode. Until then a missing postcode is accepted.
+export const POSTCODE_REQUIRED_ENFORCED = { enabled: false };
+
+const CHECKOUT_COUNTRY_NAMES: Record<string, keyof typeof CHECKOUT_POSTCODE_REQUIRED> = {
+  "united states": "United States",
+  "united states of america": "United States",
+  usa: "United States",
+  us: "United States",
+  "united kingdom": "United Kingdom",
+  uk: "United Kingdom",
+  "great britain": "United Kingdom",
+  gb: "United Kingdom",
+  canada: "Canada",
+  ca: "Canada",
+  australia: "Australia",
+  au: "Australia",
+  "hong kong": "Hong Kong SAR",
+  "hong kong sar": "Hong Kong SAR",
+  hk: "Hong Kong SAR",
+  singapore: "Singapore",
+  sg: "Singapore",
+  netherlands: "Netherlands",
+  nl: "Netherlands",
+  germany: "Germany",
+  de: "Germany",
+};
+
+const COUNTRY_CODES: Record<string, string> = {
+  "united states": "US",
+  "united states of america": "US",
+  usa: "US",
+  us: "US",
+  "united kingdom": "GB",
+  uk: "GB",
+  "great britain": "GB",
+  gb: "GB",
+  canada: "CA",
+  ca: "CA",
+  australia: "AU",
+  au: "AU",
+  "hong kong": "HK",
+  "hong kong sar": "HK",
+  hk: "HK",
+};
+
+function countryCode(country: string) {
+  const key = country.trim().toLowerCase().replace(/\./g, "");
+  if (COUNTRY_CODES[key]) return COUNTRY_CODES[key];
+  if (/^[a-z]{2}$/i.test(country.trim())) return country.trim().toUpperCase();
+  return "";
+}
+
+function postcodeRequiredForCountry(country: string) {
+  const name = CHECKOUT_COUNTRY_NAMES[country.trim().toLowerCase().replace(/\./g, "")];
+  if (!name) return false;
+  return CHECKOUT_POSTCODE_REQUIRED[name];
+}
+
+const POSTCODE_CHARSET = /^[A-Za-z0-9 -]{0,12}$/;
+const GENERIC_FIELD_ERROR = "Please check your details and try again.";
+
+function readString(
+  value: unknown,
+  options: { required: boolean }
+): { ok: true; value: string } | { ok: false } {
+  if (value == null) {
+    if (options.required) return { ok: false };
+    return { ok: true, value: "" };
+  }
+  if (typeof value !== "string") return { ok: false };
+  const trimmed = value.trim();
+  if (options.required && !trimmed) return { ok: false };
+  return { ok: true, value: trimmed };
+}
+
+function takeString(
+  fields: CheckoutFieldErrors,
+  key: string,
+  value: unknown,
+  required: boolean,
+  emptyMessage: string
+) {
+  const parsed = readString(value, { required });
+  if (!parsed.ok) {
+    fields[key] = emptyMessage;
+    return "";
+  }
+  return parsed.value;
+}
+
+function readPostcode(
+  customer: CheckoutCustomerInput
+): { ok: true; value: string } | { ok: false } {
+  const record = customer as Record<string, unknown>;
+  const raw = [record.postalCode, record.postcode, record.zip, record.postal_code].find(
+    (value) => value !== undefined && value !== null
+  );
+  if (raw === undefined) return { ok: true, value: "" };
+  if (typeof raw !== "string") return { ok: false };
+  return { ok: true, value: raw.trim() };
+}
+
+function isValidPostcode(code: string, postcode: string) {
+  if (code === "HK") return true;
+  if (code === "US") {
+    return /^\d{5}$/.test(postcode) || /^\d{5}-\d{4}$/.test(postcode) || /^\d{9}$/.test(postcode);
+  }
+  if (code === "GB") return /^[A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}$/i.test(postcode);
+  if (code === "CA") {
+    return /^[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTV-Z][ -]?\d[ABCEGHJ-NPRSTV-Z]\d$/i.test(postcode);
+  }
+  if (code === "AU") return /^\d{4}$/.test(postcode);
+  return /^[A-Za-z0-9][A-Za-z0-9 -]{1,11}$/.test(postcode);
+}
+
+export function validateCheckoutCustomer(customer: CheckoutCustomerInput | null | undefined) {
+  const source = (customer ?? {}) as CheckoutCustomerInput & Record<string, unknown>;
+  const fields: CheckoutFieldErrors = {};
+  const nameSource = source.firstName != null ? source.firstName : source.name;
+  takeString(fields, "firstName", nameSource, true, "Enter your name.");
+  takeString(fields, "lastName", source.lastName, false, GENERIC_FIELD_ERROR);
+  const email = takeString(fields, "email", source.email, true, "Enter a valid email address.");
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    fields.email = "Enter a valid email address.";
+  }
+  takeString(fields, "address", source.address, true, "Enter your address.");
+  takeString(fields, "city", source.city, true, "Enter your city.");
+  takeString(fields, "phone", source.phone, false, GENERIC_FIELD_ERROR);
+  const country = takeString(fields, "country", source.country, true, "Choose a country.");
+  const parsedPostcode = readPostcode(source);
+  const postcode = parsedPostcode.ok ? parsedPostcode.value : "";
+  if (!parsedPostcode.ok || !POSTCODE_CHARSET.test(postcode)) {
+    fields.postalCode = "Enter a valid postcode.";
+  }
+  if (!fields.country && !country) {
+    fields.country = "Choose a country.";
+  } else if (
+    !fields.postalCode &&
+    POSTCODE_REQUIRED_ENFORCED.enabled &&
+    postcodeRequiredForCountry(country) &&
+    !postcode
+  ) {
+    fields.postalCode = "Enter a valid postcode.";
+  } else if (!fields.postalCode && postcode && !isValidPostcode(countryCode(country), postcode)) {
+    fields.postalCode = "Enter a valid postcode.";
+  }
+
+  // Phone stays optional. The checkout form does not require it.
+  if (Object.keys(fields).length > 0) return { ok: false as const, fields };
+  return { ok: true as const, postalCode: postcode };
+}
