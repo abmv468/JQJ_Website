@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { GET } from "@/app/api/cron/release-reservations/route";
+import { GET, cronRequestAuthorized } from "@/app/api/cron/release-reservations/route";
 import { createCheckoutDb, setActiveDb, type MemoryDb } from "../helpers/memory-db";
 
 const SECRET = "cron_test_secret";
@@ -78,11 +78,15 @@ describe("GET /api/cron/release-reservations", () => {
     expect(db.rpcCalls.filter((call) => call.fn === "restore_order_inventory")).toHaveLength(0);
   });
 
-  it("returns 401 when CRON_SECRET is only whitespace", async () => {
+  it("rejects a whitespace secret before the raw bearer is compared", async () => {
     const secret = "   ";
     process.env.CRON_SECRET = secret;
+    const rawBearer = `Bearer ${secret}`;
 
-    const response = await GET(cronRequest(`Bearer ${secret}`));
+    expect(cronRequestAuthorized(rawBearer)).toBe(false);
+    expect(cronRequestAuthorized("Bearer")).toBe(false);
+
+    const response = await GET(cronRequest("Bearer"));
 
     expect(response.status).toBe(401);
     expect(response.headers.get("cache-control")).toBe("no-store");

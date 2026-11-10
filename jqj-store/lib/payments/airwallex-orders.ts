@@ -869,6 +869,8 @@ export async function applyAirwallexRefundEvent(
     providerEventCreatedAt?: string | null;
   }
 ) {
+  // Refunds are intentionally allowed on cancelled or test orders,
+  // because a refund after a cancel is the normal path.
   const refundId = typeof input.refundObject.id === "string" ? input.refundObject.id : null;
   const paymentIntentId =
     typeof input.refundObject.payment_intent_id === "string"
