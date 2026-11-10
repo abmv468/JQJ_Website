@@ -27,6 +27,21 @@ function request(authorization?: string) {
   });
 }
 
+function seedPayment(db: MemoryDb, orderId: string, status = "succeeded") {
+  db.seed("payments", [
+    {
+      id: `pay-${orderId}`,
+      order_id: orderId,
+      provider: "airwallex",
+      provider_payment_intent_id: `int_${orderId}`,
+      provider_request_id: `req_${orderId}`,
+      status,
+      amount: 115,
+      currency: "USD",
+    },
+  ]);
+}
+
 function seedOrder(
   db: MemoryDb,
   row: {
@@ -152,32 +167,44 @@ describe("GET /api/admin/orders/needs-attention", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
-  it("lists a cancelled order and a test order whose payment succeeded", async () => {
+  it("lists a cancelled order and a test order from the succeeded payment row", async () => {
     seedOrder(db, {
       id: "order-cancelled",
       status: "cancelled",
-      payment_status: "succeeded",
+      payment_status: "requires_payment_method",
       created_at: "2026-11-10T08:00:00.000Z",
     });
+    seedPayment(db, "order-cancelled");
     seedOrder(db, {
       id: "order-test",
       status: "pending",
-      sales_channel: "test",
-      payment_status: "succeeded",
+      sales_channel: " Test ",
+      payment_status: "requires_payment_method",
       created_at: "2026-11-10T09:00:00.000Z",
     });
+    seedPayment(db, "order-test");
+    seedOrder(db, {
+      id: "order-padded",
+      status: "cancelled",
+      payment_status: "requires_payment_method",
+      created_at: "2026-11-10T12:00:00.000Z",
+    });
+    db.rowsOf("orders").find((row) => row.id === "order-padded")!.status = "Cancelled ";
+    seedPayment(db, "order-padded");
     seedOrder(db, {
       id: "order-cancelled-unpaid",
       status: "cancelled",
       payment_status: "requires_payment_method",
       created_at: "2026-11-10T10:00:00.000Z",
     });
+    seedPayment(db, "order-cancelled-unpaid", "requires_payment_method");
     seedOrder(db, {
       id: "order-failed-paid",
       status: "failed",
       payment_status: "succeeded",
       created_at: "2026-11-10T11:00:00.000Z",
     });
+    seedPayment(db, "order-failed-paid");
 
     const response = await GET(request("Bearer admin-token"));
     const body = await response.json();
@@ -186,12 +213,22 @@ describe("GET /api/admin/orders/needs-attention", () => {
     expect(body.truncated).toBe(false);
     expect(body.orders).toEqual([
       {
+        id: "order-padded",
+        created_at: "2026-11-10T12:00:00.000Z",
+        total: 115,
+        currency: "USD",
+        status: "Cancelled ",
+        payment_status: "requires_payment_method",
+        fulfillment_status: "payment_failed",
+        reason: PROTECTED_ORDER_ALERT_EVENT,
+      },
+      {
         id: "order-test",
         created_at: "2026-11-10T09:00:00.000Z",
         total: 115,
         currency: "USD",
         status: "pending",
-        payment_status: "succeeded",
+        payment_status: "requires_payment_method",
         fulfillment_status: "payment_failed",
         reason: PROTECTED_ORDER_ALERT_EVENT,
       },
@@ -201,7 +238,7 @@ describe("GET /api/admin/orders/needs-attention", () => {
         total: 115,
         currency: "USD",
         status: "cancelled",
-        payment_status: "succeeded",
+        payment_status: "requires_payment_method",
         fulfillment_status: "payment_failed",
         reason: PROTECTED_ORDER_ALERT_EVENT,
       },
@@ -227,6 +264,35 @@ describe("GET /api/admin/orders/needs-attention", () => {
     expect(body.orders).toHaveLength(100);
     expect(body.orders[0].id).toBe("order-100");
     expect(body.orders[99].id).toBe("order-001");
+    expect(body.orders.map((order: { id: string }) => order.id)).not.toContain("order-000");
+  });
+
+  it("applies the 100-row limit after merging a protected payment with inventory exceptions", async () => {
+    seedOrder(db, {
+      id: "order-protected",
+      status: "cancelled",
+      payment_status: "requires_payment_method",
+      created_at: "2026-11-10T12:00:00.000Z",
+    });
+    seedPayment(db, "order-protected");
+    for (let index = 0; index < 100; index += 1) {
+      const stamp = new Date(Date.UTC(2026, 0, 1, 0, 0, index)).toISOString();
+      seedOrder(db, {
+        id: `order-${String(index).padStart(3, "0")}`,
+        status: "inventory_exception",
+        payment_status: "succeeded",
+        created_at: stamp,
+      });
+    }
+
+    const response = await GET(request("Bearer admin-token"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.truncated).toBe(true);
+    expect(body.orders).toHaveLength(100);
+    expect(body.orders[0].id).toBe("order-protected");
+    expect(body.orders[0].reason).toBe(PROTECTED_ORDER_ALERT_EVENT);
     expect(body.orders.map((order: { id: string }) => order.id)).not.toContain("order-000");
   });
 

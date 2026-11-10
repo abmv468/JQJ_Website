@@ -281,6 +281,7 @@ function asItems(value: unknown): StockItem[] {
 interface SelectField {
   name: string;
   nested: string | null;
+  inner: boolean;
 }
 
 class Query implements PromiseLike<QueryResult> {
@@ -413,6 +414,15 @@ class Query implements PromiseLike<QueryResult> {
     const fields = parseSelect(this.selectList);
     this.assertFields(fields);
     let rows = this.db.requireTable(this.table).filter((row) => matches(row, this.filters));
+    const innerFields = fields.filter((field) => field.inner);
+    if (innerFields.length > 0) {
+      rows = rows.filter((row) =>
+        innerFields.every((field) => {
+          const embedded = this.embed(row, field);
+          return Array.isArray(embedded) ? embedded.length > 0 : embedded != null;
+        })
+      );
+    }
     if (this.orderBy) {
       const { column, ascending } = this.orderBy;
       rows = [...rows].sort((left, right) => {
@@ -560,19 +570,28 @@ class Query implements PromiseLike<QueryResult> {
     return projected;
   }
 
-  private embed(row: Row, field: SelectField) {
+  private embed(row: Row, field: SelectField): Row | Row[] | null {
+    if (this.table === "payments" && field.name === "orders") {
+      const parent = this.db.rowsOf("orders").find((order) => order.id === row.order_id);
+      if (!parent) return null;
+      return this.projectColumns(parent, field.nested ?? "*");
+    }
     const fk =
       this.table === "products" && field.name === "product_variants"
         ? "product_id"
         : ORDER_FK[field.name];
     const children = (this.db.rowsOf(field.name) ?? []).filter((child) => child[fk] === row.id);
-    const nestedFields = parseSelect(field.nested ?? "*");
-    return children.map((child) => {
-      if (nestedFields.length === 1 && nestedFields[0].name === "*") return { ...child };
-      const projected: Row = {};
-      for (const nested of nestedFields) projected[nested.name] = child[nested.name];
-      return projected;
-    });
+    return children.map((child) => this.projectColumns(child, field.nested ?? "*"));
+  }
+
+  private projectColumns(row: Row, nested: string) {
+    const nestedFields = parseSelect(nested);
+    if (nestedFields.length === 1 && nestedFields[0].name === "*" && !nestedFields[0].nested) {
+      return { ...row };
+    }
+    const projected: Row = {};
+    for (const nestedField of nestedFields) projected[nestedField.name] = row[nestedField.name];
+    return projected;
   }
 
   private assertStatus(status: unknown) {
@@ -633,7 +652,7 @@ class Query implements PromiseLike<QueryResult> {
 }
 
 function parseSelect(input: string): SelectField[] {
-  if (!input || input.trim() === "*") return [{ name: "*", nested: null }];
+  if (!input || input.trim() === "*") return [{ name: "*", nested: null, inner: false }];
   const parts: string[] = [];
   let current = "";
   let depth = 0;
@@ -649,9 +668,11 @@ function parseSelect(input: string): SelectField[] {
   }
   if (current.trim()) parts.push(current.trim());
   return parts.map((part) => {
-    const nested = part.match(/^([a-z_][a-z0-9_]*)\((.*)\)$/i);
-    if (nested) return { name: nested[1], nested: nested[2] };
-    return { name: part, nested: null };
+    const nested = part.match(/^([a-z_][a-z0-9_]*)(?:!(inner|left))?\((.*)\)$/i);
+    if (nested) {
+      return { name: nested[1], nested: nested[3], inner: nested[2]?.toLowerCase() === "inner" };
+    }
+    return { name: part, nested: null, inner: false };
   });
 }
 

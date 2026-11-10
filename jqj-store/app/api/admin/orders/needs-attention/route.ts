@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { PROTECTED_ORDER_ALERT_EVENT } from "@/lib/payments/airwallex-orders";
+import { isProtectedOrder, PROTECTED_ORDER_ALERT_EVENT } from "@/lib/payments/airwallex-orders";
 
 export const dynamic = "force-dynamic";
 
@@ -20,10 +20,13 @@ type AttentionRow = {
 };
 
 function attentionReason(row: AttentionRow) {
-  const status = (row.status ?? "").trim().toLowerCase();
-  const channel = (row.sales_channel ?? "").trim().toLowerCase();
-  if (status === "cancelled" || channel === "test") return PROTECTED_ORDER_ALERT_EVENT;
+  if (isProtectedOrder(row)) return PROTECTED_ORDER_ALERT_EVENT;
   return "inventory_exception";
+}
+
+function embeddedOrder(value: AttentionRow | AttentionRow[] | null | undefined) {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
 }
 
 export async function GET(req: Request) {
@@ -34,43 +37,27 @@ export async function GET(req: Request) {
     const supabase = createAdminClient();
     const columns =
       "id, created_at, total_amount, currency, status, sales_channel, payment_status, fulfillment_status";
-    const { data: recordedPayments, error: paymentError } = await supabase
-      .from("payments")
-      .select("order_id")
-      .eq("status", "succeeded");
-    if (paymentError) throw paymentError;
-    const paidOrderIds = [
-      ...new Set(
-        ((recordedPayments ?? []) as Array<{ order_id?: string | null }>)
-          .map((row) => row.order_id)
-          .filter((id): id is string => typeof id === "string" && id.length > 0)
-      ),
-    ];
-
     const listed = supabase
       .from("orders")
       .select(columns)
       .eq("payment_status", "succeeded")
-      .or("status.eq.inventory_exception,status.eq.cancelled,sales_channel.eq.test")
+      .eq("status", "inventory_exception")
       .order("created_at", { ascending: false })
       .limit(PAGE_LIMIT + 1);
-    const protectedByPayment =
-      paidOrderIds.length === 0
-        ? Promise.resolve({ data: [] as AttentionRow[], error: null })
-        : supabase
-            .from("orders")
-            .select(columns)
-            .in("id", paidOrderIds)
-            .or("status.eq.cancelled,sales_channel.eq.test")
-            .order("created_at", { ascending: false })
-            .limit(PAGE_LIMIT + 1);
+    const protectedByPayment = supabase
+      .from("payments")
+      .select(`orders!inner(${columns})`)
+      .eq("status", "succeeded");
     const [byOrder, byPayment] = await Promise.all([listed, protectedByPayment]);
     if (byOrder.error) throw byOrder.error;
     if (byPayment.error) throw byPayment.error;
 
     const merged = new Map<string, AttentionRow>();
-    for (const row of [...((byOrder.data ?? []) as AttentionRow[]), ...((byPayment.data ?? []) as AttentionRow[])]) {
-      merged.set(row.id, row);
+    for (const row of (byOrder.data ?? []) as AttentionRow[]) merged.set(row.id, row);
+    for (const row of (byPayment.data ?? []) as Array<{ orders?: AttentionRow | AttentionRow[] | null }>) {
+      const order = embeddedOrder(row.orders);
+      if (!order || !isProtectedOrder(order)) continue;
+      merged.set(order.id, order);
     }
     const rows = [...merged.values()].sort((left, right) =>
       String(right.created_at ?? "").localeCompare(String(left.created_at ?? ""))
