@@ -684,6 +684,7 @@ export async function applyAirwallexPaymentIntentStatus(
             tag: "jqd_alert",
             event: PROTECTED_ORDER_ALERT_EVENT,
             orderId: protectedRow.id,
+            kind: input.nextStatus === "succeeded" ? "succeeded" : "failed",
           })
         );
       }

@@ -86,6 +86,7 @@ export class MemoryDb {
   readonly rpcCalls: { fn: string; args: Record<string, unknown> }[] = [];
   readonly writes: DbWrite[] = [];
   readonly limits: { table: string; count: number }[] = [];
+  readonly orders: { table: string; column: string; referencedTable?: string }[] = [];
   failWhen: FailWhen | null = null;
 
   constructor(schema: StoreSchema = loadStoreSchema()) {
@@ -388,11 +389,15 @@ class Query implements PromiseLike<QueryResult> {
     column: string,
     options?: { ascending?: boolean; referencedTable?: string; foreignTable?: string }
   ) {
+    const referencedTable = options?.referencedTable ?? options?.foreignTable;
     this.orderBy = {
       column,
       ascending: options?.ascending !== false,
-      referencedTable: options?.referencedTable ?? options?.foreignTable,
+      referencedTable,
     };
+    this.db.orders.push(
+      referencedTable ? { table: this.table, column, referencedTable } : { table: this.table, column }
+    );
     return this;
   }
 

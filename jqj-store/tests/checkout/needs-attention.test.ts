@@ -354,6 +354,9 @@ describe("GET /api/admin/orders/needs-attention", () => {
     expect(db.limits.filter((call) => call.table === "payments")).toEqual([
       { table: "payments", count: 101 },
     ]);
+    expect(db.orders.filter((call) => call.table === "payments")).toEqual([
+      { table: "payments", column: "updated_at" },
+    ]);
   });
 
   it("sets truncated when more than 100 protected payments match", async () => {

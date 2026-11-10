@@ -133,7 +133,10 @@ function closedOrderAlerts(spy: { mock: { calls: unknown[][] } }) {
   return spy.mock.calls
     .map((call) => call[0])
     .filter((value): value is string => typeof value === "string" && value.includes("jqd_alert"))
-    .map((value) => JSON.parse(value) as { tag: string; event: string; orderId: string });
+    .map(
+      (value) =>
+        JSON.parse(value) as { tag: string; event: string; orderId: string; kind: "succeeded" | "failed" }
+    );
 }
 
 describe("protected cancelled and test orders", () => {
@@ -180,6 +183,7 @@ describe("protected cancelled and test orders", () => {
         tag: "jqd_alert",
         event: PROTECTED_ORDER_ALERT_EVENT,
         orderId: "order-cancelled",
+        kind: "succeeded",
       },
     ]);
     expect(hookCalls(errorSpy)[0][1]).toEqual({
@@ -203,6 +207,15 @@ describe("protected cancelled and test orders", () => {
     const logged = JSON.stringify(errorSpy.mock.calls);
     expect(logged).not.toContain("paymentIntentId");
     expect(logged).not.toContain("int_order-cancelled");
+    expect(closedOrderAlerts(errorSpy)).toEqual([
+      {
+        tag: "jqd_alert",
+        event: PROTECTED_ORDER_ALERT_EVENT,
+        orderId: "order-cancelled",
+        kind: "succeeded",
+      },
+    ]);
+    expect(["succeeded", "failed"]).toContain(closedOrderAlerts(errorSpy)[0].kind);
     expect(hookCalls(errorSpy)).toEqual([
       [
         HOOK,
@@ -342,6 +355,7 @@ describe("protected cancelled and test orders", () => {
         tag: "jqd_alert",
         event: PROTECTED_ORDER_ALERT_EVENT,
         orderId: "order-test",
+        kind: "succeeded",
       },
     ]);
     expect(hookCalls(errorSpy)).toHaveLength(2);
@@ -406,6 +420,7 @@ describe("protected cancelled and test orders", () => {
         tag: "jqd_alert",
         event: PROTECTED_ORDER_ALERT_EVENT,
         orderId: "order-cancelled",
+        kind: "succeeded",
       },
     ]);
     expect(sendOrderEmails).not.toHaveBeenCalled();
