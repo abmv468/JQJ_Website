@@ -678,6 +678,75 @@ describe("Resend failures stay off the order path", () => {
     expect(send).not.toHaveBeenCalled();
     expect(vi.mocked(console.error)).toHaveBeenCalledWith("[email] EMAIL_FROM is not set", "order-1");
   });
+
+  it("releases the claim when RESEND_API_KEY is missing and the paid routes still succeed", async () => {
+    delete process.env.RESEND_API_KEY;
+    delete process.env.ADMIN_EMAIL;
+    seedHeldOrder(db);
+    vi.mocked(retrieveAirwallexPaymentIntent).mockResolvedValue(succeededIntent());
+
+    const confirmed = await cardVerify(
+      new Request("http://localhost:3000/api/checkout/airwallex/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: "order-1", refresh: true }),
+      })
+    );
+    expect(confirmed.status).toBe(200);
+    await expect(confirmed.json()).resolves.toMatchObject({
+      succeeded: true,
+      paymentStatus: "succeeded",
+    });
+    expect(send).not.toHaveBeenCalled();
+    expect(db.rowsOf("orders")[0].confirmation_email_sent_at ?? null).toBeNull();
+
+    db.rowsOf("orders")[0].status = "pending";
+    db.rowsOf("orders")[0].payment_status = "requires_payment_method";
+    db.rowsOf("payments")[0].status = "requires_payment_method";
+    const paid = await webhook(signedWebhook("evt_no_key"));
+    expect(paid.status).toBe(200);
+    await expect(paid.json()).resolves.toEqual({ received: true });
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      status: "paid",
+      payment_status: "succeeded",
+    });
+    expect(send).not.toHaveBeenCalled();
+    expect(db.rowsOf("orders")[0].confirmation_email_sent_at ?? null).toBeNull();
+  });
+
+  it("releases a failed verify send so the next verify sends once", async () => {
+    delete process.env.ADMIN_EMAIL;
+    send
+      .mockResolvedValueOnce({
+        data: null,
+        error: { name: "application_error", statusCode: 500, message: "down" },
+      })
+      .mockResolvedValue({ data: { id: "email_2" }, error: null });
+    seedHeldOrder(db);
+    vi.mocked(retrieveAirwallexPaymentIntent).mockResolvedValue(succeededIntent());
+    const verify = () =>
+      cardVerify(
+        new Request("http://localhost:3000/api/checkout/airwallex/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId: "order-1", refresh: true }),
+        })
+      );
+
+    const first = await verify();
+    expect(first.status).toBe(200);
+    await expect(first.json()).resolves.toMatchObject({ succeeded: true });
+    expect(db.rowsOf("orders")[0].confirmation_email_sent_at ?? null).toBeNull();
+    expect(send).toHaveBeenCalledTimes(1);
+
+    db.rowsOf("orders")[0].status = "pending";
+    db.rowsOf("orders")[0].payment_status = "requires_payment_method";
+    db.rowsOf("payments")[0].status = "requires_payment_method";
+    const second = await verify();
+    expect(second.status).toBe(200);
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(db.rowsOf("orders")[0].confirmation_email_sent_at).toEqual(expect.any(String));
+  });
 });
 
 const confirmation = {
