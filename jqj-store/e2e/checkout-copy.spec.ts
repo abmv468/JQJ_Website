@@ -1,8 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
-import { CARD_CURRENCY_NOTICE, COD_FEE } from "../lib/checkout-fees";
+import { CARD_CURRENCY_NOTICE, COD_FEE, COD_FREE_LABEL } from "../lib/checkout-fees";
 
 const CART_KEY = "JQD-cart";
-const codOptionLabel = "Cash on Delivery · Free";
 
 async function checkoutTotal(page: Page) {
   return (await page.locator("span.font-heading.text-2xl").innerText()).trim();
@@ -55,15 +54,15 @@ test("checkout copy omits sandbox wording and shows free cash on delivery", asyn
     await page.goto("/checkout");
     await expect(page.getByRole("button", { name: "Continue to Secure Payment" })).toBeVisible();
     await expect(page.getByText(CARD_CURRENCY_NOTICE)).toBeVisible();
-    await expect(page.getByText(codOptionLabel)).toBeVisible();
+    await expect(page.getByText(COD_FREE_LABEL, { exact: true })).toBeVisible();
     await expect(page.getByText("+$0.00")).toHaveCount(0);
     await expect(page.getByText("Cash on Delivery fee")).toHaveCount(0);
     expect((await page.locator("body").innerText()).toLowerCase()).not.toContain("sandbox");
     const cardTotal = await checkoutTotal(page);
 
-    await page.getByText(codOptionLabel).click();
+    await page.getByText(COD_FREE_LABEL, { exact: true }).click();
     await expect(page.getByRole("button", { name: "Place Order" })).toBeVisible();
-    await expect(page.getByText(codOptionLabel)).toBeVisible();
+    await expect(page.getByText(COD_FREE_LABEL, { exact: true })).toBeVisible();
     await expect(page.getByText(CARD_CURRENCY_NOTICE)).toBeVisible();
     await expect(page.getByText("+$0.00")).toHaveCount(0);
     await expect(page.getByText("Cash on Delivery fee")).toHaveCount(0);

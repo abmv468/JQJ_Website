@@ -7,7 +7,7 @@ import { ChevronLeft, CreditCard, Truck } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
 import { createClient } from "@/lib/supabase/client";
-import { CARD_CURRENCY_NOTICE, COD_FEE } from "@/lib/checkout-fees";
+import { CARD_CURRENCY_NOTICE, COD_FEE, codPaymentLabel } from "@/lib/checkout-fees";
 import { formatPrice } from "@/lib/utils";
 
 const SHIPPING_FLAT = 15;
@@ -376,11 +376,7 @@ export default function CheckoutPage() {
               <p className="text-xs text-brand-muted">{CARD_CURRENCY_NOTICE}</p>
               <label className={`flex cursor-pointer items-center gap-3 border p-4 ${method === "cod" ? "border-brand-gold" : "border-brand-border"}`}>
                 <input type="radio" name="method" checked={method === "cod"} onChange={() => setMethod("cod")} className="accent-brand-gold" />
-                <span className="text-sm">
-                  {COD_FEE > 0
-                    ? `Cash on Delivery (+${formatCheckoutAmount(COD_FEE)} fee)`
-                    : "Cash on Delivery · Free"}
-                </span>
+                <span className="text-sm">{codPaymentLabel(COD_FEE, formatCheckoutAmount(COD_FEE))}</span>
               </label>
             </div>
           </section>

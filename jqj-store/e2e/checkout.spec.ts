@@ -180,7 +180,7 @@ test("cash on delivery confirms the order without a fee row", async ({ page }) =
   }, CART_KEY);
   await page.goto("/checkout");
   await fillCheckout(page);
-  await page.getByText("Cash on Delivery · Free").click();
+  await page.getByText("Cash on delivery", { exact: true }).click();
   await expect(page.getByText("Cash on Delivery fee")).toHaveCount(0);
   await expect(page.getByText("+$0.00")).toHaveCount(0);
   await page.getByRole("button", { name: "Place Order" }).click();
