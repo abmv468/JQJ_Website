@@ -334,4 +334,18 @@ describe("inventory_exception admin actions", () => {
     expect(JSON.stringify(refundedBody)).not.toContain("driver-secret-xyz");
     expect(refunded.headers.get("cache-control")).toBe("no-store");
   });
+
+  it("does not reveal a non-Airwallex refund driver message", async () => {
+    seedOrder(db, { status: "paid", payment_provider: "stripe" });
+
+    const response = await POST(refund());
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body).toEqual({ error: "Internal error" });
+    expect(JSON.stringify(body)).not.toContain("apply_order_refund");
+    expect(JSON.stringify(body)).not.toContain("does not exist");
+    expect(createAirwallexRefund).not.toHaveBeenCalled();
+    expect(db.rowsOf("orders")[0].status).toBe("paid");
+  });
 });

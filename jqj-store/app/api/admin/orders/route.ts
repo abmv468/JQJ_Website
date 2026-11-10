@@ -369,7 +369,7 @@ export async function POST(req: Request) {
     });
 
     if (refundError) {
-      return NextResponse.json({ error: refundError.message }, { status: 400 });
+      return NextResponse.json({ error: "Internal error" }, { status: 400 });
     }
 
     const updatedOrder = await loadOrderWithRelations(supabase, id);

@@ -85,11 +85,17 @@ export function hasPartialRefund(totalAmount: number, refundedAmount: number): b
 
 export function formatOrderStatusLabel(status: string, paymentStatus?: string | null): string {
   if (isInventoryExceptionStatus(status)) return "Inventory exception";
-  const normalized = normalizeOrderStatus(status);
-  if (normalized === "paid" && paymentStatus != null && !isSucceededPaymentStatus(paymentStatus)) {
-    return "Inventory exception";
+  const raw = status.trim().toLowerCase();
+  if (!raw) return "Unknown";
+  if (raw === "paid") {
+    return paymentStatus != null && !isSucceededPaymentStatus(paymentStatus) ? "Unpaid" : "Paid";
   }
-  const label = normalized ?? status.trim().toLowerCase().replace(/_/g, " ");
-  if (!label) return "Inventory exception";
-  return label.charAt(0).toUpperCase() + label.slice(1);
+  if (raw === "pending") return "Pending";
+  if (raw === "processing") return "Processing";
+  if (raw === "cancelled") return "Cancelled";
+  if (raw === "refunded") return "Refunded";
+  if (raw === "packed") return "Packed";
+  if (raw === "shipped") return "Shipped";
+  if (raw === "delivered") return "Delivered";
+  return raw.charAt(0).toUpperCase() + raw.slice(1).replace(/_/g, " ");
 }
