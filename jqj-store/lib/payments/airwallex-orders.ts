@@ -82,9 +82,8 @@ const PAYMENT_STATUS_WEIGHT: Record<InternalPaymentStatus, number> = {
 };
 
 /**
- * Stable event for BE-018's unmatched-payment alert. The payload is the order
- * id, the payment intent id, and the stock shortfall. It has no customer PII
- * and no secrets.
+ * Stable event for BE-018's unmatched-payment alert. The log line is tag,
+ * event, and orderId only. It has no customer PII and no secrets.
  */
 export const PAYMENT_AFTER_EXPIRY_UNFULFILLED_EVENT =
   "airwallex.payment_after_expiry_unfulfilled";
