@@ -18,7 +18,7 @@ export function generateMetadata({ params }: { params: { slug: string } }) {
   const description =
     product?.metaDescription ??
     product?.description ??
-    "Explore handcrafted natural stone jewelry from JQD Group.";
+    "Explore natural stone jewellery from Jewellery Quintessential · 極氣.";
   const imageAlt = product?.imageAlt ?? product?.name;
 
   return {

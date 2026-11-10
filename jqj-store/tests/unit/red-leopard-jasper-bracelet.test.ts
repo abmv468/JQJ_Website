@@ -91,9 +91,8 @@ describe("red leopard skin jasper cube bracelet copy", () => {
     expect(entry.imageAlt).toBe(IMAGE_ALT);
     expect(entry.metaDescription).toBe(META_DESCRIPTION);
     expect(entry.features).toEqual([
-      "Tailored for your preferred fit",
-      "Natural gemstones selected for color and character",
-      "Complimentary first resize for new customers",
+      "Designed in Hong Kong",
+      "Natural stones selected for colour and character",
     ]);
     expect(entry.variants?.map((variant) => variant.size)).toEqual(["Small", "Medium", "Large"]);
     expect(entry.variants?.map((variant) => variant.material)).toEqual([
@@ -114,7 +113,7 @@ describe("red leopard skin jasper cube bracelet copy", () => {
     expect(entry.specs["Bead Size"]).toBeUndefined();
     expect(entry.specs.Clasp).toBeUndefined();
     expect(entry.specs.Color).toBeUndefined();
-    expect(entry.specs.Origin).toBeUndefined();
+    expect(entry.specs.Origin).toBe("Designed in Hong Kong");
   });
 
   it("has no logo, 6mm, Round, Sterling, clasp, rating, top-rated, or craft wording", () => {

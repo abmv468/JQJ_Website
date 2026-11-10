@@ -85,9 +85,8 @@ export const products: Product[] = [
     tags: ["sale"],
     stone: "Red Leopard Skin Jasper",
     features: [
-      "Tailored for your preferred fit",
-      "Natural gemstones selected for color and character",
-      "Complimentary first resize for new customers",
+      "Designed in Hong Kong",
+      "Natural stones selected for colour and character",
     ],
     specs: {
       Stone: "Red Leopard Skin Jasper",
@@ -95,6 +94,7 @@ export const products: Product[] = [
       Accent: "One silver-tone cube with an engraved mark",
       Spacers: "Small dark spacers",
       Care: "Keep dry. Store separately. Wipe with a soft cloth.",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
