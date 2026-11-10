@@ -1,5 +1,7 @@
 Local drafts only. Not applied to GitHub while the push freeze is on.
 
+SECOPS PASSED #20 at 6231c5f and #31 at 641b72d, with notes. A green CI run on the final local SHAs is required after the freeze lifts. Do not push until then.
+
 # PR 20
 Branch: cursor/airwallex-intent-idempotency-3c88
 URL: https://github.com/abmv468/JQJ_Website/pull/20
@@ -39,5 +41,9 @@ A thrown database error is different: the handler returns 500 so the failure is 
 - treats a duplicate success event as a no-op
 - returns a generic error body when processing throws
 - DB error during claim returns 5xx — an 08006 error injected into the order-claim update returns 500, the body is { error: "Internal error" } and does not contain the driver message, and the webhook row is failed
+- hides the driver message when storing the webhook event fails
+- hides the driver message when loading a duplicate webhook event fails
+
+The early 500s for a failed webhook insert and a failed duplicate lookup also return { error: "Internal error" } and log only the webhook event id plus the database error code.
 
 No schema changes. Stay a draft. Do not merge.
