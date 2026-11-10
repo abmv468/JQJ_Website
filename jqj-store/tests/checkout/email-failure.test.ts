@@ -99,6 +99,57 @@ function expectSafeLog(mode: FailureMode) {
   );
 }
 
+function seedPaidOrder(db: MemoryDb, id: string, paidAt: string, sentAt: string | null = null) {
+  db.seed("orders", [
+    {
+      id,
+      status: "paid",
+      payment_provider: "airwallex",
+      payment_status: "succeeded",
+      fulfillment_status: "paid",
+      inventory_reserved: true,
+      total_amount: 115,
+      subtotal_amount: 100,
+      shipping_amount: 15,
+      currency: "USD",
+      customer_email: "buyer@example.com",
+      customer_name: "Ada Lovelace",
+      paid_at: paidAt,
+      updated_at: paidAt,
+      confirmation_email_sent_at: sentAt,
+      shipping_address: {
+        address: "1 Atelier Lane",
+        city: "Austin",
+        region: "TX",
+        country: "United States",
+      },
+    },
+  ]);
+  db.seed("order_items", [
+    {
+      id: `item-${id}`,
+      order_id: id,
+      product_id: "prod-amethyst",
+      variant_id: null,
+      quantity: 1,
+      product_name: "Amethyst Bracelet XV (5mm)",
+      price_at_purchase: 100,
+    },
+  ]);
+  db.seed("payments", [
+    {
+      id: `pay-${id}`,
+      order_id: id,
+      provider: "airwallex",
+      provider_payment_intent_id: "int_1",
+      provider_request_id: `req-${id}`,
+      status: "succeeded",
+      amount: 115,
+      currency: "USD",
+    },
+  ]);
+}
+
 function seedHeldOrder(db: MemoryDb, createdAt = new Date().toISOString()) {
   db.rowsOf("products")[0].stock_count = 4;
   db.seed("orders", [
@@ -739,13 +790,132 @@ describe("Resend failures stay off the order path", () => {
     expect(db.rowsOf("orders")[0].confirmation_email_sent_at ?? null).toBeNull();
     expect(send).toHaveBeenCalledTimes(1);
 
-    db.rowsOf("orders")[0].status = "pending";
-    db.rowsOf("orders")[0].payment_status = "requires_payment_method";
-    db.rowsOf("payments")[0].status = "requires_payment_method";
     const second = await verify();
     expect(second.status).toBe(200);
     expect(send).toHaveBeenCalledTimes(2);
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      payment_status: "succeeded",
+      confirmation_email_sent_at: expect.any(String),
+    });
+  });
+
+  it("retries a failed confirmation from a duplicate paid webhook", async () => {
+    delete process.env.ADMIN_EMAIL;
+    send
+      .mockResolvedValueOnce({
+        data: null,
+        error: { name: "application_error", statusCode: 500, message: "down" },
+      })
+      .mockResolvedValue({ data: { id: "email_2" }, error: null });
+    seedHeldOrder(db);
+
+    const first = await webhook(signedWebhook("evt_dup_retry"));
+    expect(first.status).toBe(200);
+    expect(db.rowsOf("orders")[0].confirmation_email_sent_at ?? null).toBeNull();
+    expect(send).toHaveBeenCalledTimes(1);
+
+    const second = await webhook(signedWebhook("evt_dup_retry"));
+    expect(second.status).toBe(200);
+    await expect(second.json()).resolves.toEqual({ received: true, duplicate: true });
+    expect(send).toHaveBeenCalledTimes(2);
     expect(db.rowsOf("orders")[0].confirmation_email_sent_at).toEqual(expect.any(String));
+  });
+
+  it("sends once when verify and webhook race on an already paid unsent order", async () => {
+    delete process.env.ADMIN_EMAIL;
+    send.mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      return { data: { id: "email_1" }, error: null };
+    });
+    seedPaidOrder(db, "order-1", new Date().toISOString());
+
+    const [confirmed, paid] = await Promise.all([
+      cardVerify(
+        new Request("http://localhost:3000/api/checkout/airwallex/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId: "order-1", refresh: true }),
+        })
+      ),
+      webhook(signedWebhook("evt_paid_race")),
+    ]);
+
+    expect(confirmed.status).toBe(200);
+    expect(paid.status).toBe(200);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(db.rowsOf("orders")[0].confirmation_email_sent_at).toEqual(expect.any(String));
+  });
+
+  it("does not resend a confirmation that was already sent", async () => {
+    delete process.env.ADMIN_EMAIL;
+    send.mockResolvedValue({ data: { id: "email_1" }, error: null });
+    seedPaidOrder(db, "order-1", new Date().toISOString(), new Date().toISOString());
+
+    const confirmed = await cardVerify(
+      new Request("http://localhost:3000/api/checkout/airwallex/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: "order-1" }),
+      })
+    );
+    const paid = await webhook(signedWebhook("evt_already_sent"));
+    expect(confirmed.status).toBe(200);
+    expect(paid.status).toBe(200);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("retries a recent paid confirmation from the reservation cron and skips the rest", async () => {
+    delete process.env.ADMIN_EMAIL;
+    send.mockResolvedValue({ data: { id: "email_1" }, error: null });
+    const recent = new Date().toISOString();
+    seedPaidOrder(db, "order-recent", recent);
+    seedPaidOrder(db, "order-old", new Date(Date.now() - 30 * 60 * 60 * 1000).toISOString());
+    seedPaidOrder(db, "order-before-cutoff", "2026-11-09T12:00:00.000Z");
+    seedPaidOrder(db, "order-sent", recent, recent);
+
+    const response = await releaseReservations(
+      new Request("http://localhost:3000/api/cron/release-reservations", {
+        headers: { authorization: `Bearer ${CRON_SECRET}` },
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(db.rowsOf("orders").find((row) => row.id === "order-recent")?.confirmation_email_sent_at).toEqual(
+      expect.any(String)
+    );
+    expect(db.rowsOf("orders").find((row) => row.id === "order-old")?.confirmation_email_sent_at ?? null).toBeNull();
+    expect(
+      db.rowsOf("orders").find((row) => row.id === "order-before-cutoff")?.confirmation_email_sent_at ?? null
+    ).toBeNull();
+    expect(db.rowsOf("orders").find((row) => row.id === "order-sent")?.confirmation_email_sent_at).toBe(recent);
+  });
+
+  it("sends once when the reservation cron races verify on a paid unsent order", async () => {
+    delete process.env.ADMIN_EMAIL;
+    send.mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      return { data: { id: "email_1" }, error: null };
+    });
+    seedPaidOrder(db, "order-1", new Date().toISOString());
+
+    const [cron, confirmed] = await Promise.all([
+      releaseReservations(
+        new Request("http://localhost:3000/api/cron/release-reservations", {
+          headers: { authorization: `Bearer ${CRON_SECRET}` },
+        })
+      ),
+      cardVerify(
+        new Request("http://localhost:3000/api/checkout/airwallex/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId: "order-1" }),
+        })
+      ),
+    ]);
+
+    expect(cron.status).toBe(200);
+    expect(confirmed.status).toBe(200);
+    expect(send).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -9,6 +9,7 @@ import {
 } from "@/lib/payments/airwallex";
 import {
   applyAirwallexPaymentIntentStatus,
+  retryUnsentPaidConfirmation,
   upsertAirwallexPaymentIntent,
 } from "@/lib/payments/airwallex-orders";
 
@@ -69,6 +70,7 @@ export async function POST(req: Request) {
     }
 
     let effectiveStatus = normalizeAirwallexPaymentStatus(payment.status);
+    let appliedThisRequest = false;
 
     if (
       refresh &&
@@ -88,6 +90,7 @@ export async function POST(req: Request) {
         providerEventCreatedAt: intent.updated_at ?? null,
         force: true,
       });
+      appliedThisRequest = true;
 
       effectiveStatus = normalizeAirwallexPaymentStatus(intent.status);
     }
@@ -111,6 +114,10 @@ export async function POST(req: Request) {
     const normalizedOrderPaymentStatus = normalizeAirwallexPaymentStatus(
       refreshedOrder.payment_status ?? effectiveStatus
     );
+
+    if (!appliedThisRequest && isSuccessfulPaymentStatus(normalizedOrderPaymentStatus)) {
+      await retryUnsentPaidConfirmation(supabase, refreshedOrder.id);
+    }
 
     return NextResponse.json(
       {
