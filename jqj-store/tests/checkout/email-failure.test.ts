@@ -6,7 +6,14 @@ import { POST as codCheckout } from "@/app/api/checkout/cod/route";
 import { GET as releaseReservations } from "@/app/api/cron/release-reservations/route";
 import { POST as webhook } from "@/app/api/webhooks/airwallex/route";
 import { createAirwallexPaymentIntent, retrieveAirwallexPaymentIntent } from "@/lib/payments/airwallex";
-import { checkoutCustomer, checkoutItem, createCheckoutDb, setActiveDb, type MemoryDb } from "../helpers/memory-db";
+import {
+  checkoutCustomer,
+  checkoutItem,
+  createCheckoutDb,
+  dbError,
+  setActiveDb,
+  type MemoryDb,
+} from "../helpers/memory-db";
 
 const send = vi.hoisted(() => vi.fn());
 
@@ -139,6 +146,33 @@ function seedHeldOrder(db: MemoryDb, createdAt = new Date().toISOString()) {
       currency: "USD",
     },
   ]);
+}
+
+function signedWebhook(eventId: string) {
+  const body = JSON.stringify({
+    id: eventId,
+    name: "payment_intent.succeeded",
+    created_at: new Date().toISOString(),
+    data: {
+      object: {
+        id: "int_1",
+        status: "SUCCEEDED",
+        amount: 115,
+        currency: "USD",
+        merchant_order_id: "order-1",
+      },
+    },
+  });
+  const timestamp = String(Math.floor(Date.now() / 1000));
+  return new Request("http://localhost:3000/api/webhooks/airwallex", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-signature": sign(timestamp, body),
+      "x-timestamp": timestamp,
+    },
+    body,
+  });
 }
 
 function succeededIntent() {
@@ -337,5 +371,158 @@ describe("Resend failures stay off the order path", () => {
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
     expect(fetch).not.toHaveBeenCalled();
     expectSafeLog("throw");
+  });
+
+  it("sends one confirmation when webhook and verify race", async () => {
+    delete process.env.ADMIN_EMAIL;
+    send.mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      return { data: { id: "email_1" }, error: null };
+    });
+    seedHeldOrder(db);
+    vi.mocked(retrieveAirwallexPaymentIntent).mockResolvedValue(succeededIntent());
+
+    const [paid, confirmed] = await Promise.all([
+      webhook(signedWebhook("evt_race_webhook")),
+      cardVerify(
+        new Request("http://localhost:3000/api/checkout/airwallex/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId: "order-1", refresh: true }),
+        })
+      ),
+    ]);
+
+    expect(paid.status).toBe(200);
+    expect(confirmed.status).toBe(200);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      status: "paid",
+      payment_status: "succeeded",
+      inventory_reserved: true,
+      confirmation_email_sent_at: expect.any(String),
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("clears a failed send so a later call sends once", async () => {
+    delete process.env.ADMIN_EMAIL;
+    send
+      .mockResolvedValueOnce({
+        data: null,
+        error: { name: "application_error", statusCode: 500, message: "down" },
+      })
+      .mockResolvedValue({ data: { id: "email_2" }, error: null });
+    seedHeldOrder(db);
+
+    const first = await webhook(signedWebhook("evt_retry_1"));
+    expect(first.status).toBe(200);
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      status: "paid",
+      payment_status: "succeeded",
+    });
+    expect(db.rowsOf("orders")[0].confirmation_email_sent_at ?? null).toBeNull();
+    expect(send).toHaveBeenCalledTimes(1);
+
+    const second = await webhook(signedWebhook("evt_retry_2"));
+    expect(second.status).toBe(200);
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(db.rowsOf("orders")[0].confirmation_email_sent_at).toEqual(expect.any(String));
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("logs a failed confirmation claim and still marks the order paid", async () => {
+    delete process.env.ADMIN_EMAIL;
+    send.mockResolvedValue({ data: { id: "email_1" }, error: null });
+    seedHeldOrder(db);
+    db.failWhen = (table, op, filters) =>
+      table === "orders" &&
+      op === "update" &&
+      filters.some((filter) => filter.op === "is" && filter.column === "confirmation_email_sent_at")
+        ? dbError("claim failed", "XX000")
+        : null;
+
+    const response = await webhook(signedWebhook("evt_claim"));
+    expect(response.status).toBe(200);
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      status: "paid",
+      payment_status: "succeeded",
+      inventory_reserved: true,
+    });
+    expect(db.rowsOf("orders")[0].confirmation_email_sent_at ?? null).toBeNull();
+    expect(send).not.toHaveBeenCalled();
+    expect(vi.mocked(console.error)).toHaveBeenCalledWith("[email] confirmation claim failed", "order-1");
+    expect(loggedText()).not.toContain("buyer@example.com");
+    expect(loggedText()).not.toContain("re_live_secretvalue");
+  });
+
+  it("logs a failed claim clear and does not throw", async () => {
+    delete process.env.ADMIN_EMAIL;
+    send.mockResolvedValue({
+      data: null,
+      error: { name: "application_error", statusCode: 500, message: "down" },
+    });
+    seedHeldOrder(db);
+    db.failWhen = (table, op, filters) =>
+      table === "orders" &&
+      op === "update" &&
+      filters.some((filter) => filter.op === "eq" && filter.column === "confirmation_email_sent_at")
+        ? dbError("clear failed", "XX000")
+        : null;
+
+    const response = await webhook(signedWebhook("evt_clear"));
+    expect(response.status).toBe(200);
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      status: "paid",
+      payment_status: "succeeded",
+    });
+    expect(vi.mocked(console.error)).toHaveBeenCalledWith(
+      "[email] confirmation claim clear failed",
+      "order-1"
+    );
+    expect(loggedText()).not.toContain("buyer@example.com");
+    expect(loggedText()).not.toContain("re_live_secretvalue");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("does not fail or release a paid order when a later checkout write throws", async () => {
+    send.mockResolvedValue({ data: { id: "email_1" }, error: null });
+    vi.mocked(createAirwallexPaymentIntent).mockResolvedValue({
+      ...succeededIntent(),
+      id: "int_test",
+      request_id: REQUEST_ID,
+    });
+    db.failWhen = (table, op, filters) => {
+      if (table !== "orders" || op !== "update") return null;
+      const paid = db.rowsOf("orders").some((row) => row.payment_status === "succeeded");
+      const guardsPaid = filters.some(
+        (filter) =>
+          filter.op === "neq" && filter.column === "payment_status" && filter.value === "succeeded"
+      );
+      if (paid && !guardsPaid) return dbError("late checkout write failed", "XX000");
+      return null;
+    };
+
+    const response = await cardCheckout(
+      new Request("http://localhost:3000/api/checkout/airwallex", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: [checkoutItem()],
+          customer: checkoutCustomer,
+          currency: "USD",
+          idempotencyKey: REQUEST_ID,
+        }),
+      })
+    );
+
+    expect(response.status).toBe(500);
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      status: "paid",
+      payment_status: "succeeded",
+      inventory_reserved: true,
+    });
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
+    expect(db.rpcCalls.filter((call) => call.fn === "restore_order_inventory")).toHaveLength(0);
   });
 });

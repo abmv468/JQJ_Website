@@ -106,7 +106,7 @@ describe("POST /api/checkout/airwallex/verify", () => {
       inventoryReserved: true,
     });
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
-    expect(db.rowsOf("orders")[0].confirmation_email_sent_at).toEqual(expect.any(String));
+    expect(db.rowsOf("orders")[0].confirmation_email_sent_at ?? null).toBeNull();
     expect(fetch).not.toHaveBeenCalled();
   });
 

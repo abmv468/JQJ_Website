@@ -314,8 +314,24 @@ async function sendOrderEmailsIfNeeded(supabase: SupabaseClient, orderId: string
   const region = typeof shippingAddress.region === "string" ? shippingAddress.region : "";
   const country = typeof shippingAddress.country === "string" ? shippingAddress.country : "";
 
+  // One conditional update is the lock. Only the caller that moves the column off null sends.
+  const claimedAt = new Date().toISOString();
+  const { data: claimed, error: claimError } = await supabase
+    .from("orders")
+    .update({ confirmation_email_sent_at: claimedAt })
+    .eq("id", order.id)
+    .is("confirmation_email_sent_at", null)
+    .select("id")
+    .maybeSingle();
+  if (claimError) {
+    console.error("[email] confirmation claim failed", order.id);
+    return;
+  }
+  if (!claimed) return;
+
+  let sent = false;
   try {
-    await sendOrderEmails({
+    sent = await sendOrderEmails({
       orderId: order.id,
       customerName: order.customer_name ?? "Customer",
       customerEmail: order.customer_email,
@@ -350,12 +366,16 @@ async function sendOrderEmailsIfNeeded(supabase: SupabaseClient, orderId: string
     console.error("[email] order confirmation failed", order.id);
   }
 
-  const { error: updateError } = await supabase
+  if (sent) return;
+
+  const { error: clearError } = await supabase
     .from("orders")
-    .update({ confirmation_email_sent_at: new Date().toISOString() })
+    .update({ confirmation_email_sent_at: null })
     .eq("id", order.id)
-    .is("confirmation_email_sent_at", null);
-  if (updateError) throw updateError;
+    .eq("confirmation_email_sent_at", claimedAt);
+  if (clearError) {
+    console.error("[email] confirmation claim clear failed", order.id);
+  }
 }
 
 export async function upsertAirwallexPaymentIntent(
