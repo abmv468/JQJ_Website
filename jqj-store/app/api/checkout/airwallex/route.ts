@@ -313,12 +313,6 @@ export async function POST(req: Request) {
     );
   } catch (error) {
     if (supabase && orderId) {
-      try {
-        await releaseOrderReservation(supabase, orderId, reservedStock ? resolvedItems : undefined);
-      } catch (restoreError) {
-        console.error("[airwallex-checkout] failed to restore stock after error", restoreError);
-      }
-
       const { error: markFailedError } = await supabase
         .from("orders")
         .update({
@@ -328,9 +322,26 @@ export async function POST(req: Request) {
           fulfillment_status: "payment_failed",
           updated_at: new Date().toISOString(),
         })
-        .eq("id", orderId);
+        .eq("id", orderId)
+        .neq("payment_status", "succeeded");
       if (markFailedError) {
         console.error("[airwallex-checkout] failed to mark order as failed", markFailedError);
+      }
+
+      const { data: releasable, error: releasableError } = await supabase
+        .from("orders")
+        .select("id")
+        .eq("id", orderId)
+        .neq("payment_status", "succeeded")
+        .maybeSingle();
+      if (releasableError) {
+        console.error("[airwallex-checkout] failed to restore stock after error", orderId);
+      } else if (releasable) {
+        try {
+          await releaseOrderReservation(supabase, orderId, reservedStock ? resolvedItems : undefined);
+        } catch (restoreError) {
+          console.error("[airwallex-checkout] failed to restore stock after error", restoreError);
+        }
       }
     }
 

@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { sendInventoryExceptionAlert, sendOrderEmails } from "@/lib/email";
+import { claimOrderConfirmation, sendInventoryExceptionAlert, sendOrderEmails } from "@/lib/email";
 import { normalizeCurrency } from "@/lib/currency";
 import type { ResolvedCheckoutItem } from "@/lib/inventory";
 import {
@@ -291,6 +291,23 @@ function isStockUnavailable(message: string | undefined) {
   return /stock|unavailable/i.test(message ?? "");
 }
 
+export async function retryUnsentPaidConfirmation(supabase: SupabaseClient, orderId: string) {
+  try {
+    const { data, error } = await supabase
+      .from("orders")
+      .select("payment_status, confirmation_email_sent_at")
+      .eq("id", orderId)
+      .maybeSingle();
+    if (error || !data) return;
+    const row = data as { payment_status?: string | null; confirmation_email_sent_at?: string | null };
+    if (row.payment_status !== "succeeded" || row.confirmation_email_sent_at) return;
+    console.info("[email] confirmation retry", orderId);
+    await sendOrderEmailsIfNeeded(supabase, orderId);
+  } catch {
+    console.error("[email] confirmation retry failed", orderId);
+  }
+}
+
 async function sendOrderEmailsIfNeeded(supabase: SupabaseClient, orderId: string) {
   const { data, error } = await supabase
     .from("orders")
@@ -302,7 +319,8 @@ async function sendOrderEmailsIfNeeded(supabase: SupabaseClient, orderId: string
   if (error) throw error;
 
   const order = data as unknown as OrderEmailRow;
-  if (order.confirmation_email_sent_at || !order.customer_email) {
+  const customerEmail = order.customer_email;
+  if (order.confirmation_email_sent_at || !customerEmail) {
     return;
   }
 
@@ -314,44 +332,39 @@ async function sendOrderEmailsIfNeeded(supabase: SupabaseClient, orderId: string
   const region = typeof shippingAddress.region === "string" ? shippingAddress.region : "";
   const country = typeof shippingAddress.country === "string" ? shippingAddress.country : "";
 
-  await sendOrderEmails({
-    orderId: order.id,
-    customerName: order.customer_name ?? "Customer",
-    customerEmail: order.customer_email,
-    items: (order.order_items ?? []).map((item) => ({
-      name:
-        item.product_name +
-        ((item.variant_size || item.variant_material)
-          ? ` (${[item.variant_size, item.variant_material].filter(Boolean).join(" / ")})`
-          : ""),
-      quantity: item.quantity,
-      price: Number(item.price_at_purchase ?? 0),
-    })),
-    subtotal:
-      toNumber(order.subtotal_amount) ||
-      (order.order_items ?? []).reduce(
-        (sum, item) => sum + Number(item.price_at_purchase || 0) * Number(item.quantity || 0),
-        0
-      ),
-    shipping: toNumber(order.shipping_amount),
-    total: toNumber(order.total_amount),
-    paymentMethod: "airwallex",
-    currency: normalizeCurrency(order.currency ?? "USD"),
-    shippingAddress: {
-      address,
-      apartment,
-      city,
-      region,
-      country,
-    },
-  });
-
-  const { error: updateError } = await supabase
-    .from("orders")
-    .update({ confirmation_email_sent_at: new Date().toISOString() })
-    .eq("id", order.id)
-    .is("confirmation_email_sent_at", null);
-  if (updateError) throw updateError;
+  await claimOrderConfirmation(supabase, order.id, () =>
+    sendOrderEmails({
+      orderId: order.id,
+      customerName: order.customer_name ?? "Customer",
+      customerEmail,
+      items: (order.order_items ?? []).map((item) => ({
+        name:
+          item.product_name +
+          ((item.variant_size || item.variant_material)
+            ? ` (${[item.variant_size, item.variant_material].filter(Boolean).join(" / ")})`
+            : ""),
+        quantity: item.quantity,
+        price: Number(item.price_at_purchase ?? 0),
+      })),
+      subtotal:
+        toNumber(order.subtotal_amount) ||
+        (order.order_items ?? []).reduce(
+          (sum, item) => sum + Number(item.price_at_purchase || 0) * Number(item.quantity || 0),
+          0
+        ),
+      shipping: toNumber(order.shipping_amount),
+      total: toNumber(order.total_amount),
+      paymentMethod: "airwallex",
+      currency: normalizeCurrency(order.currency ?? "USD"),
+      shippingAddress: {
+        address,
+        apartment,
+        city,
+        region,
+        country,
+      },
+    })
+  );
 }
 
 export async function upsertAirwallexPaymentIntent(
@@ -492,12 +505,16 @@ export async function applyAirwallexPaymentIntentStatus(
 
   if (inventoryException) {
     if (order.status !== "inventory_exception") {
-      await sendInventoryExceptionAlert({
-        orderId: order.id,
-        customerEmail: order.customer_email,
-        totalAmount: toNumber(order.total_amount),
-        currency: order.currency,
-      });
+      try {
+        await sendInventoryExceptionAlert({
+          orderId: order.id,
+          customerEmail: order.customer_email,
+          totalAmount: toNumber(order.total_amount),
+          currency: order.currency,
+        });
+      } catch {
+        console.error("[email] inventory exception alert failed", order.id);
+      }
     }
     return { applied: true, orderId: order.id, inventoryException: true as const };
   }

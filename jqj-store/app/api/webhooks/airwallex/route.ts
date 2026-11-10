@@ -7,6 +7,7 @@ import {
 import {
   applyAirwallexPaymentIntentStatus,
   applyAirwallexRefundEvent,
+  retryUnsentPaidConfirmation,
   upsertAirwallexPaymentIntent,
 } from "@/lib/payments/airwallex-orders";
 
@@ -30,6 +31,32 @@ const INVALID_SIGNATURE = { error: "Invalid webhook signature" };
 
 function invalidSignatureResponse() {
   return NextResponse.json(INVALID_SIGNATURE, { status: 400 });
+}
+
+async function retryDuplicatePaidConfirmation(
+  supabase: ReturnType<typeof createAdminClient>,
+  event: AirwallexWebhookEvent
+) {
+  if (!event.name.startsWith("payment_intent.")) return;
+  const object = event.data?.object ?? {};
+  if (normalizeAirwallexPaymentStatus(typeof object.status === "string" ? object.status : null) !== "succeeded") {
+    return;
+  }
+  const paymentIntentId = typeof object.id === "string" ? object.id : null;
+  const merchantOrderId = typeof object.merchant_order_id === "string" ? object.merchant_order_id : null;
+  let orderId = merchantOrderId;
+  if (paymentIntentId) {
+    const { data, error } = await supabase
+      .from("payments")
+      .select("order_id")
+      .eq("provider", "airwallex")
+      .eq("provider_payment_intent_id", paymentIntentId)
+      .maybeSingle();
+    if (error) return;
+    if (data?.order_id) orderId = data.order_id;
+  }
+  if (!orderId) return;
+  await retryUnsentPaidConfirmation(supabase, orderId);
 }
 
 function webhookSkewSeconds() {
@@ -106,6 +133,7 @@ export async function POST(req: Request) {
     }
 
     if (existingEvent?.status === "processed" || existingEvent?.status === "ignored") {
+      await retryDuplicatePaidConfirmation(supabase, event);
       return NextResponse.json({ received: true, duplicate: true });
     }
     webhookRowId = existingEvent?.id ?? null;

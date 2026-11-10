@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendOrderEmails } from "@/lib/email";
+import { claimOrderConfirmation, sendOrderEmails } from "@/lib/email";
 import { convertCurrencyToUsd, normalizeCurrency } from "@/lib/currency";
 import {
   fetchInventoryBySlugs,
@@ -440,26 +440,28 @@ export async function POST(req: Request) {
       throw persistError;
     }
 
-    await sendOrderEmails({
-      orderId: orderId!,
-      customerName,
-      customerEmail,
-      items: validation.resolved.map((line) => ({
-        name:
-          line.product.name +
-          ((line.variant?.size || line.variant?.material)
-            ? ` (${[line.variant?.size, line.variant?.material].filter(Boolean).join(" / ")})`
-            : ""),
-        quantity: line.requestedQuantity,
-        price: line.item.price,
-      })),
-      subtotal,
-      shipping,
-      total,
-      paymentMethod: "stripe",
-      currency: selectedCurrency,
-      shippingAddress,
-    });
+    await claimOrderConfirmation(supabase, orderId!, () =>
+      sendOrderEmails({
+        orderId: orderId!,
+        customerName,
+        customerEmail,
+        items: validation.resolved.map((line) => ({
+          name:
+            line.product.name +
+            ((line.variant?.size || line.variant?.material)
+              ? ` (${[line.variant?.size, line.variant?.material].filter(Boolean).join(" / ")})`
+              : ""),
+          quantity: line.requestedQuantity,
+          price: line.item.price,
+        })),
+        subtotal,
+        shipping,
+        total,
+        paymentMethod: "stripe",
+        currency: selectedCurrency,
+        shippingAddress,
+      })
+    );
 
     return NextResponse.json({ orderId }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {

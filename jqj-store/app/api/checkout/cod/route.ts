@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createHash } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendOrderEmails } from "@/lib/email";
+import { claimOrderConfirmation, sendOrderEmails } from "@/lib/email";
 import { normalizeCurrency } from "@/lib/currency";
 import {
   fetchInventoryBySlugs,
@@ -327,27 +327,29 @@ export async function POST(req: Request) {
       throw new Error("Order was not created.");
     }
 
-    await sendOrderEmails({
-      orderId,
-      customerName,
-      customerEmail: customer.email,
-      items: validation.resolved.map((line) => ({
-        name:
-          line.product.name +
-          (line.variant
-            ? ` (${[line.variant.size, line.variant.material].filter(Boolean).join(" / ")})`
-            : ""),
-        quantity: line.requestedQuantity,
-        price: line.product.price,
-      })),
-      subtotal,
-      shipping: shippingAmount,
-      codFee: COD_FEE,
-      total,
-      paymentMethod: "cod",
-      currency: selectedCurrency,
-      shippingAddress,
-    });
+    await claimOrderConfirmation(supabase, orderId, () =>
+      sendOrderEmails({
+        orderId,
+        customerName,
+        customerEmail: customer.email,
+        items: validation.resolved.map((line) => ({
+          name:
+            line.product.name +
+            (line.variant
+              ? ` (${[line.variant.size, line.variant.material].filter(Boolean).join(" / ")})`
+              : ""),
+          quantity: line.requestedQuantity,
+          price: line.product.price,
+        })),
+        subtotal,
+        shipping: shippingAmount,
+        codFee: COD_FEE,
+        total,
+        paymentMethod: "cod",
+        currency: selectedCurrency,
+        shippingAddress,
+      })
+    );
 
     return NextResponse.json({ orderId }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {

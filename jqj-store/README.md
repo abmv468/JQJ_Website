@@ -48,7 +48,7 @@ npm run dev                        # http://localhost:3000
 3. Add Airwallex sandbox keys and webhook secret (`AIRWALLEX_*` variables in `.env.local.example`).
 4. Configure Airwallex webhook URL to `/api/webhooks/airwallex`.
 5. (Optional legacy) Add Stripe test keys if you still use Stripe routes.
-6. Add a Resend API key and a verified `EMAIL_FROM` address.
+6. Add a Resend API key and set `EMAIL_FROM` to the verified sender. A blank value logs the missing variable and skips the send without blocking the order.
 
 The storefront runs with **static product data** (`data/products.ts`) even
 without backend keys. Checkout, orders, auth and admin require the keys above.

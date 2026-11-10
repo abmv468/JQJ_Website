@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { formatPrice } from "./utils";
 import { type SupportedCurrency } from "./currency";
@@ -95,47 +96,171 @@ function buildHtml(data: OrderEmailData, heading: string): string {
 
 function senderAddress(): string | null {
   const from = process.env.EMAIL_FROM?.trim();
-  if (!from) {
-    console.error("[email] EMAIL_FROM is not set — skipping send");
-    return null;
+  return from || null;
+}
+
+function logMissingSender(orderId: string) {
+  console.error("[email] EMAIL_FROM is not set", orderId);
+}
+
+const EMAIL_ADDRESS = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+const RESEND_KEY = /\bre_[A-Za-z0-9_-]+\b/g;
+
+function redact(message: string) {
+  return message.replace(EMAIL_ADDRESS, "[redacted]").replace(RESEND_KEY, "[redacted]").slice(0, 180);
+}
+
+function describeSendFailure(reason: unknown): {
+  name: string;
+  statusCode: number | null;
+  message: string;
+} {
+  if (typeof reason === "string") {
+    return { name: "Error", statusCode: null, message: redact(reason) };
   }
-  return from;
+  if (reason instanceof Error) {
+    const statusCode =
+      "statusCode" in reason && typeof reason.statusCode === "number" ? reason.statusCode : null;
+    return {
+      name: reason.name || "Error",
+      statusCode,
+      message: redact(reason.message || "email send failed"),
+    };
+  }
+  if (reason && typeof reason === "object") {
+    const record = reason as Record<string, unknown>;
+    return {
+      name: typeof record.name === "string" && record.name ? record.name : "Error",
+      statusCode: typeof record.statusCode === "number" ? record.statusCode : null,
+      message: redact(
+        typeof record.message === "string" && record.message ? record.message : "email send failed"
+      ),
+    };
+  }
+  return { name: "Error", statusCode: null, message: "email send failed" };
+}
+
+function logSendFailure(orderId: string, label: string, reason: unknown) {
+  console.error("[email] send failed", {
+    orderId,
+    label,
+    ...describeSendFailure(reason),
+  });
+}
+
+function failureFromResult(result: unknown): unknown | null {
+  if (!result || typeof result !== "object" || !("error" in result)) return null;
+  const error = (result as { error?: unknown }).error;
+  return error ? error : null;
+}
+
+interface OutboundMail {
+  orderId: string;
+  label: string;
+  from: string;
+  to: string;
+  subject: string;
+  html?: string;
+  text?: string;
+}
+
+async function deliver(mail: OutboundMail): Promise<boolean> {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  if (!apiKey) return false;
+
+  try {
+    const resend = new Resend(apiKey);
+    const payload = mail.html
+      ? { from: mail.from, to: mail.to, subject: mail.subject, html: mail.html }
+      : { from: mail.from, to: mail.to, subject: mail.subject, text: mail.text ?? "" };
+    const failure = failureFromResult(await resend.emails.send(payload));
+    if (failure) {
+      logSendFailure(mail.orderId, mail.label, failure);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    logSendFailure(mail.orderId, mail.label, error);
+    return false;
+  }
 }
 
 export async function sendOrderEmails(data: OrderEmailData): Promise<boolean> {
-  const from = senderAddress();
-  if (!from) return false;
-
-  const apiKey = process.env.RESEND_API_KEY;
-  const adminEmail = process.env.ADMIN_EMAIL;
-
-  if (!apiKey) {
-    console.warn("[email] RESEND_API_KEY missing — skipping order emails");
-    return false;
-  }
-
-  const resend = new Resend(apiKey);
-
   try {
-    await resend.emails.send({
+    const from = senderAddress();
+    if (!from) {
+      logMissingSender(data.orderId);
+      return false;
+    }
+
+    if (!process.env.RESEND_API_KEY?.trim()) {
+      console.warn("[email] RESEND_API_KEY missing — skipping order emails");
+      return false;
+    }
+
+    const customerSent = await deliver({
+      orderId: data.orderId,
+      label: "order confirmation",
       from,
       to: data.customerEmail,
       subject: `Your ${BRAND} order ${data.orderId}`,
       html: buildHtml(data, "Thank you for your order"),
     });
 
+    const adminEmail = process.env.ADMIN_EMAIL?.trim();
     if (adminEmail) {
-      await resend.emails.send({
+      await deliver({
+        orderId: data.orderId,
+        label: "order notification",
         from,
         to: adminEmail,
         subject: `New order ${data.orderId} — ${formatPrice(data.total, { currency: data.currency })}`,
         html: buildHtml(data, "New order received"),
       });
     }
-    return true;
-  } catch (err) {
-    console.error("[email] Failed to send order emails", err);
+    return customerSent;
+  } catch (error) {
+    logSendFailure(data.orderId, "order emails", error);
     return false;
+  }
+}
+
+export async function claimOrderConfirmation(
+  supabase: SupabaseClient,
+  orderId: string,
+  send: () => Promise<boolean>
+): Promise<void> {
+  const { data: claimed, error: claimError } = await supabase
+    .from("orders")
+    .update({ confirmation_email_sent_at: new Date().toISOString() })
+    .eq("id", orderId)
+    .is("confirmation_email_sent_at", null)
+    .select("confirmation_email_sent_at")
+    .maybeSingle();
+  if (claimError) {
+    console.error("[email] confirmation claim failed", orderId);
+    return;
+  }
+
+  const storedAt = (claimed as { confirmation_email_sent_at?: string | null } | null)
+    ?.confirmation_email_sent_at;
+  if (!storedAt) return;
+
+  let customerSent = false;
+  try {
+    customerSent = await send();
+  } catch {
+    console.error("[email] order confirmation failed", orderId);
+  }
+  if (customerSent) return;
+
+  const { error: clearError } = await supabase
+    .from("orders")
+    .update({ confirmation_email_sent_at: null })
+    .eq("id", orderId)
+    .eq("confirmation_email_sent_at", storedAt);
+  if (clearError) {
+    console.error("[email] confirmation claim clear failed", orderId);
   }
 }
 
@@ -146,16 +271,19 @@ export async function sendInventoryExceptionAlert(input: {
   currency?: string | null;
 }): Promise<void> {
   console.error("[inventory] paid order has no stock; manual review required", input.orderId);
-  const from = senderAddress();
-  if (!from) return;
-
-  const apiKey = process.env.RESEND_API_KEY;
-  const adminEmail = process.env.ADMIN_EMAIL;
-  if (!apiKey || !adminEmail) return;
-
   try {
-    const resend = new Resend(apiKey);
-    await resend.emails.send({
+    const from = senderAddress();
+    if (!from) {
+      logMissingSender(input.orderId);
+      return;
+    }
+
+    const adminEmail = process.env.ADMIN_EMAIL?.trim();
+    if (!process.env.RESEND_API_KEY?.trim() || !adminEmail) return;
+
+    await deliver({
+      orderId: input.orderId,
+      label: "inventory exception",
       from,
       to: adminEmail,
       subject: `Manual review required: order ${input.orderId} was paid without stock`,
@@ -167,7 +295,7 @@ export async function sendInventoryExceptionAlert(input: {
         "Do not ship this order. Refund the payment or source the item.",
       ].join(" "),
     });
-  } catch (err) {
-    console.error("[email] inventory exception alert failed", err);
+  } catch (error) {
+    logSendFailure(input.orderId, "inventory exception", error);
   }
 }

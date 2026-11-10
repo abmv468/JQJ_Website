@@ -43,7 +43,7 @@ All admin API routes (`/api/admin/*`) use the admin client with service role key
 
 ### Emails
 
-`lib/email.ts` sends via Resend. `EMAIL_FROM` is required and has no default; a missing sender is logged and the send is skipped. Two emails per order: customer confirmation + admin notification. Both COD and Stripe routes call `sendOrderEmails()`.
+`lib/email.ts` sends via Resend. The sender is `EMAIL_FROM` only. A blank value logs `EMAIL_FROM` and the order id, sends nothing, and releases the confirmation claim. A Resend failure is logged without the API key or the customer record and does not fail checkout, the webhook, or the reservation cron. Two emails per order: customer confirmation + admin notification. COD, Stripe verify, and the Airwallex paid transition call `sendOrderEmails()`.
 
 ## Branding & Styling
 

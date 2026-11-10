@@ -1,9 +1,48 @@
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST as codCheckout } from "@/app/api/checkout/cod/route";
 import { sendInventoryExceptionAlert, sendOrderEmails } from "@/lib/email";
 import { checkoutCustomer, checkoutItem, createCheckoutDb, setActiveDb } from "../helpers/memory-db";
 
-const send = vi.hoisted(() => vi.fn(async () => ({ data: { id: "email_1" }, error: null })));
+const STORE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const RETIRED_SHOP = ["dan", "vapes"].join("");
+const TEXT_EXTENSIONS = new Set([
+  ".ts",
+  ".tsx",
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".cjs",
+  ".json",
+  ".md",
+  ".css",
+  ".sql",
+  ".yml",
+  ".yaml",
+  ".html",
+  ".txt",
+  ".svg",
+  ".example",
+]);
+
+function sourceFiles(dir: string, found: string[] = []): string[] {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === "node_modules" || entry.name === ".next" || entry.name === "coverage") continue;
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      sourceFiles(full, found);
+      continue;
+    }
+    if (TEXT_EXTENSIONS.has(path.extname(entry.name))) found.push(full);
+  }
+  return found;
+}
+
+const send = vi.hoisted(() =>
+  vi.fn(async (_payload?: { from?: string }) => ({ data: { id: "email_1" }, error: null }))
+);
 
 vi.mock("resend", () => {
   return {
@@ -31,7 +70,7 @@ const orderMail = {
   },
 };
 
-describe("EMAIL_FROM unset", () => {
+describe("EMAIL_FROM", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -50,16 +89,30 @@ describe("EMAIL_FROM unset", () => {
     );
   });
 
-  it("skips the order email and logs an error without throwing", async () => {
+  it("sends nothing and logs EMAIL_FROM when it is unset or blank", async () => {
     await expect(sendOrderEmails(orderMail)).resolves.toBe(false);
     expect(send).not.toHaveBeenCalled();
-    expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining("EMAIL_FROM is not set")
-    );
+    expect(console.error).toHaveBeenCalledWith("[email] EMAIL_FROM is not set", orderMail.orderId);
     expect(fetch).not.toHaveBeenCalled();
+
+    send.mockClear();
+    vi.mocked(console.error).mockClear();
+    process.env.EMAIL_FROM = "   ";
+    await expect(sendOrderEmails(orderMail)).resolves.toBe(false);
+    expect(send).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledWith("[email] EMAIL_FROM is not set", orderMail.orderId);
   });
 
-  it("skips the inventory-exception alert without throwing", async () => {
+  it("sends from exactly the configured EMAIL_FROM", async () => {
+    process.env.EMAIL_FROM = "from@example.com";
+    await expect(sendOrderEmails(orderMail)).resolves.toBe(true);
+    expect(send.mock.calls.map((call) => call[0]?.from)).toEqual([
+      "from@example.com",
+      "from@example.com",
+    ]);
+  });
+
+  it("skips the inventory-exception alert when EMAIL_FROM is unset", async () => {
     await expect(
       sendInventoryExceptionAlert({
         orderId: "order-email",
@@ -69,12 +122,24 @@ describe("EMAIL_FROM unset", () => {
       })
     ).resolves.toBeUndefined();
     expect(send).not.toHaveBeenCalled();
-    expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining("EMAIL_FROM is not set")
+    expect(console.error).toHaveBeenCalledWith("[email] EMAIL_FROM is not set", "order-email");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("sends the inventory-exception alert from exactly EMAIL_FROM", async () => {
+    process.env.EMAIL_FROM = "from@example.com";
+    await sendInventoryExceptionAlert({
+      orderId: "order-email",
+      customerEmail: "buyer@example.com",
+      totalAmount: 115,
+      currency: "USD",
+    });
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({ from: "from@example.com", to: "admin@example.com" })
     );
   });
 
-  it("still confirms a COD checkout for the shopper", async () => {
+  it("confirms a COD checkout without sending when EMAIL_FROM is unset", async () => {
     const db = createCheckoutDb();
     setActiveDb(db);
 
@@ -92,12 +157,21 @@ describe("EMAIL_FROM unset", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
-      orderId: expect.any(String),
-    });
+    const body = await response.json();
+    expect(body).toMatchObject({ orderId: expect.any(String) });
     expect(db.rowsOf("orders")).toHaveLength(1);
+    expect(db.rowsOf("orders")[0].inventory_reserved).toBe(true);
+    expect(db.rowsOf("orders")[0].confirmation_email_sent_at ?? null).toBeNull();
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
     expect(send).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledWith("[email] EMAIL_FROM is not set", body.orderId);
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("finds no retired shop name in the store source", () => {
+    const hits = sourceFiles(STORE_ROOT).filter((file) =>
+      readFileSync(file, "utf8").toLowerCase().includes(RETIRED_SHOP)
+    );
+    expect(hits.map((file) => path.relative(STORE_ROOT, file))).toEqual([]);
   });
 });
