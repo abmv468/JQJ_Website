@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, LayoutGrid, Rows3, Search, SlidersHorizontal, X } from "lucide-react";
 import { getStoneFilters, type Product, type ProductTag } from "@/data/products";
+import { productSearchText } from "@/lib/listing";
 import { formatPrice } from "@/lib/utils";
 import ProductCard from "./ProductCard";
 
@@ -77,12 +78,7 @@ function getFacetOptions(products: Product[], getValue: (product: Product) => st
 
 const PAGE_SIZE = 6;
 
-type SortKey =
-  | "featured"
-  | "price-asc"
-  | "price-desc"
-  | "rating"
-  | "newest";
+type SortKey = "featured" | "price-asc" | "price-desc" | "newest";
 
 type EditorialSection = {
   title: string;
@@ -94,7 +90,6 @@ const sortOptions: { value: SortKey; label: string }[] = [
   { value: "featured", label: "Featured" },
   { value: "price-asc", label: "Price: Low to High" },
   { value: "price-desc", label: "Price: High to Low" },
-  { value: "rating", label: "Top Rated" },
   { value: "newest", label: "Newest" },
 ];
 
@@ -209,9 +204,7 @@ export default function CollectionView({
     if (inStockOnly) list = list.filter((p) => p.inStock);
     if (normalizedQuery) {
       list = list.filter((p) => {
-        const haystack =
-          `${p.name} ${p.description} ${p.stone} ${p.tags.join(" ")} ${Object.values(p.specs).join(" ")}`.toLowerCase();
-        return haystack.includes(normalizedQuery);
+        return productSearchText(p).includes(normalizedQuery);
       });
     }
 
@@ -221,9 +214,6 @@ export default function CollectionView({
         break;
       case "price-desc":
         list.sort((a, b) => b.price - a.price);
-        break;
-      case "rating":
-        list.sort((a, b) => b.rating - a.rating);
         break;
       case "newest":
         list.sort((a, b) => {

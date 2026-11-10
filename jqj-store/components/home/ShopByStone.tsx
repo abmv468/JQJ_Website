@@ -1,15 +1,13 @@
-import { stoneListingHref, stones } from "@/data/products";
+import { stones } from "@/data/products";
+import { stoneListingHref } from "@/lib/listing";
 import Image from "next/image";
 import Link from "next/link";
 
 const stoneImages: Record<string, string> = {
   Sodalite: "/stones/sodalite-raw.webp",
-  "Tiger Eye": "/stones/tiger-eye-raw.webp",
-  Carnelian: "/stones/carnelian-raw.webp",
-  Tourmaline: "/stones/tourmaline-raw.webp",
-  Aquamarine: "/stones/aquamarine-raw.webp",
   Amethyst: "/stones/amethyst-raw.webp",
-  "Lapis Lazuli": "/stones/lapis-lazuli-raw.webp",
+  "Raw Brown Tourmaline": "/stones/tourmaline-raw.webp",
+  "Brown Tourmaline": "/stones/tourmaline-raw.webp",
 };
 
 export default function ShopByStone() {
@@ -25,7 +23,7 @@ export default function ShopByStone() {
           </p>
         </div>
 
-        <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+        <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-4">
           {stones.map((stone) => {
             const image = stoneImages[stone];
             return (
@@ -40,17 +38,10 @@ export default function ShopByStone() {
                       src={image}
                       alt={`${stone} raw stone`}
                       fill
-                      sizes="(max-width: 640px) 42vw, (max-width: 768px) 28vw, 178px"
+                      sizes="(max-width: 640px) 42vw, (max-width: 1024px) 22vw, 178px"
                       className="object-contain transition-transform duration-500 group-hover:scale-[1.04]"
                     />
-                  ) : (
-                    <span
-                      aria-hidden="true"
-                      className="flex h-full items-center justify-center px-3 text-center text-[11px] uppercase tracking-[0.16em] text-white/70"
-                    >
-                      {stone}
-                    </span>
-                  )}
+                  ) : null}
                 </span>
                 <span className="mt-4 block text-sm text-white/86">{stone}</span>
               </Link>

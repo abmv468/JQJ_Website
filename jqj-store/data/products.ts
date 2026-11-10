@@ -1,6 +1,6 @@
 export type CategorySlug = "bracelets" | "necklaces" | "rings" | "earrings";
 
-export type ProductTag = "new" | "limited" | "top-rated" | "restocked" | "sale";
+export type ProductTag = "new" | "limited" | "restocked" | "sale";
 
 export interface Product {
   id: string;
@@ -23,8 +23,6 @@ export interface Product {
     sku: string;
     stockCount?: number;
   }>;
-  rating: number;
-  reviewCount: number;
   tags: ProductTag[];
   stone: string;
   features: string[];
@@ -38,12 +36,13 @@ export const categories: { slug: CategorySlug; name: string }[] = [
   { slug: "earrings", name: "Earrings" },
 ];
 
-const baseFeatures = [
+const braceletFeatures = [
   "Tailored for your preferred fit",
   "Natural gemstones selected for color and character",
-  "Complimentary first resize for new customers",
-  "Crafted in our atelier with museum-inspired design values",
+  "Designed in Hong Kong",
 ];
+
+const necklaceFeatures = ["Designed in Hong Kong", "Sterling silver"];
 
 export const products: Product[] = [
   {
@@ -65,18 +64,16 @@ export const products: Product[] = [
       { size: "Medium", material: "Sterling Silver", sku: "JQJ-RLSJ-III-M-SS" },
       { size: "Large", material: "Sterling Silver", sku: "JQJ-RLSJ-III-L-SS" },
     ],
-    rating: 4.8,
-    reviewCount: 28,
-    tags: ["top-rated", "sale"],
+    tags: ["sale"],
     stone: "Red Leopard Skin Jasper",
-    features: baseFeatures,
+    features: braceletFeatures,
     specs: {
       Color: "Red",
       "Bead Size": "6mm",
       "Bead Shape": "Round",
       Stone: "Red Leopard Skin Jasper",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -92,18 +89,16 @@ export const products: Product[] = [
     images: ["/products/brown-tourmaline-bracelet.webp"],
     inStock: true,
     lowStockThreshold: 5,
-    rating: 4.7,
-    reviewCount: 19,
     tags: ["new"],
     stone: "Brown Tourmaline",
-    features: baseFeatures,
+    features: braceletFeatures,
     specs: {
       Color: "Brown",
       "Bead Size": "8-10mm",
       "Bead Shape": "Irregular",
-      Stone: "Raw Brown Tourmaline",
+      Stone: "Brown Tourmaline",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -119,18 +114,16 @@ export const products: Product[] = [
     images: ["/products/sodalite-bracelet.webp"],
     inStock: true,
     lowStockThreshold: 5,
-    rating: 4.9,
-    reviewCount: 41,
-    tags: ["top-rated"],
+    tags: [] as ProductTag[],
     stone: "Sodalite",
-    features: baseFeatures,
+    features: braceletFeatures,
     specs: {
       Color: "Blue",
       "Bead Size": "4mm",
       "Bead Shape": "Round",
       Stone: "Sodalite",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -146,18 +139,16 @@ export const products: Product[] = [
     images: ["/products/amethyst-bracelet.webp"],
     inStock: true,
     lowStockThreshold: 5,
-    rating: 4.6,
-    reviewCount: 33,
     tags: ["new", "limited"],
     stone: "Amethyst",
-    features: baseFeatures,
+    features: braceletFeatures,
     specs: {
       Color: "Purple",
       "Bead Size": "5mm",
       "Bead Shape": "Round",
       Stone: "Amethyst",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -173,18 +164,16 @@ export const products: Product[] = [
     images: ["/products/silver-bracelet.webp"],
     inStock: true,
     lowStockThreshold: 5,
-    rating: 4.8,
-    reviewCount: 26,
     tags: ["restocked", "sale"],
     stone: "Hematite",
-    features: baseFeatures,
+    features: braceletFeatures,
     specs: {
       Color: "Silver",
       "Bead Size": "4mm",
       "Bead Shape": "Round",
       Stone: "Hematite",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -200,18 +189,16 @@ export const products: Product[] = [
     images: ["/products/labradorite-bracelet.webp"],
     inStock: true,
     lowStockThreshold: 5,
-    rating: 4.9,
-    reviewCount: 22,
     tags: ["limited"],
     stone: "Labradorite",
-    features: baseFeatures,
+    features: braceletFeatures,
     specs: {
       Color: "Gray",
       "Bead Size": "8mm",
       "Bead Shape": "Round",
       Stone: "Labradorite",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -219,7 +206,7 @@ export const products: Product[] = [
     name: "Blue Lace Agate Silver Pendant",
     slug: "blue-lace-agate-silver-pendant",
     description:
-      "A polished blue lace agate point set in silver and suspended on a fine box chain. Calm, elegant, and designed for effortless daily styling.",
+      "A slender flat bar of blue lace agate, capped at each end in sterling silver, hangs from a diamond-shaped bail on a sterling silver curb chain. Available in 45 cm or 55 cm.",
     price: 249.99,
     compareAtPrice: null,
     sku: "JQJ-BLAPEN",
@@ -232,16 +219,14 @@ export const products: Product[] = [
       { size: "55cm", material: "Sterling Silver", sku: "JQJ-BLAPEN-55-SS" },
       { size: "55cm", material: "Gold Vermeil", sku: "JQJ-BLAPEN-55-GV" },
     ],
-    rating: 4.7,
-    reviewCount: 14,
     tags: ["new"],
     stone: "Blue Lace Agate",
-    features: baseFeatures,
+    features: necklaceFeatures,
     specs: {
-      "Chain Length": "55cm",
+      "Chain Length": "45 cm or 55 cm",
       Stone: "Blue Lace Agate",
-      Metal: "Sterling Silver",
-      Origin: "Hand-made",
+      Metal: "Sterling silver",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -249,7 +234,7 @@ export const products: Product[] = [
     name: "Labradorite Silver Pendant",
     slug: "labradorite-silver-pendant",
     description:
-      "A faceted labradorite baton framed in silver with a shifting inner glow. Each angle reveals a different tone for a subtle statement.",
+      "A slender bar of labradorite with angled ends and a soft blue sheen, capped top and bottom in sterling silver, on a diamond-shaped bail and sterling silver curb chain. 55 cm.",
     price: 279.99,
     compareAtPrice: null,
     sku: "JQJ-LABPEN",
@@ -257,16 +242,14 @@ export const products: Product[] = [
     images: ["/products/labradorite-pendant.webp"],
     inStock: true,
     lowStockThreshold: 5,
-    rating: 4.8,
-    reviewCount: 17,
     tags: ["restocked"],
     stone: "Labradorite",
-    features: baseFeatures,
+    features: necklaceFeatures,
     specs: {
-      "Chain Length": "55cm",
+      "Chain Length": "55 cm",
       Stone: "Labradorite",
-      Metal: "Sterling Silver",
-      Origin: "Hand-made",
+      Metal: "Sterling silver",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -274,7 +257,7 @@ export const products: Product[] = [
     name: "Pearl - Silver Necklace V (7mm)",
     slug: "pearl-silver-necklace-v",
     description:
-      "Freshwater pearls are paired with silver-tone hematite for a contemporary interpretation of a classic strand, balancing softness with modern structure.",
+      "7 mm freshwater pearls with silver-tone hematite spacers. 45 cm.",
     price: 980.0,
     compareAtPrice: null,
     sku: "JQJ-PEARL-V",
@@ -282,16 +265,15 @@ export const products: Product[] = [
     images: ["/products/pearl-silver-necklace.webp"],
     inStock: true,
     lowStockThreshold: 5,
-    rating: 4.9,
-    reviewCount: 9,
-    tags: ["limited", "top-rated"],
+    tags: ["limited"],
     stone: "Freshwater Pearl",
-    features: baseFeatures,
+    features: necklaceFeatures,
     specs: {
-      "Bead Size": "7mm",
+      "Bead Size": "7 mm",
+      "Chain Length": "45 cm",
       Stone: "Freshwater Pearl",
-      Metal: "Sterling Silver",
-      Origin: "Hand-made",
+      Spacers: "Hematite",
+      Origin: "Designed in Hong Kong",
     },
   },
 ];
@@ -312,15 +294,6 @@ export function getStoneFilters(
 }
 
 export const stones: string[] = getStoneFilters();
-
-/** One listing that contains every product of this stone. */
-export function stoneListingHref(stone: string): string {
-  const matches = Array.from(
-    new Set(products.filter((product) => product.stone === stone).map((product) => product.category))
-  );
-  if (matches.length !== 1) return `/new?stone=${encodeURIComponent(stone)}`;
-  return `/${matches[0]}?stone=${encodeURIComponent(stone)}`;
-}
 
 export function getProductBySlug(slug: string): Product | undefined {
   return products.find((p) => p.slug === slug);
