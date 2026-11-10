@@ -1,7 +1,10 @@
 import { loadStoreSchema, type StoreSchema } from "./schema";
 
-export interface DbError extends Error {
+export interface DbError {
+  message: string;
   code?: string;
+  details: string | null;
+  hint: string | null;
 }
 
 export interface QueryFilter {
@@ -48,9 +51,32 @@ export function getActiveDb() {
 }
 
 export function dbError(message: string, code?: string): DbError {
-  const error = new Error(message) as DbError;
-  error.code = code;
-  return error;
+  return { message, code, details: null, hint: null };
+}
+
+function asDbError(error: unknown): DbError {
+  if (
+    error &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof (error as { message?: unknown }).message === "string"
+  ) {
+    const record = error as { message: string; code?: unknown; details?: unknown; hint?: unknown };
+    return {
+      message: record.message,
+      code: typeof record.code === "string" ? record.code : undefined,
+      details: record.details === null || typeof record.details === "string" ? record.details : null,
+      hint: record.hint === null || typeof record.hint === "string" ? record.hint : null,
+    };
+  }
+  if (error instanceof Error) {
+    const code =
+      "code" in error && typeof (error as { code?: unknown }).code === "string"
+        ? (error as { code: string }).code
+        : undefined;
+    return { message: error.message, code, details: null, hint: null };
+  }
+  return dbError(String(error));
 }
 
 export class MemoryDb {
@@ -119,7 +145,15 @@ export class MemoryDb {
     } catch (error) {
       // PostgREST returns RAISE EXCEPTION as a plain { message, code } object.
       // Postgres uses P0001 when the function does not set an error code.
-      const message = error instanceof Error ? error.message : String(error);
+      const message =
+        error &&
+        typeof error === "object" &&
+        "message" in error &&
+        typeof (error as { message?: unknown }).message === "string"
+          ? (error as { message: string }).message
+          : error instanceof Error
+            ? error.message
+            : String(error);
       const code =
         error && typeof error === "object" && "code" in error && typeof error.code === "string"
           ? error.code
@@ -369,7 +403,7 @@ class Query implements PromiseLike<QueryResult> {
     } catch (error) {
       return {
         data: null,
-        error: error instanceof Error ? (error as DbError) : dbError(String(error)),
+        error: asDbError(error),
         count: null,
       };
     }

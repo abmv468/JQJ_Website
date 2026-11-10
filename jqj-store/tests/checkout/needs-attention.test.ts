@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "@/app/api/admin/orders/needs-attention/route";
+import {
+  PAYMENT_AFTER_EXPIRY_UNFULFILLED_EVENT,
+  PAYMENT_ON_PROTECTED_ORDER_EVENT,
+} from "@/lib/payments/airwallex-orders";
 import { createCheckoutDb, dbError, setActiveDb, type MemoryDb } from "../helpers/memory-db";
 
 vi.mock("@supabase/supabase-js", () => ({
@@ -32,6 +36,7 @@ function seedOrder(
     payment_status: string;
     created_at: string;
     payment_provider?: string;
+    sales_channel?: string;
     customer_email?: string;
   }
 ) {
@@ -39,6 +44,7 @@ function seedOrder(
     {
       id: row.id,
       status: row.status,
+      sales_channel: row.sales_channel ?? "website",
       payment_provider: row.payment_provider ?? "airwallex",
       payment_status: row.payment_status,
       fulfillment_status: "payment_failed",
@@ -105,6 +111,7 @@ describe("GET /api/admin/orders/needs-attention", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(body.truncated).toBe(false);
     expect(body.orders).toEqual([
       {
         id: "order-stripe",
@@ -114,6 +121,7 @@ describe("GET /api/admin/orders/needs-attention", () => {
         status: "inventory_exception",
         payment_status: "succeeded",
         fulfillment_status: "payment_failed",
+        reason: PAYMENT_AFTER_EXPIRY_UNFULFILLED_EVENT,
       },
       {
         id: "order-airwallex",
@@ -123,6 +131,7 @@ describe("GET /api/admin/orders/needs-attention", () => {
         status: "inventory_exception",
         payment_status: "succeeded",
         fulfillment_status: "payment_failed",
+        reason: PAYMENT_AFTER_EXPIRY_UNFULFILLED_EVENT,
       },
     ]);
     expect(JSON.stringify(body)).not.toContain("buyer@example.com");
@@ -140,13 +149,98 @@ describe("GET /api/admin/orders/needs-attention", () => {
     const response = await GET(request("Bearer admin-token"));
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ orders: [] });
+    expect(await response.json()).toEqual({ orders: [], truncated: false });
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
+  it("lists a cancelled order and a test order whose payment succeeded", async () => {
+    seedOrder(db, {
+      id: "order-cancelled",
+      status: "cancelled",
+      payment_status: "succeeded",
+      created_at: "2026-11-10T08:00:00.000Z",
+    });
+    seedOrder(db, {
+      id: "order-test",
+      status: "pending",
+      sales_channel: "test",
+      payment_status: "succeeded",
+      created_at: "2026-11-10T09:00:00.000Z",
+    });
+    seedOrder(db, {
+      id: "order-cancelled-unpaid",
+      status: "cancelled",
+      payment_status: "requires_payment_method",
+      created_at: "2026-11-10T10:00:00.000Z",
+    });
+    seedOrder(db, {
+      id: "order-failed-paid",
+      status: "failed",
+      payment_status: "succeeded",
+      created_at: "2026-11-10T11:00:00.000Z",
+    });
+
+    const response = await GET(request("Bearer admin-token"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.truncated).toBe(false);
+    expect(body.orders).toEqual([
+      {
+        id: "order-test",
+        created_at: "2026-11-10T09:00:00.000Z",
+        total: 115,
+        currency: "USD",
+        status: "pending",
+        payment_status: "succeeded",
+        fulfillment_status: "payment_failed",
+        reason: PAYMENT_ON_PROTECTED_ORDER_EVENT,
+      },
+      {
+        id: "order-cancelled",
+        created_at: "2026-11-10T08:00:00.000Z",
+        total: 115,
+        currency: "USD",
+        status: "cancelled",
+        payment_status: "succeeded",
+        fulfillment_status: "payment_failed",
+        reason: PAYMENT_ON_PROTECTED_ORDER_EVENT,
+      },
+    ]);
+  });
+
+  it("returns the 100 newest rows and sets truncated when more match", async () => {
+    for (let index = 0; index < 101; index += 1) {
+      const stamp = new Date(Date.UTC(2026, 0, 1, 0, 0, index)).toISOString();
+      seedOrder(db, {
+        id: `order-${String(index).padStart(3, "0")}`,
+        status: "inventory_exception",
+        payment_status: "succeeded",
+        created_at: stamp,
+      });
+    }
+
+    const response = await GET(request("Bearer admin-token"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.truncated).toBe(true);
+    expect(body.orders).toHaveLength(100);
+    expect(body.orders[0].id).toBe("order-100");
+    expect(body.orders[99].id).toBe("order-001");
+    expect(body.orders.map((order: { id: string }) => order.id)).not.toContain("order-000");
+  });
+
   it("hides database errors behind a generic body", async () => {
-    db.failWhen = (table, op) =>
-      table === "orders" && op === "select" ? dbError("driver-secret-xyz", "XX000") : null;
+    const injected = dbError("driver-secret-xyz", "XX000");
+    expect(injected).toEqual({
+      message: "driver-secret-xyz",
+      code: "XX000",
+      details: null,
+      hint: null,
+    });
+    expect(injected instanceof Error).toBe(false);
+    db.failWhen = (table, op) => (table === "orders" && op === "select" ? injected : null);
 
     const response = await GET(request("Bearer admin-token"));
     const body = await response.json();
