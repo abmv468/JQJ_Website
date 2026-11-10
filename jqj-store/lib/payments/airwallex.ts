@@ -117,6 +117,8 @@ function getRequiredEnv(name: string): string {
   return value;
 }
 
+export { CARD_PAYMENTS_UNAVAILABLE_MESSAGE, isCardPaymentsEnabled } from "./card-payments";
+
 export function getAirwallexEnvironment(): AirwallexEnvironment {
   const env = (process.env.AIRWALLEX_ENV ?? "sandbox").trim().toLowerCase();
   if (env === "sandbox" || env === "production") {

@@ -163,6 +163,39 @@ test("a failed Airwallex return keeps the cart and shows support copy", async ({
     .toContain("amethyst-bracelet-xv");
 });
 
+test("disabled card payments select cash on delivery and disable the card radio", async ({
+  page,
+}) => {
+  await page.route(/\/api\/checkout\/airwallex$/, async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.fallback();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: { "cache-control": "no-store" },
+      body: JSON.stringify({ cardEnabled: false }),
+    });
+  });
+
+  await page.goto("/products/amethyst-bracelet-xv");
+  await page.getByRole("button", { name: "Add to Cart" }).click();
+  await page.waitForFunction((key) => {
+    const raw = localStorage.getItem(key);
+    return Boolean(raw && JSON.parse(raw).length > 0);
+  }, CART_KEY);
+  await page.goto("/checkout");
+
+  const unavailable =
+    "Card payments are temporarily unavailable — please choose cash on delivery or try again later.";
+  await expect(page.getByText(unavailable)).toBeVisible();
+  await expect(
+    page.getByRole("radio", { name: "Credit / Debit Card (Airwallex Hosted Checkout)" })
+  ).toBeDisabled();
+  await expect(page.getByRole("radio", { name: /Cash on Delivery/ })).toBeChecked();
+});
+
 test("cash on delivery shows the fee and confirms the order", async ({ page }) => {
   await page.route(/\/api\/checkout\/cod$/, (route) =>
     route.fulfill({
