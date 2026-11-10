@@ -181,14 +181,36 @@ describe("protected cancelled and test orders", () => {
         orderId: "order-cancelled",
       },
     ]);
-    expect(hookCalls(errorSpy)[0][1]).toMatchObject({
+    expect(hookCalls(errorSpy)[0][1]).toEqual({
+      tag: "jqd_alert",
       event: PAYMENT_ON_PROTECTED_ORDER_EVENT,
       orderId: "order-cancelled",
-      paymentIntentId: "int_order-cancelled",
-      status: "succeeded",
-      reason: "cancelled",
     });
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("paymentIntentId");
     expect(JSON.stringify(hookCalls(errorSpy))).not.toContain("buyer@example.com");
+  });
+
+  it("logs a protected payment with only the tag, event, and order id", async () => {
+    seedOrder(db, { id: "order-cancelled", status: "cancelled" });
+
+    const response = await webhook(
+      signedWebhook(paymentEvent("evt_log", "order-cancelled", "int_order-cancelled", "SUCCEEDED"))
+    );
+
+    expect(response.status).toBe(200);
+    const logged = JSON.stringify(errorSpy.mock.calls);
+    expect(logged).not.toContain("paymentIntentId");
+    expect(logged).not.toContain("int_order-cancelled");
+    expect(hookCalls(errorSpy)).toEqual([
+      [
+        HOOK,
+        {
+          tag: "jqd_alert",
+          event: PAYMENT_ON_PROTECTED_ORDER_EVENT,
+          orderId: "order-cancelled",
+        },
+      ],
+    ]);
   });
 
   it("ignores a failed webhook for a cancelled order", async () => {
@@ -210,10 +232,12 @@ describe("protected cancelled and test orders", () => {
     });
     expect(stockMoves(db)).toHaveLength(0);
     expect(sendOrderEmails).not.toHaveBeenCalled();
-    expect(hookCalls(errorSpy)[0][1]).toMatchObject({
-      status: "failed",
-      reason: "cancelled",
+    expect(hookCalls(errorSpy)[0][1]).toEqual({
+      tag: "jqd_alert",
+      event: PAYMENT_ON_PROTECTED_ORDER_EVENT,
+      orderId: "order-cancelled",
     });
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("paymentIntentId");
   });
 
   it("does not record a protected success when the amount is not finite", async () => {
@@ -271,10 +295,19 @@ describe("protected cancelled and test orders", () => {
       },
     ]);
     expect(hookCalls(errorSpy)).toHaveLength(2);
-    expect(hookCalls(errorSpy).map((call) => (call[1] as { reason: string }).reason)).toEqual([
-      "test",
-      "test",
+    expect(hookCalls(errorSpy).map((call) => call[1])).toEqual([
+      {
+        tag: "jqd_alert",
+        event: PAYMENT_ON_PROTECTED_ORDER_EVENT,
+        orderId: "order-test",
+      },
+      {
+        tag: "jqd_alert",
+        event: PAYMENT_ON_PROTECTED_ORDER_EVENT,
+        orderId: "order-test",
+      },
     ]);
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("paymentIntentId");
   });
 
   it("does not write when verify or admin sync forces a protected order", async () => {
