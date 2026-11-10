@@ -690,6 +690,8 @@ export async function releaseExpiredAirwallexReservations(
   const staleOrders = (data ?? []) as Array<{ id: string; inventory_reserved: boolean }>;
   for (const order of staleOrders) {
     if (!order.inventory_reserved) continue;
+    // Claim first. restore_order_inventory no-ops once inventory_reserved is false,
+    // so this update leaves that flag set and the restore below clears it.
     const { data: released, error: updateError } = await supabase
       .from("orders")
       .update({
@@ -699,6 +701,7 @@ export async function releaseExpiredAirwallexReservations(
         updated_at: new Date().toISOString(),
       })
       .eq("id", order.id)
+      .eq("inventory_reserved", true)
       .in("payment_status", pendingStatuses)
       .select("id")
       .maybeSingle();
