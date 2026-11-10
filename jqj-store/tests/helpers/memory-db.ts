@@ -5,7 +5,7 @@ export interface DbError extends Error {
 }
 
 export interface QueryFilter {
-  op: "eq" | "neq" | "in" | "lt" | "is";
+  op: "eq" | "neq" | "in" | "lt" | "is" | "or";
   column: string;
   value: unknown;
 }
@@ -302,6 +302,11 @@ class Query implements PromiseLike<QueryResult> {
     return this;
   }
 
+  or(filters: string) {
+    this.filters.push({ op: "or", column: "", value: parseOrFilters(filters) });
+    return this;
+  }
+
   in(column: string, value: unknown[]) {
     this.filters.push({ op: "in", column, value });
     return this;
@@ -595,11 +600,35 @@ function parseSelect(input: string): SelectField[] {
   });
 }
 
-function matches(row: Row, filters: QueryFilter[]) {
+function parseOrFilters(filters: string): QueryFilter[] {
+  return filters
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const match = part.match(/^([a-z_][a-z0-9_]*)\.(eq|neq|is|lt)\.(.*)$/i);
+      if (!match) {
+        throw dbError(`unsupported or filter "${part}"`);
+      }
+      const op = match[2].toLowerCase() as QueryFilter["op"];
+      const raw = match[3];
+      let value: unknown = raw;
+      if (op === "is" && raw === "null") value = null;
+      if (op === "is" && raw === "true") value = true;
+      if (op === "is" && raw === "false") value = false;
+      return { op, column: match[1], value };
+    });
+}
+
+function matches(row: Row, filters: QueryFilter[]): boolean {
   return filters.every((filter) => {
+    if (filter.op === "or") {
+      const group = Array.isArray(filter.value) ? (filter.value as QueryFilter[]) : [];
+      return group.some((inner) => matches(row, [inner]));
+    }
     const value = row[filter.column];
     if (filter.op === "eq") return value === filter.value;
-    if (filter.op === "neq") return value !== filter.value;
+    if (filter.op === "neq") return value != null && value !== filter.value;
     if (filter.op === "in") return Array.isArray(filter.value) && filter.value.includes(value);
     if (filter.op === "is") return value === filter.value || (filter.value === null && value == null);
     if (filter.op === "lt") return String(value ?? "") < String(filter.value ?? "");

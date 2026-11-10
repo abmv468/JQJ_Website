@@ -9,6 +9,7 @@ import {
   checkoutCustomer,
   checkoutItem,
   createCheckoutDb,
+  dbError,
   setActiveDb,
   type MemoryDb,
 } from "../helpers/memory-db";
@@ -329,5 +330,211 @@ describe("Airwallex checkout idempotency", () => {
     expect(db.rowsOf("payments")).toHaveLength(1);
     expect(db.rowsOf("payments")[0].order_id).toBe(firstBody.orderId);
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
+  });
+
+  it("marks a null payment_status paid once from verify and the webhook", async () => {
+    const started = await checkout(checkoutRequest({ idempotencyKey: KEY_A }));
+    expect(started.status).toBe(200);
+    const startedBody = await started.json();
+    db.rowsOf("orders")[0].payment_status = null;
+
+    vi.mocked(retrieveAirwallexPaymentIntent).mockResolvedValue({
+      id: "int_same",
+      request_id: KEY_A,
+      status: "SUCCEEDED",
+      amount: 115,
+      currency: "USD",
+      merchant_order_id: startedBody.orderId,
+    });
+
+    const returned = await verify(
+      verifyRequest({ orderId: startedBody.orderId, paymentIntentId: "int_same", refresh: true })
+    );
+    expect(returned.status).toBe(200);
+
+    const delivered = await webhook(
+      signedWebhook({
+        id: "evt_null_paid",
+        name: "payment_intent.succeeded",
+        created_at: new Date().toISOString(),
+        data: {
+          object: {
+            id: "int_same",
+            request_id: KEY_A,
+            status: "SUCCEEDED",
+            amount: 115,
+            currency: "USD",
+            merchant_order_id: startedBody.orderId,
+          },
+        },
+      })
+    );
+    expect(delivered.status).toBe(200);
+    await expect(delivered.json()).resolves.toEqual({ received: true });
+
+    expect(db.rowsOf("orders")).toHaveLength(1);
+    expect(db.rowsOf("payments")).toHaveLength(1);
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      id: startedBody.orderId,
+      payment_status: "succeeded",
+      status: "paid",
+      inventory_reserved: true,
+    });
+    expect(db.rowsOf("payments")[0].status).toBe("succeeded");
+    expect(reserves(db)).toHaveLength(1);
+    expect(paidOrderWrites(db)).toHaveLength(1);
+    expect(paidPaymentWrites(db)).toHaveLength(1);
+    expect(sendOrderEmails).toHaveBeenCalledTimes(1);
+  });
+
+  it("claims the order when the payment row is already succeeded and payment_status is null", async () => {
+    const started = await checkout(checkoutRequest({ idempotencyKey: KEY_A }));
+    expect(started.status).toBe(200);
+    const startedBody = await started.json();
+    db.rowsOf("orders")[0].payment_status = null;
+    db.rowsOf("payments")[0].status = "succeeded";
+    vi.mocked(sendOrderEmails).mockClear();
+
+    const delivered = await webhook(
+      signedWebhook({
+        id: "evt_order_after_payment",
+        name: "payment_intent.succeeded",
+        created_at: new Date().toISOString(),
+        data: {
+          object: {
+            id: "int_same",
+            status: "SUCCEEDED",
+            amount: 115,
+            currency: "USD",
+            merchant_order_id: startedBody.orderId,
+          },
+        },
+      })
+    );
+    expect(delivered.status).toBe(200);
+    await expect(delivered.json()).resolves.toEqual({ received: true });
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      payment_status: "succeeded",
+      status: "paid",
+    });
+    expect(sendOrderEmails).toHaveBeenCalledTimes(1);
+    expect(reserves(db)).toHaveLength(1);
+    expect(db.rowsOf("payments")).toHaveLength(1);
+
+    const repeat = await webhook(
+      signedWebhook({
+        id: "evt_order_after_payment_repeat",
+        name: "payment_intent.succeeded",
+        created_at: new Date().toISOString(),
+        data: {
+          object: {
+            id: "int_same",
+            status: "SUCCEEDED",
+            amount: 115,
+            currency: "USD",
+            merchant_order_id: startedBody.orderId,
+          },
+        },
+      })
+    );
+    expect(repeat.status).toBe(200);
+    expect(sendOrderEmails).toHaveBeenCalledTimes(1);
+    expect(paidOrderWrites(db)).toHaveLength(1);
+  });
+
+  it("recovers a paid order when the payment write fails after the order claim", async () => {
+    const started = await checkout(checkoutRequest({ idempotencyKey: KEY_A }));
+    expect(started.status).toBe(200);
+    const startedBody = await started.json();
+    vi.mocked(retrieveAirwallexPaymentIntent).mockResolvedValue({
+      id: "int_same",
+      request_id: KEY_A,
+      status: "SUCCEEDED",
+      amount: 115,
+      currency: "USD",
+      merchant_order_id: startedBody.orderId,
+    });
+
+    let failedPaymentWrite = false;
+    db.failWhen = (table, op) => {
+      if (!failedPaymentWrite && table === "payments" && op === "update") {
+        failedPaymentWrite = true;
+        return dbError("payment claim failed", "XX000");
+      }
+      return null;
+    };
+
+    const first = await verify(
+      verifyRequest({ orderId: startedBody.orderId, paymentIntentId: "int_same" })
+    );
+    expect(first.status).toBe(500);
+    expect(db.rowsOf("orders")[0].payment_status).toBe("succeeded");
+    expect(db.rowsOf("payments")[0].status).not.toBe("succeeded");
+    expect(sendOrderEmails).not.toHaveBeenCalled();
+    expect(reserves(db)).toHaveLength(1);
+
+    db.failWhen = null;
+    const retry = await verify(
+      verifyRequest({ orderId: startedBody.orderId, paymentIntentId: "int_same" })
+    );
+    expect(retry.status).toBe(200);
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      payment_status: "succeeded",
+      status: "paid",
+      inventory_reserved: true,
+    });
+    expect(db.rowsOf("payments")[0].status).toBe("succeeded");
+    expect(sendOrderEmails).toHaveBeenCalledTimes(1);
+    expect(reserves(db)).toHaveLength(1);
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
+    expect(paidOrderWrites(db)).toHaveLength(1);
+  });
+
+  it("does not reuse another customer's payment intent or idempotency key", async () => {
+    vi.mocked(createAirwallexPaymentIntent).mockImplementation(async (input) => ({
+      id: `int_${input.requestId}`,
+      request_id: input.requestId,
+      status: "REQUIRES_PAYMENT_METHOD",
+      amount: input.amount,
+      currency: input.currency,
+      client_secret: `secret_${input.requestId}`,
+      merchant_order_id: input.merchantOrderId,
+    }));
+
+    const first = await checkout(checkoutRequest({ idempotencyKey: KEY_A }));
+    expect(first.status).toBe(200);
+    const firstBody = await first.json();
+
+    const other = await checkout(
+      checkoutRequest({
+        idempotencyKey: KEY_A,
+        paymentIntentId: firstBody.intentId,
+        customer: { ...checkoutCustomer, email: "other@example.com" },
+      })
+    );
+    expect(other.status).toBe(200);
+    const otherBody = await other.json();
+    expect(otherBody.orderId).not.toBe(firstBody.orderId);
+    expect(otherBody.clientSecret).not.toBe(firstBody.clientSecret);
+    expect(otherBody.intentId).not.toBe(firstBody.intentId);
+    expect(JSON.stringify(otherBody)).not.toContain(firstBody.clientSecret);
+    expect(JSON.stringify(otherBody)).not.toContain(firstBody.orderId);
+    expect(db.rowsOf("orders")).toHaveLength(2);
+    expect(db.rowsOf("payments").map((row) => row.order_id).sort()).toEqual(
+      [firstBody.orderId, otherBody.orderId].sort()
+    );
+
+    const same = await checkout(
+      checkoutRequest({
+        idempotencyKey: KEY_A,
+        paymentIntentId: firstBody.intentId,
+      })
+    );
+    expect(same.status).toBe(200);
+    const sameBody = await same.json();
+    expect(sameBody.orderId).toBe(firstBody.orderId);
+    expect(sameBody.clientSecret).toBe(firstBody.clientSecret);
+    expect(sameBody.intentId).toBe(firstBody.intentId);
+    expect(db.rowsOf("orders")).toHaveLength(2);
   });
 });

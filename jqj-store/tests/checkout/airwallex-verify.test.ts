@@ -224,4 +224,36 @@ describe("POST /api/checkout/airwallex/verify", () => {
     );
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
   });
+
+  it("accepts a payment intent only with its own order id", async () => {
+    seedPayableOrder(db, "order-a");
+    seedPayableOrder(db, "order-b");
+    vi.mocked(retrieveAirwallexPaymentIntent).mockImplementation(async (id) => ({
+      id,
+      status: "REQUIRES_PAYMENT_METHOD",
+      amount: 115,
+      currency: "USD",
+    }));
+
+    const intentOnly = await POST(verifyRequest({ paymentIntentId: "int_order-a" }));
+    expect(intentOnly.status).toBe(400);
+
+    const crossed = await POST(
+      verifyRequest({ orderId: "order-b", paymentIntentId: "int_order-a" })
+    );
+    expect(crossed.status).toBe(404);
+    expect(db.rowsOf("orders").map((row) => row.payment_status)).toEqual([
+      "requires_payment_method",
+      "requires_payment_method",
+    ]);
+    expect(retrieveAirwallexPaymentIntent).not.toHaveBeenCalled();
+
+    const matched = await POST(
+      verifyRequest({ orderId: "order-a", paymentIntentId: "int_order-a" })
+    );
+    expect(matched.status).toBe(202);
+    expect(db.rowsOf("orders").find((row) => row.id === "order-b")?.payment_status).toBe(
+      "requires_payment_method"
+    );
+  });
 });

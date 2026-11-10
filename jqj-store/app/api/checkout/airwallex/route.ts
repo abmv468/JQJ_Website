@@ -86,6 +86,17 @@ function cartMatches(
   return left.every((value, index) => value === right[index]);
 }
 
+function sameCustomer(
+  order: { customer_email?: string | null; user_id?: string | null },
+  email: string,
+  userId: string | null
+) {
+  if (userId && order.user_id && order.user_id === userId) return true;
+  const left = (order.customer_email ?? "").trim().toLowerCase();
+  const right = email.trim().toLowerCase();
+  return left.length > 0 && left === right;
+}
+
 function asUuid(value: string | undefined | null) {
   if (!value) return null;
   return UUID_REGEX.test(value) ? value : null;
@@ -216,24 +227,31 @@ export async function POST(req: Request) {
 
     let reusedOrder = false;
     orderId = existingPayment?.order_id ?? null;
-    if (existingPayment?.provider_request_id) {
+    if (existingPayment?.provider_request_id && orderId) {
       requestId = existingPayment.provider_request_id;
     }
 
     if (orderId) {
+      const { data: owner, error: ownerError } = await supabase
+        .from("orders")
+        .select("id, customer_email, user_id")
+        .eq("id", orderId)
+        .maybeSingle();
+      if (ownerError) throw ownerError;
       const { data: existingLines, error: existingLinesError } = await supabase
         .from("order_items")
         .select("product_id, quantity, variant_size, variant_material")
         .eq("order_id", orderId);
       if (existingLinesError) throw existingLinesError;
       const lines = existingLines ?? [];
-      if (lines.length > 0 && !cartMatches(lines, items, inventoryBySlug)) {
+      if (!owner || !sameCustomer(owner, customer.email, userId)) {
         orderId = null;
-        if (!clientRequestId || clientRequestId === existingPayment?.provider_request_id) {
-          requestId = randomUUID();
-        } else {
-          requestId = clientRequestId;
-        }
+        existingPayment = null;
+        requestId = randomUUID();
+      } else if (lines.length > 0 && !cartMatches(lines, items, inventoryBySlug)) {
+        orderId = null;
+        existingPayment = null;
+        requestId = randomUUID();
       } else if (lines.length > 0) {
         reusedOrder = true;
       }
@@ -372,6 +390,20 @@ export async function POST(req: Request) {
     });
     if (savedPayment.order_id !== orderId && createdThisRequest) {
       const duplicateOrderId = orderId;
+      const { data: targetOwner, error: targetOwnerError } = await supabase
+        .from("orders")
+        .select("id, customer_email, user_id")
+        .eq("id", savedPayment.order_id)
+        .maybeSingle();
+      if (targetOwnerError) throw targetOwnerError;
+      const { data: targetLines, error: targetLinesError } = await supabase
+        .from("order_items")
+        .select("product_id, quantity, variant_size, variant_material")
+        .eq("order_id", savedPayment.order_id);
+      if (targetLinesError) throw targetLinesError;
+      const targetMatches =
+        Boolean(targetOwner && sameCustomer(targetOwner, customer.email, userId)) &&
+        cartMatches(targetLines ?? [], items, inventoryBySlug);
       if (reservedStock && resolvedItems.length) {
         await restoreStockForOrder(supabase, duplicateOrderId, resolvedItems);
         reservedStock = false;
@@ -386,6 +418,12 @@ export async function POST(req: Request) {
         .delete()
         .eq("id", duplicateOrderId);
       if (deleteOrderError) throw deleteOrderError;
+      if (!targetMatches) {
+        return NextResponse.json(
+          { error: "Unable to initialize order for checkout" },
+          { status: 409 }
+        );
+      }
       orderId = savedPayment.order_id;
       reusedOrder = true;
       createdThisRequest = false;
@@ -406,7 +444,7 @@ export async function POST(req: Request) {
           updated_at: new Date().toISOString(),
         })
         .eq("id", orderId)
-        .neq("payment_status", "succeeded");
+        .or("payment_status.is.null,payment_status.neq.succeeded");
       if (orderUpdateError) throw orderUpdateError;
     } else {
       const { error: orderUpdateError } = await supabase

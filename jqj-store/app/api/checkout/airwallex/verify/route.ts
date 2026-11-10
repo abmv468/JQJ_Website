@@ -48,13 +48,20 @@ export async function POST(req: Request) {
 
     const supabase = createAdminClient();
     const requestedIntentId = typeof paymentIntentId === "string" ? paymentIntentId.trim() : "";
-    let resolvedOrderId = orderId ?? null;
-    if (requestedIntentId) {
+    if (requestedIntentId && !orderId) {
+      return NextResponse.json({ error: "Missing order id" }, { status: 400 });
+    }
+    if (requestedIntentId && orderId) {
       const paymentForIntent = await findAirwallexPaymentByIntent(supabase, requestedIntentId);
-      if (paymentForIntent?.order_id) resolvedOrderId = paymentForIntent.order_id;
+      if (!paymentForIntent || paymentForIntent.order_id !== orderId) {
+        return NextResponse.json(
+          { error: "No Airwallex payment found for this order" },
+          { status: 404 }
+        );
+      }
     }
 
-    if (!resolvedOrderId) {
+    if (!orderId) {
       return NextResponse.json({ error: "Missing order id" }, { status: 400 });
     }
 
@@ -63,26 +70,29 @@ export async function POST(req: Request) {
       .select(
         "id, status, payment_status, fulfillment_status, inventory_reserved, payments(id, provider, provider_payment_intent_id, status, provider_request_id)"
       )
-      .eq("id", resolvedOrderId)
+      .eq("id", orderId)
       .single();
     if (orderError) throw orderError;
 
-    let order = orderData as unknown as OrderPaymentSnapshot;
-    let payment = (order.payments ?? []).find((entry) => entry.provider === "airwallex");
+    const order = orderData as unknown as OrderPaymentSnapshot;
+    const payment = (order.payments ?? []).find((entry) => entry.provider === "airwallex");
     if (payment?.provider_payment_intent_id) {
-      const canonical = await findAirwallexPaymentByIntent(supabase, payment.provider_payment_intent_id);
-      if (canonical?.order_id && canonical.order_id !== order.id) {
-        const { data: canonicalOrder, error: canonicalOrderError } = await supabase
-          .from("orders")
-          .select(
-            "id, status, payment_status, fulfillment_status, inventory_reserved, payments(id, provider, provider_payment_intent_id, status, provider_request_id)"
-          )
-          .eq("id", canonical.order_id)
-          .single();
-        if (canonicalOrderError) throw canonicalOrderError;
-        order = canonicalOrder as unknown as OrderPaymentSnapshot;
-        payment = (order.payments ?? []).find((entry) => entry.provider === "airwallex");
+      const canonical = await findAirwallexPaymentByIntent(
+        supabase,
+        payment.provider_payment_intent_id
+      );
+      if (!canonical || canonical.order_id !== order.id) {
+        return NextResponse.json(
+          { error: "No Airwallex payment found for this order" },
+          { status: 404 }
+        );
       }
+    }
+    if (requestedIntentId && payment?.provider_payment_intent_id !== requestedIntentId) {
+      return NextResponse.json(
+        { error: "No Airwallex payment found for this order" },
+        { status: 404 }
+      );
     }
     if (!payment) {
       return NextResponse.json(

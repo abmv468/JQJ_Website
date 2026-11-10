@@ -410,38 +410,6 @@ export async function applyAirwallexPaymentIntentStatus(
   const now = new Date().toISOString();
   const claimingPaid = isSuccessfulPaymentStatus(input.nextStatus);
 
-  if (claimingPaid) {
-    const { data: claimedPayment, error: paymentUpdateError } = await supabase
-      .from("payments")
-      .update({
-        status: input.nextStatus,
-        last_event_id: input.providerEventId ?? null,
-        last_event_created_at: input.providerEventCreatedAt ?? now,
-        paid_at: now,
-        updated_at: now,
-      })
-      .eq("id", payment.id)
-      .neq("status", "succeeded")
-      .select("id")
-      .maybeSingle();
-    if (paymentUpdateError) throw paymentUpdateError;
-    if (!claimedPayment) {
-      return { applied: false, reason: "already_succeeded" as const, orderId: payment.order_id };
-    }
-  } else {
-    const { error: paymentUpdateError } = await supabase
-      .from("payments")
-      .update({
-        status: input.nextStatus,
-        last_event_id: input.providerEventId ?? null,
-        last_event_created_at: input.providerEventCreatedAt ?? now,
-        paid_at: null,
-        updated_at: now,
-      })
-      .eq("id", payment.id);
-    if (paymentUpdateError) throw paymentUpdateError;
-  }
-
   const { data: orderData, error: orderError } = await supabase
     .from("orders")
     .select(
@@ -463,31 +431,69 @@ export async function applyAirwallexPaymentIntentStatus(
   };
 
   if (claimingPaid) {
+    // The order claim is the gate. NULL payment_status is unpaid in Postgres,
+    // so `<> 'succeeded'` alone would skip the row and leave it stuck.
     const { data: claimedOrder, error: orderUpdateError } = await supabase
       .from("orders")
       .update(orderPatch)
       .eq("id", order.id)
-      .neq("payment_status", "succeeded")
+      .or("payment_status.is.null,payment_status.neq.succeeded")
       .select("id")
       .maybeSingle();
     if (orderUpdateError) throw orderUpdateError;
+
     if (!claimedOrder) {
-      return { applied: false, reason: "already_succeeded" as const, orderId: order.id };
+      const { data: currentOrder, error: rereadError } = await supabase
+        .from("orders")
+        .select("payment_status")
+        .eq("id", order.id)
+        .maybeSingle();
+      if (rereadError) throw rereadError;
+      if (currentOrder?.payment_status !== "succeeded") {
+        console.error("[airwallex-orders] payment succeeded but the order was not marked paid", {
+          orderId: order.id,
+          paymentIntentId: input.paymentIntentId,
+        });
+        return { applied: false, reason: "order_not_claimed" as const, orderId: order.id };
+      }
     }
-  } else {
-    const { error: orderUpdateError } = await supabase
-      .from("orders")
-      .update(orderPatch)
-      .eq("id", order.id);
-    if (orderUpdateError) throw orderUpdateError;
+
+    if (!isSuccessfulPaymentStatus(currentStatus)) {
+      const { error: paymentUpdateError } = await supabase
+        .from("payments")
+        .update({
+          status: input.nextStatus,
+          last_event_id: input.providerEventId ?? null,
+          last_event_created_at: input.providerEventCreatedAt ?? now,
+          paid_at: now,
+          updated_at: now,
+        })
+        .eq("id", payment.id)
+        .neq("status", "succeeded");
+      if (paymentUpdateError) throw paymentUpdateError;
+    }
+
+    await sendOrderEmailsIfNeeded(supabase, order.id);
+    return { applied: true, orderId: order.id };
   }
+
+  const { error: paymentUpdateError } = await supabase
+    .from("payments")
+    .update({
+      status: input.nextStatus,
+      last_event_id: input.providerEventId ?? null,
+      last_event_created_at: input.providerEventCreatedAt ?? now,
+      paid_at: null,
+      updated_at: now,
+    })
+    .eq("id", payment.id);
+  if (paymentUpdateError) throw paymentUpdateError;
+
+  const { error: orderUpdateError } = await supabase.from("orders").update(orderPatch).eq("id", order.id);
+  if (orderUpdateError) throw orderUpdateError;
 
   if (isTerminalFailedPaymentStatus(input.nextStatus) && order.inventory_reserved) {
     await restoreInventoryForOrder(supabase, order.id);
-  }
-
-  if (isSuccessfulPaymentStatus(input.nextStatus)) {
-    await sendOrderEmailsIfNeeded(supabase, order.id);
   }
 
   return { applied: true, orderId: order.id };
