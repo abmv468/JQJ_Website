@@ -3,12 +3,28 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronLeft, CreditCard, Truck } from "lucide-react";
+import { ChevronLeft, CreditCard, Loader2, Truck } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
 import { createClient } from "@/lib/supabase/client";
 import { computeShippingUsd } from "@/lib/shipping";
 import { formatPrice } from "@/lib/utils";
+import { CheckoutCountryField, CheckoutTextField } from "./checkout-fields";
+import {
+  CHECKOUT_ERROR_FIELDS,
+  CHECKOUT_FIELD_FOCUS_ORDER,
+  CHECKOUT_SHIPPING_LABEL,
+  formatCheckoutReference,
+  CHECKOUT_STATUS_PROCESSING,
+  CHECKOUT_STATUS_REDIRECTING,
+  customerSafeCheckoutMessage,
+  isPostcodeRequired,
+  readCheckoutFailure,
+  validateCheckoutCustomer,
+  type CheckoutCustomer,
+  type CheckoutCustomerField,
+  type CheckoutFieldErrors,
+} from "@/lib/checkout-messages";
 
 const COD_FEE = 20;
 const AIRWALLEX_SDK_SRC = "https://static.airwallex.com/components/sdk/v1/index.js";
@@ -88,10 +104,50 @@ const countries = [
   "Germany",
 ];
 
+const emptyCustomer = (): CheckoutCustomer => ({
+  email: "",
+  firstName: "",
+  lastName: "",
+  address: "",
+  apartment: "",
+  city: "",
+  region: "",
+  country: "United States",
+  phone: "",
+  postalCode: "",
+});
+
+type CheckoutResponse = {
+  error?: unknown;
+  errors?: unknown;
+  fields?: unknown;
+  reference?: unknown;
+  orderId?: string;
+  intentId?: string;
+  clientSecret?: string;
+  currency?: string;
+  sdkEnv?: "demo" | "prod";
+  countryCode?: string;
+};
+
+function focusFirstInvalidField(fields: CheckoutFieldErrors) {
+  const firstInvalid = CHECKOUT_FIELD_FOCUS_ORDER.find((key) => fields[key]);
+  if (firstInvalid) document.getElementById(`checkout-${firstInvalid}`)?.focus();
+}
+
+async function readCheckoutResponse(response: Response): Promise<CheckoutResponse> {
+  try {
+    return (await response.json()) as CheckoutResponse;
+  } catch {
+    return {};
+  }
+}
+
 export default function CheckoutPage() {
   const { items, subtotal, clearCart } = useCart();
   const { currency, formatFromUsd } = useCurrency();
   const checkoutAttemptIdRef = useRef<string>(crypto.randomUUID());
+  const submittingRef = useRef(false);
   const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
   const [method, setMethod] = useState<"airwallex" | "cod">("airwallex");
   const [loading, setLoading] = useState(false);
@@ -99,19 +155,11 @@ export default function CheckoutPage() {
     "idle" | "creating_payment" | "redirecting_to_airwallex"
   >("idle");
   const [error, setError] = useState<string | null>(null);
+  const [errorReference, setErrorReference] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<CheckoutFieldErrors>({});
   const [stockErrors, setStockErrors] = useState<string[]>([]);
   const [checkingStock, setCheckingStock] = useState(false);
-  const [form, setForm] = useState({
-    email: "",
-    firstName: "",
-    lastName: "",
-    address: "",
-    apartment: "",
-    city: "",
-    region: "",
-    country: "United States",
-    phone: "",
-  });
+  const [form, setForm] = useState<CheckoutCustomer>(emptyCustomer);
 
   useEffect(() => {
     let isMounted = true;
@@ -131,7 +179,7 @@ export default function CheckoutPage() {
           .maybeSingle(),
         supabase
           .from("customer_addresses")
-          .select("first_name, last_name, address_line1, address_line2, city, region, country, phone")
+          .select("first_name, last_name, address_line1, address_line2, city, region, country, phone, postal_code")
           .eq("user_id", data.user.id)
           .order("is_default", { ascending: false })
           .order("created_at", { ascending: false })
@@ -154,6 +202,7 @@ export default function CheckoutPage() {
         region: prev.region || address?.region || "",
         country: prev.country || address?.country || "United States",
         phone: prev.phone || profile?.phone || address?.phone || "",
+        postalCode: prev.postalCode || address?.postal_code || "",
       }));
     }
 
@@ -205,23 +254,46 @@ export default function CheckoutPage() {
       .finally(() => setCheckingStock(false));
   }, [payloadItems]);
 
-  function update(field: keyof typeof form, value: string) {
-    setForm((f) => ({ ...f, [field]: value }));
+  function update(field: CheckoutCustomerField, value: string) {
+    setForm((current) => ({ ...current, [field]: value }));
+    setFieldErrors((current) => {
+      const next = { ...current };
+      let changed = false;
+      if (next[field]) {
+        delete next[field];
+        changed = true;
+      }
+      if (field === "country" && next.postalCode && !isPostcodeRequired(value)) {
+        delete next.postalCode;
+        changed = true;
+      }
+      return changed ? next : current;
+    });
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
+    if (submittingRef.current) return;
 
-    if (!form.email || !form.firstName || !form.address || !form.city) {
-      setError("Please complete the required fields.");
+    const clientErrors = validateCheckoutCustomer(form);
+    if (Object.keys(clientErrors).length > 0) {
+      setFieldErrors(clientErrors);
+      setError(CHECKOUT_ERROR_FIELDS);
+      setErrorReference(null);
+      focusFirstInvalidField(clientErrors);
       return;
     }
     if (stockErrors.length > 0) {
+      setFieldErrors({});
       setError(stockErrors[0]);
+      setErrorReference(null);
       return;
     }
 
+    submittingRef.current = true;
+    setFieldErrors({});
+    setError(null);
+    setErrorReference(null);
     setLoading(true);
     setPaymentStage(method === "airwallex" ? "creating_payment" : "idle");
 
@@ -234,6 +306,8 @@ export default function CheckoutPage() {
       idempotencyKey,
     };
 
+    let holdSubmitLock = false;
+
     try {
       const endpoint = method === "cod" ? "/api/checkout/cod" : "/api/checkout/airwallex";
       const res = await fetch(endpoint, {
@@ -241,8 +315,16 @@ export default function CheckoutPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Checkout failed");
+      const data = await readCheckoutResponse(res);
+      if (!res.ok) {
+        console.error("Checkout request failed", data);
+        const failure = readCheckoutFailure(data);
+        setFieldErrors(failure.fields);
+        setError(failure.formMessage);
+        setErrorReference(failure.reference);
+        focusFirstInvalidField(failure.fields);
+        return;
+      }
 
       if (method === "airwallex") {
         if (!data.intentId || !data.clientSecret || !data.orderId || !data.currency || !data.sdkEnv) {
@@ -271,16 +353,22 @@ export default function CheckoutPage() {
           failUrl,
           country_code: data.countryCode,
         });
-        setLoading(false);
-        setPaymentStage("idle");
       } else {
+        holdSubmitLock = true;
         clearCart();
         window.location.href = `/order-confirmation?order_id=${data.orderId}&method=cod`;
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-      setLoading(false);
-      setPaymentStage("idle");
+      const raw = err instanceof Error ? err.message : "Something went wrong";
+      console.error(raw);
+      setError(customerSafeCheckoutMessage(raw));
+      setErrorReference(null);
+    } finally {
+      if (!holdSubmitLock) {
+        submittingRef.current = false;
+        setLoading(false);
+        setPaymentStage("idle");
+      }
     }
   }
 
@@ -295,14 +383,25 @@ export default function CheckoutPage() {
     );
   }
 
+  const statusMessage =
+    paymentStage === "redirecting_to_airwallex"
+      ? CHECKOUT_STATUS_REDIRECTING
+      : loading
+        ? CHECKOUT_STATUS_PROCESSING
+        : null;
+  const alertMessage = error ?? (stockErrors.length > 0 ? stockErrors[0] : null);
+  const showAlert = Boolean(alertMessage || errorReference);
+  const postcodeRequired = isPostcodeRequired(form.country);
+
   return (
     <div className="container-site py-12">
+      <h1 className="mb-8 font-heading text-2xl uppercase tracking-wider2">Checkout</h1>
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
         {/* Form */}
-        <form onSubmit={handleSubmit} className="order-2 lg:order-1">
+        <form onSubmit={handleSubmit} noValidate className="order-2 lg:order-1">
           <div className="mb-8 flex flex-wrap items-center gap-4 border border-brand-border p-4 sm:gap-6 sm:p-5">
             <div className="flex items-center gap-2 text-xs text-brand-muted">
-              <Truck className="h-4 w-4 text-brand-gold" /> UPS Express — Tracked delivery
+              <Truck className="h-4 w-4 text-brand-gold" /> {CHECKOUT_SHIPPING_LABEL}
             </div>
             <div className="flex items-center gap-2 text-xs text-brand-muted">
               <CreditCard className="h-4 w-4 text-brand-gold" /> Secure payment
@@ -328,13 +427,15 @@ export default function CheckoutPage() {
                 Signed in as <span className="text-white">{signedInEmail}</span>
               </p>
             )}
-            <input
+            <CheckoutTextField
+              id="checkout-email"
+              name="email"
+              label="Email"
               type="email"
               required
-              placeholder="Email"
               value={form.email}
-              onChange={(e) => update("email", e.target.value)}
-              className="input-field"
+              error={fieldErrors.email}
+              onChange={(value) => update("email", value)}
             />
           </section>
 
@@ -342,28 +443,86 @@ export default function CheckoutPage() {
           <section className="mb-8">
             <h2 className="mb-4 font-heading text-sm uppercase tracking-wider2">Shipping address</h2>
             <div className="space-y-3">
-              <select
+              <CheckoutCountryField
+                id="checkout-country"
                 value={form.country}
-                onChange={(e) => update("country", e.target.value)}
-                className="input-field"
-              >
-                {countries.map((c) => (
-                  <option key={c} value={c} className="bg-brand-surface">
-                    {c}
-                  </option>
-                ))}
-              </select>
+                error={fieldErrors.country}
+                countries={countries}
+                onChange={(value) => update("country", value)}
+              />
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <input required placeholder="First name" value={form.firstName} onChange={(e) => update("firstName", e.target.value)} className="input-field" />
-                <input placeholder="Last name" value={form.lastName} onChange={(e) => update("lastName", e.target.value)} className="input-field" />
+                <CheckoutTextField
+                  id="checkout-firstName"
+                  name="firstName"
+                  label="First name"
+                  required
+                  value={form.firstName}
+                  error={fieldErrors.firstName}
+                  onChange={(value) => update("firstName", value)}
+                />
+                <CheckoutTextField
+                  id="checkout-lastName"
+                  name="lastName"
+                  label="Last name"
+                  value={form.lastName}
+                  error={fieldErrors.lastName}
+                  onChange={(value) => update("lastName", value)}
+                />
               </div>
-              <input required placeholder="Address" value={form.address} onChange={(e) => update("address", e.target.value)} className="input-field" />
-              <input placeholder="Apartment, suite, etc. (optional)" value={form.apartment} onChange={(e) => update("apartment", e.target.value)} className="input-field" />
+              <CheckoutTextField
+                id="checkout-address"
+                name="address"
+                label="Address"
+                required
+                value={form.address}
+                error={fieldErrors.address}
+                onChange={(value) => update("address", value)}
+              />
+              <CheckoutTextField
+                id="checkout-apartment"
+                name="apartment"
+                label="Apartment, suite, etc. (optional)"
+                value={form.apartment}
+                error={fieldErrors.apartment}
+                onChange={(value) => update("apartment", value)}
+              />
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <input required placeholder="City" value={form.city} onChange={(e) => update("city", e.target.value)} className="input-field" />
-                <input placeholder="Region / State" value={form.region} onChange={(e) => update("region", e.target.value)} className="input-field" />
+                <CheckoutTextField
+                  id="checkout-city"
+                  name="city"
+                  label="City"
+                  required
+                  value={form.city}
+                  error={fieldErrors.city}
+                  onChange={(value) => update("city", value)}
+                />
+                <CheckoutTextField
+                  id="checkout-region"
+                  name="region"
+                  label="Region / State"
+                  value={form.region}
+                  error={fieldErrors.region}
+                  onChange={(value) => update("region", value)}
+                />
               </div>
-              <input placeholder="Phone (optional)" value={form.phone} onChange={(e) => update("phone", e.target.value)} className="input-field" />
+              <CheckoutTextField
+                id="checkout-postalCode"
+                name="postalCode"
+                label={postcodeRequired ? "Postcode" : "Postcode (optional)"}
+                required={postcodeRequired}
+                value={form.postalCode}
+                error={fieldErrors.postalCode}
+                onChange={(value) => update("postalCode", value)}
+              />
+              <CheckoutTextField
+                id="checkout-phone"
+                name="phone"
+                label="Phone"
+                type="tel"
+                value={form.phone}
+                error={fieldErrors.phone}
+                onChange={(value) => update("phone", value)}
+              />
             </div>
           </section>
 
@@ -387,16 +546,25 @@ export default function CheckoutPage() {
             )}
           </section>
 
-          {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
-          {!error && stockErrors.length > 0 && (
-            <p className="mb-4 text-sm text-red-400">{stockErrors[0]}</p>
-          )}
-          {!error && paymentStage === "creating_payment" && (
-            <p className="mb-4 text-sm text-brand-muted">Creating secure payment session…</p>
-          )}
-          {!error && paymentStage === "redirecting_to_airwallex" && (
-            <p className="mb-4 text-sm text-brand-muted">Redirecting to Airwallex secure checkout…</p>
-          )}
+          <div
+            id="checkout-status"
+            role="status"
+            aria-live="polite"
+            className={statusMessage ? "mb-4 text-sm text-brand-muted" : "sr-only"}
+          >
+            {statusMessage}
+          </div>
+          <p
+            id="checkout-form-error"
+            role="alert"
+            aria-live="assertive"
+            className={showAlert ? "mb-4 text-sm text-red-400" : "sr-only"}
+          >
+            {alertMessage}
+            {errorReference ? (
+              <span className="mt-1 block">{formatCheckoutReference(errorReference)}</span>
+            ) : null}
+          </p>
 
           <div className="flex flex-col-reverse items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
             <Link href="/cart" className="flex items-center gap-1 text-xs text-brand-muted hover:text-white">
@@ -407,7 +575,16 @@ export default function CheckoutPage() {
               disabled={loading || checkingStock || stockErrors.length > 0}
               className="btn-gold disabled:opacity-60"
             >
-              {loading ? "Processing…" : method === "cod" ? "Place Order" : "Continue to Secure Payment"}
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                  {CHECKOUT_STATUS_PROCESSING}
+                </>
+              ) : method === "cod" ? (
+                "Place Order"
+              ) : (
+                "Continue to Secure Payment"
+              )}
             </button>
           </div>
         </form>
@@ -432,11 +609,6 @@ export default function CheckoutPage() {
               </li>
             ))}
           </ul>
-
-          <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-            <input placeholder="Discount code or gift card" className="input-field" />
-            <button type="button" className="btn-secondary px-5">Apply</button>
-          </div>
 
           <div className="mt-6 space-y-3 border-t border-brand-border pt-6 text-sm">
             <div className="flex justify-between">
