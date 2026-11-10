@@ -33,7 +33,10 @@ export default function Hero() {
               Natural stones. Designed in Hong Kong.
             </h1>
             <p className="mt-5 px-2 font-heading text-[11px] uppercase tracking-[0.18em] text-brand-gold-light sm:mt-6 sm:px-0 sm:text-sm sm:tracking-[0.22em]">
-              Inspired by Eastern heritage and modern craftsmanship
+              Designed in Hong Kong · Natural stones
+            </p>
+            <p className="mx-auto mt-6 max-w-3xl text-[15px] leading-7 text-white/74 sm:mt-7 sm:text-lg">
+              Bracelets and necklaces designed in Hong Kong, with natural stones and materials sourced from around the world.
             </p>
 
             <div className="mt-8 flex flex-wrap justify-center gap-3">

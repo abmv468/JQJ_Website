@@ -47,7 +47,7 @@ export default function CartPage() {
       <div className="container-site flex flex-col items-center py-28 text-center">
         <h1 className="font-heading text-2xl uppercase tracking-wider2">Your cart is empty</h1>
         <p className="mt-3 text-sm text-brand-muted">
-          Discover hand-crafted bracelets and necklaces.
+          Discover bracelets and necklaces.
         </p>
         <Link href="/new" className="btn-gold mt-8">
           Shop New Arrivals

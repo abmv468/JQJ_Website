@@ -66,7 +66,7 @@ export const products: Product[] = [
     name: "Red Leopard Skin Jasper Bracelet III (6mm)",
     slug: "red-leopard-skin-jasper-bracelet-iii",
     description:
-      "Grounded and expressive, this Red Leopard Skin Jasper bracelet pairs warm, naturally patterned stone. A timeless profile, crafted one piece at a time.",
+      "Grounded and expressive, this Red Leopard Skin Jasper bracelet pairs warm, naturally patterned stone with a quiet, timeless profile.",
     price: 599.99,
     compareAtPrice: 699.99,
     sku: "JQJ-RLSJ-III",
@@ -105,7 +105,7 @@ export const products: Product[] = [
     name: "Raw Brown Tourmaline Bracelet I (8-10mm)",
     slug: "raw-brown-tourmaline-bracelet-i",
     description:
-      "Raw brown tourmaline nuggets are left close to their natural form, highlighting each stone's individual texture. Designed for everyday wear with artisanal character.",
+      "Raw brown tourmaline nuggets are left close to their natural form, highlighting each stone's individual texture. Designed in Hong Kong for everyday wear.",
     price: 368.99,
     compareAtPrice: null,
     sku: "JQJ-TOURM-I",

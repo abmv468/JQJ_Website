@@ -6,7 +6,18 @@ const BANNED =
 const DELIVERY_RANGE =
   "Dispatched in 1–3 business days, then typically 7–12 days in transit. Customs and peak season can add time.";
 
-const PAGES = ["/", "/story", "/care", "/bracelets", "/shipping", "/faqs", "/products/pearl-silver-necklace-v"];
+const PAGES = [
+  "/",
+  "/story",
+  "/care",
+  "/bracelets",
+  "/shipping",
+  "/faqs",
+  "/terms",
+  "/cart",
+  "/checkout",
+  "/products/pearl-silver-necklace-v",
+];
 
 async function stubNetwork(page: Page) {
   await page.route("**/*", (route) => {
@@ -60,6 +71,7 @@ for (const path of PAGES) {
       copy += `\n${await visibleCopy(page)}`;
     }
     expect(copy).not.toMatch(BANNED);
+    expect(await page.title()).not.toMatch(BANNED);
   });
 }
 
