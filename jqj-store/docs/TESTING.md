@@ -57,7 +57,7 @@ npm run test:e2e
 
 These tests never place a paid order and never create an unpaid order that holds stock. Airwallex (SDK and API), Supabase, and the checkout create/verify routes are stubbed in the browser. The Next server is started with the fake public env above and a closed Supabase port. Do not add real keys, repository secrets, or a live payment call. Do not weaken a gate with `test.skip`, `test.fixme`, or a fixed sleep. Wait on a locator or a `waitForResponse`.
 
-Parity lives in `e2e/helpers/checkout-expectations.ts` and `e2e/helpers/checkout-parity.ts`. The stub prices the cart from `data/products.ts` plus that expectations module. It ignores the shipping amount and the line prices the browser posted. The test reads the summary (subtotal, shipping, COD fee, total), captures the create request with `page.route` and the response with `waitForResponse`, and asserts the server `amount` equals the UI total to the cent.
+The amount table is `tests/shared/checkout-expectations.ts`. `quoteCheckout` is the expected total (catalog subtotal + shipping + COD fee). Playwright re-exports it from `e2e/helpers/checkout-expectations.ts`. The browser stub prices the cart from `data/products.ts` plus that function, ignores the shipping amount and the line prices the browser posted, and asserts the fulfilled `amount` equals the UI total to the cent. Vitest calls the real Airwallex and COD route handlers (`tests/checkout/server-total-parity.test.ts`, in-memory database, Airwallex mocked) for the same two carts and asserts the persisted `total_amount` and the Airwallex `amount` equal `quoteCheckout` to the cent. A route that changes its own shipping or COD constant fails that Vitest case even if the browser stub is unchanged.
 
 Cases on main today:
 

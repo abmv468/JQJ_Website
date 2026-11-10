@@ -8,6 +8,7 @@ import {
   setActiveDb,
   type MemoryDb,
 } from "../helpers/memory-db";
+import { quoteCheckout } from "../shared/checkout-expectations";
 
 const KEY = "cod-attempt-1";
 
@@ -46,6 +47,10 @@ describe("POST /api/checkout/cod", () => {
 
     expect(response.status).toBe(200);
     const body = await response.json();
+    const quote = quoteCheckout(
+      [{ unitPriceUsd: Number(db.rowsOf("products")[0].price), quantity: 2 }],
+      "cod"
+    );
     expect(body.orderId).toEqual(expect.any(String));
     expect(db.rowsOf("products")[0].stock_count).toBe(3);
     expect(db.rowsOf("orders")[0]).toMatchObject({
@@ -53,13 +58,13 @@ describe("POST /api/checkout/cod", () => {
       payment_status: "pending",
       status: "pending",
       inventory_reserved: true,
-      subtotal_amount: 200,
-      shipping_amount: 15,
-      total_amount: 235,
+      subtotal_amount: quote.subtotal,
+      shipping_amount: quote.shipping,
+      total_amount: quote.total,
       stripe_session_id: `COD-${KEY}`,
       shipping_address: expect.objectContaining({
         payment_method: "cod",
-        cod_fee: 20,
+        cod_fee: quote.codFee,
       }),
     });
     expect(db.rpcCalls.filter((call) => call.fn === "reserve_order_inventory")).toHaveLength(1);
