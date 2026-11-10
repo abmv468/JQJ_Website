@@ -82,4 +82,46 @@ describe("COD order currency", () => {
       expect(fetch).not.toHaveBeenCalled();
     }
   );
+
+  it("reuses one idempotency key when the same cart is submitted in EUR and then USD", async () => {
+    const cart = {
+      items: [checkoutItem()],
+      customer: checkoutCustomer,
+    };
+    const eur = await POST(request({ ...cart, currency: "EUR" }));
+    const usd = await POST(request({ ...cart, currency: "USD" }));
+
+    expect(eur.status).toBe(200);
+    expect(usd.status).toBe(200);
+    expect(await usd.json()).toEqual(await eur.json());
+    expect(db.rowsOf("orders")).toHaveLength(1);
+    expect(db.rowsOf("orders")[0].stripe_session_id).toMatch(/^COD-[0-9a-f]{24}$/);
+    expect(db.rpcCalls.filter((call) => call.fn === "reserve_order_inventory")).toHaveLength(1);
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
+  });
+
+  it("derives a different idempotency key for a different cart", async () => {
+    const first = await POST(
+      request({
+        items: [checkoutItem({ quantity: 1 })],
+        customer: checkoutCustomer,
+        currency: "USD",
+      })
+    );
+    const second = await POST(
+      request({
+        items: [checkoutItem({ quantity: 2 })],
+        customer: checkoutCustomer,
+        currency: "USD",
+      })
+    );
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    const orders = db.rowsOf("orders");
+    expect(orders).toHaveLength(2);
+    expect(orders[0].stripe_session_id).not.toBe(orders[1].stripe_session_id);
+    expect(orders[0].stripe_session_id).toMatch(/^COD-[0-9a-f]{24}$/);
+    expect(orders[1].stripe_session_id).toMatch(/^COD-[0-9a-f]{24}$/);
+  });
 });

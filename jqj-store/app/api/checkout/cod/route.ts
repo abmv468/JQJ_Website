@@ -95,7 +95,9 @@ export async function POST(req: Request) {
               material: item.material,
               sku: item.sku,
             })),
-            shippingAddress,
+            shippingAddress: Object.fromEntries(
+              Object.entries(shippingAddress).filter(([key]) => key !== "currency")
+            ),
             shipping: shippingAmount,
           })
         )
