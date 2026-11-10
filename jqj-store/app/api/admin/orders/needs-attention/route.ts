@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
-import {
-  PAYMENT_AFTER_EXPIRY_UNFULFILLED_EVENT,
-  PAYMENT_ON_PROTECTED_ORDER_EVENT,
-} from "@/lib/payments/airwallex-orders";
+import { PROTECTED_ORDER_ALERT_EVENT } from "@/lib/payments/airwallex-orders";
 
 export const dynamic = "force-dynamic";
 
@@ -25,8 +22,8 @@ type AttentionRow = {
 function attentionReason(row: AttentionRow) {
   const status = (row.status ?? "").trim().toLowerCase();
   const channel = (row.sales_channel ?? "").trim().toLowerCase();
-  if (status === "cancelled" || channel === "test") return PAYMENT_ON_PROTECTED_ORDER_EVENT;
-  return PAYMENT_AFTER_EXPIRY_UNFULFILLED_EVENT;
+  if (status === "cancelled" || channel === "test") return PROTECTED_ORDER_ALERT_EVENT;
+  return "inventory_exception";
 }
 
 export async function GET(req: Request) {

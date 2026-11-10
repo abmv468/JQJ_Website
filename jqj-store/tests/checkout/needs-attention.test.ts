@@ -1,9 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "@/app/api/admin/orders/needs-attention/route";
-import {
-  PAYMENT_AFTER_EXPIRY_UNFULFILLED_EVENT,
-  PAYMENT_ON_PROTECTED_ORDER_EVENT,
-} from "@/lib/payments/airwallex-orders";
+import { PROTECTED_ORDER_ALERT_EVENT } from "@/lib/payments/airwallex-orders";
 import { createCheckoutDb, dbError, setActiveDb, type MemoryDb } from "../helpers/memory-db";
 
 vi.mock("@supabase/supabase-js", () => ({
@@ -121,7 +118,7 @@ describe("GET /api/admin/orders/needs-attention", () => {
         status: "inventory_exception",
         payment_status: "succeeded",
         fulfillment_status: "payment_failed",
-        reason: PAYMENT_AFTER_EXPIRY_UNFULFILLED_EVENT,
+        reason: "inventory_exception",
       },
       {
         id: "order-airwallex",
@@ -131,7 +128,7 @@ describe("GET /api/admin/orders/needs-attention", () => {
         status: "inventory_exception",
         payment_status: "succeeded",
         fulfillment_status: "payment_failed",
-        reason: PAYMENT_AFTER_EXPIRY_UNFULFILLED_EVENT,
+        reason: "inventory_exception",
       },
     ]);
     expect(JSON.stringify(body)).not.toContain("buyer@example.com");
@@ -194,7 +191,7 @@ describe("GET /api/admin/orders/needs-attention", () => {
         status: "pending",
         payment_status: "succeeded",
         fulfillment_status: "payment_failed",
-        reason: PAYMENT_ON_PROTECTED_ORDER_EVENT,
+        reason: PROTECTED_ORDER_ALERT_EVENT,
       },
       {
         id: "order-cancelled",
@@ -204,7 +201,7 @@ describe("GET /api/admin/orders/needs-attention", () => {
         status: "cancelled",
         payment_status: "succeeded",
         fulfillment_status: "payment_failed",
-        reason: PAYMENT_ON_PROTECTED_ORDER_EVENT,
+        reason: PROTECTED_ORDER_ALERT_EVENT,
       },
     ]);
   });
