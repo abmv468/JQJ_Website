@@ -65,8 +65,15 @@ describe("trust copy", () => {
     expect(bracelets.length).toBeGreaterThan(0);
     expect(necklaces.length).toBeGreaterThan(0);
     for (const product of bracelets) {
-      expect(product.features).toContain("Complimentary first resize for new customers");
+      expect(product.features.join(" ")).not.toMatch(/first resize/i);
+      expect(product.features.join(" ")).not.toMatch(/complimentary first resize/i);
     }
+    const catalogSource = source("data/products.ts");
+    const seedSource = source("supabase/seed.sql");
+    expect(catalogSource).not.toMatch(/first resize/i);
+    expect(catalogSource).not.toMatch(/complimentary first resize/i);
+    expect(seedSource).not.toMatch(/first resize/i);
+    expect(seedSource).not.toMatch(/complimentary first resize/i);
     for (const product of necklaces) {
       expect(product.features.join(" ")).not.toMatch(/resize/i);
     }

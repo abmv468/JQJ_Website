@@ -52,8 +52,6 @@ const sharedFeatures = [
   "Designed in Hong Kong",
 ];
 
-const braceletResizeFeature = "Complimentary first resize for new customers";
-
 const catalog: Product[] = [
   {
     id: "red-leopard-jasper-iii",
@@ -309,11 +307,7 @@ const catalog: Product[] = [
   },
 ];
 
-export const products: Product[] = catalog.map((product) =>
-  product.category === "bracelets"
-    ? { ...product, features: [...product.features, braceletResizeFeature] }
-    : product
-);
+export const products: Product[] = catalog;
 
 export function getProductBySlug(slug: string): Product | undefined {
   return products.find((p) => p.slug === slug);
