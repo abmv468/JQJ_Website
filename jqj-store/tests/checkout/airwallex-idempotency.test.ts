@@ -490,6 +490,66 @@ describe("Airwallex checkout idempotency", () => {
     expect(paidOrderWrites(db)).toHaveLength(1);
   });
 
+  it("does not downgrade a claimed order when a late webhook repeats the unpaid status", async () => {
+    const started = await checkout(checkoutRequest({ idempotencyKey: KEY_A }));
+    expect(started.status).toBe(200);
+    const startedBody = await started.json();
+    vi.mocked(retrieveAirwallexPaymentIntent).mockResolvedValue({
+      id: "int_same",
+      request_id: KEY_A,
+      status: "SUCCEEDED",
+      amount: 115,
+      currency: "USD",
+      merchant_order_id: startedBody.orderId,
+    });
+
+    let failedPaymentWrite = false;
+    db.failWhen = (table, op) => {
+      if (!failedPaymentWrite && table === "payments" && op === "update") {
+        failedPaymentWrite = true;
+        return dbError("payment claim failed", "XX000");
+      }
+      return null;
+    };
+    const claimed = await verify(
+      verifyRequest({ orderId: startedBody.orderId, paymentIntentId: "int_same" })
+    );
+    expect(claimed.status).toBe(500);
+    expect(db.rowsOf("orders")[0].payment_status).toBe("succeeded");
+    expect(db.rowsOf("payments")[0].status).toBe("requires_payment_method");
+    db.failWhen = null;
+
+    const late = await webhook(
+      signedWebhook({
+        id: "evt_late_same_status",
+        name: "payment_intent.requires_payment_method",
+        created_at: new Date().toISOString(),
+        data: {
+          object: {
+            id: "int_same",
+            request_id: KEY_A,
+            status: "REQUIRES_PAYMENT_METHOD",
+            amount: 115,
+            currency: "USD",
+            merchant_order_id: startedBody.orderId,
+          },
+        },
+      })
+    );
+    expect(late.status).toBe(200);
+    await expect(late.json()).resolves.toEqual({ received: true });
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      payment_status: "succeeded",
+      status: "paid",
+      fulfillment_status: "paid",
+      inventory_reserved: true,
+    });
+    expect(db.rowsOf("payments")[0].status).toBe("succeeded");
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
+    expect(reserves(db)).toHaveLength(1);
+    expect(db.rpcCalls.filter((call) => call.fn === "restore_order_inventory")).toHaveLength(0);
+  });
+
   it("does not reuse another customer's payment intent or idempotency key", async () => {
     vi.mocked(createAirwallexPaymentIntent).mockImplementation(async (input) => ({
       id: `int_${input.requestId}`,

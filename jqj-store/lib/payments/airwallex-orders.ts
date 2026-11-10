@@ -489,10 +489,40 @@ export async function applyAirwallexPaymentIntentStatus(
     .eq("id", payment.id);
   if (paymentUpdateError) throw paymentUpdateError;
 
-  const { error: orderUpdateError } = await supabase.from("orders").update(orderPatch).eq("id", order.id);
+  const { data: guardedOrder, error: orderUpdateError } = await supabase
+    .from("orders")
+    .update(orderPatch)
+    .eq("id", order.id)
+    .or("payment_status.is.null,payment_status.neq.succeeded")
+    .select("id")
+    .maybeSingle();
   if (orderUpdateError) throw orderUpdateError;
 
-  if (isTerminalFailedPaymentStatus(input.nextStatus) && order.inventory_reserved) {
+  if (!guardedOrder) {
+    const { data: currentOrder, error: rereadError } = await supabase
+      .from("orders")
+      .select("payment_status")
+      .eq("id", order.id)
+      .maybeSingle();
+    if (rereadError) throw rereadError;
+    if (currentOrder?.payment_status === "succeeded" || order.payment_status === "succeeded") {
+      const { error: reconcileError } = await supabase
+        .from("payments")
+        .update({
+          status: "succeeded",
+          last_event_id: input.providerEventId ?? null,
+          last_event_created_at: input.providerEventCreatedAt ?? now,
+          paid_at: order.paid_at ?? now,
+          updated_at: now,
+        })
+        .eq("id", payment.id)
+        .neq("status", "succeeded");
+      if (reconcileError) throw reconcileError;
+      return { applied: true, orderId: order.id };
+    }
+  }
+
+  if (guardedOrder && isTerminalFailedPaymentStatus(input.nextStatus) && order.inventory_reserved) {
     await restoreInventoryForOrder(supabase, order.id);
   }
 
