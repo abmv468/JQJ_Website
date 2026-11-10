@@ -1,9 +1,10 @@
-import { randomBytes, randomUUID } from "crypto";
+import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateCheckoutCustomer } from "@/lib/checkout-customer";
+import { checkoutErrorResponse } from "@/lib/checkout-error";
 import { resolveCheckoutSiteUrl } from "@/lib/checkout-site-url";
 import { normalizeCurrency, type SupportedCurrency } from "@/lib/currency";
 import {
@@ -131,12 +132,7 @@ export async function POST(req: Request) {
     try {
       siteUrl = resolveCheckoutSiteUrl();
     } catch (error) {
-      const reference = randomBytes(4).toString("hex");
-      console.error("[airwallex-checkout]", reference, error);
-      return NextResponse.json(
-        { error: "Something went wrong. Please try again.", reference },
-        { status: 500, headers: { "Cache-Control": "no-store" } }
-      );
+      return checkoutErrorResponse("airwallex-checkout", error);
     }
     const returnUrl = `${siteUrl}/order-confirmation?provider=airwallex`;
 
@@ -314,16 +310,7 @@ export async function POST(req: Request) {
       try {
         await restoreStockForOrder(supabase, orderId, resolvedItems);
       } catch (restoreError) {
-        console.error("[airwallex-checkout] failed to restore stock after error", restoreError);
-        return NextResponse.json(
-          {
-            error:
-              restoreError instanceof Error
-                ? restoreError.message
-                : "Checkout failed and inventory restore could not complete",
-          },
-          { status: 500 }
-        );
+        return checkoutErrorResponse("airwallex-checkout", restoreError);
       }
     }
 
@@ -343,12 +330,6 @@ export async function POST(req: Request) {
       }
     }
 
-    console.error("[airwallex-checkout]", error);
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Unable to initialize Airwallex payment",
-      },
-      { status: 500 }
-    );
+    return checkoutErrorResponse("airwallex-checkout", error);
   }
 }
