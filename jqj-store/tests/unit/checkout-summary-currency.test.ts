@@ -256,7 +256,7 @@ describe("checkout summary charge currency", () => {
       expect(html).not.toContain(legacyLine);
       expect(html).not.toContain(formatPrice(convertUsdToCurrency(200, currency), { currency }));
       expect(html).toContain("Airwallex sandbox checkout currently charges in USD only.");
-      expect(html).toContain("Cash on Delivery (+");
+      expect(html).toContain("Cash on Delivery (+$0.00 fee)");
       expect(html).not.toContain(">Cash on Delivery fee<");
     }
   });

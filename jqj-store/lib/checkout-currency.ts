@@ -6,7 +6,7 @@ export const CHECKOUT_CHARGE_CURRENCY = "USD" as const satisfies SupportedCurren
 
 export interface CheckoutSummaryItem {
   name: string;
-  /** Server/catalog unit price in USD. Client-sent amounts are not a source. */
+  /** Client cart price in USD, for display only. The server charges the database price. */
   unitPriceUsd: number;
   quantity: number;
 }

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ChevronLeft, CreditCard, Truck } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
-import { buildCheckoutSummary } from "@/lib/checkout-currency";
+import { buildCheckoutSummary, formatCheckoutCharge } from "@/lib/checkout-currency";
 import { createClient } from "@/lib/supabase/client";
 import { formatPrice } from "@/lib/utils";
 
@@ -91,7 +91,7 @@ const countries = [
 
 export default function CheckoutPage() {
   const { items, clearCart } = useCart();
-  const { currency, formatFromUsd } = useCurrency();
+  const { currency } = useCurrency();
   const checkoutAttemptIdRef = useRef<string>(crypto.randomUUID());
   const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
   const [method, setMethod] = useState<"airwallex" | "cod">("airwallex");
@@ -176,9 +176,8 @@ export default function CheckoutPage() {
     codFeeUsd: codFee,
     displayCurrency: currency,
   });
-  const chargeCurrency = method === "airwallex" ? "USD" : currency;
   const codFeeInCurrency =
-    chargeCurrency === "USD" ? formatPrice(codFee, { currency: "USD" }) : formatFromUsd(codFee);
+    method === "cod" ? formatCheckoutCharge(COD_FEE) : formatPrice(codFee, { currency: "USD" });
 
   const payloadItems = useMemo(
     () =>
