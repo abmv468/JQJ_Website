@@ -5,6 +5,7 @@ import { POST as cardVerify } from "@/app/api/checkout/airwallex/verify/route";
 import { POST as codCheckout } from "@/app/api/checkout/cod/route";
 import { GET as releaseReservations } from "@/app/api/cron/release-reservations/route";
 import { POST as webhook } from "@/app/api/webhooks/airwallex/route";
+import { claimOrderConfirmation, sendOrderEmails } from "@/lib/email";
 import { createAirwallexPaymentIntent, retrieveAirwallexPaymentIntent } from "@/lib/payments/airwallex";
 import {
   checkoutCustomer,
@@ -525,4 +526,145 @@ describe("Resend failures stay off the order path", () => {
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
     expect(db.rpcCalls.filter((call) => call.fn === "restore_order_inventory")).toHaveLength(0);
   });
+
+  it("sends one COD confirmation and skips the duplicate checkout", async () => {
+    delete process.env.ADMIN_EMAIL;
+    send.mockResolvedValue({ data: { id: "email_1" }, error: null });
+
+    const first = await codCheckout(codRequest("cod-once"));
+    expect(first.status).toBe(200);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(db.rowsOf("orders")).toHaveLength(1);
+    expect(db.rowsOf("orders")[0]).toMatchObject({ inventory_reserved: true });
+    expect(db.rowsOf("orders")[0].confirmation_email_sent_at).toEqual(expect.any(String));
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
+
+    const firstOrderId = (await first.json()).orderId;
+    const second = await codCheckout(codRequest("cod-once"));
+    expect(second.status).toBe(200);
+    expect(await second.json()).toEqual({ orderId: firstOrderId });
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears the COD claim when the confirmation fails and still saves the order", async () => {
+    delete process.env.ADMIN_EMAIL;
+    send.mockResolvedValue({
+      data: null,
+      error: { name: "application_error", statusCode: 500, message: "down" },
+    });
+
+    const response = await codCheckout(codRequest("cod-clear"));
+    expect(response.status).toBe(200);
+    expect(db.rowsOf("orders")).toHaveLength(1);
+    expect(db.rowsOf("orders")[0]).toMatchObject({ inventory_reserved: true });
+    expect(db.rowsOf("orders")[0].confirmation_email_sent_at ?? null).toBeNull();
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the claim when the customer email succeeds and the admin notice fails", async () => {
+    process.env.ADMIN_EMAIL = "admin@example.com";
+    send.mockImplementation(async (payload: { to?: string }) => {
+      if (payload.to === "admin@example.com") {
+        return { data: null, error: { name: "application_error", statusCode: 500, message: "down" } };
+      }
+      return { data: { id: "email_1" }, error: null };
+    });
+    db.seed("orders", [{ id: "order-mail", status: "pending", confirmation_email_sent_at: null }]);
+
+    await claimOrderConfirmation(db as never, "order-mail", () => sendOrderEmails(confirmation));
+
+    expect(db.rowsOf("orders")[0].confirmation_email_sent_at).toEqual(expect.any(String));
+    expect(vi.mocked(console.error)).toHaveBeenCalledWith(
+      "[email] send failed",
+      expect.objectContaining({ orderId: "order-mail", label: "order notification" })
+    );
+    expect(loggedText()).not.toContain("buyer@example.com");
+    expect(loggedText()).not.toContain("re_live_secretvalue");
+  });
+
+  it("clears the claim when the customer email fails", async () => {
+    process.env.ADMIN_EMAIL = "admin@example.com";
+    send.mockImplementation(async (payload: { to?: string }) => {
+      if (payload.to === "buyer@example.com") {
+        return { data: null, error: { name: "application_error", statusCode: 500, message: "down" } };
+      }
+      return { data: { id: "email_admin" }, error: null };
+    });
+    db.seed("orders", [{ id: "order-mail", status: "pending", confirmation_email_sent_at: null }]);
+
+    await claimOrderConfirmation(db as never, "order-mail", () => sendOrderEmails(confirmation));
+
+    expect(db.rowsOf("orders")[0].confirmation_email_sent_at ?? null).toBeNull();
+  });
+
+  it("does not send again after a confirmation claim is kept", async () => {
+    delete process.env.ADMIN_EMAIL;
+    send.mockResolvedValue({ data: { id: "email_1" }, error: null });
+    db.seed("orders", [{ id: "order-mail", status: "pending", confirmation_email_sent_at: null }]);
+
+    await claimOrderConfirmation(db as never, "order-mail", () => sendOrderEmails(confirmation));
+    await claimOrderConfirmation(db as never, "order-mail", () => sendOrderEmails(confirmation));
+
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears the claim with the timestamp returned by the database", async () => {
+    const dbStamp = "2000-01-01T00:00:00.000Z";
+    const matched: unknown[] = [];
+    db.seed("orders", [{ id: "order-mail", status: "pending", confirmation_email_sent_at: null }]);
+    const originalFrom = db.from.bind(db);
+    db.from = ((table: string) => {
+      const query = originalFrom(table);
+      const update = query.update.bind(query);
+      const eq = query.eq.bind(query);
+      query.update = ((payload: Record<string, unknown>) => {
+        if (typeof payload.confirmation_email_sent_at === "string") {
+          return update({ ...payload, confirmation_email_sent_at: dbStamp });
+        }
+        return update(payload);
+      }) as typeof query.update;
+      query.eq = ((column: string, value: unknown) => {
+        if (column === "confirmation_email_sent_at") matched.push(value);
+        return eq(column, value);
+      }) as typeof query.eq;
+      return query;
+    }) as typeof db.from;
+
+    await claimOrderConfirmation(db as never, "order-mail", async () => false);
+
+    expect(matched).toEqual([dbStamp]);
+    expect(db.rowsOf("orders")[0].confirmation_email_sent_at ?? null).toBeNull();
+  });
 });
+
+const confirmation = {
+  orderId: "order-mail",
+  customerName: "Ada Lovelace",
+  customerEmail: "buyer@example.com",
+  items: [{ name: "Amethyst Bracelet XV (5mm)", quantity: 1, price: 100 }],
+  subtotal: 100,
+  shipping: 15,
+  total: 115,
+  paymentMethod: "cod" as const,
+  currency: "USD" as const,
+  shippingAddress: {
+    address: "1 Atelier Lane",
+    city: "Austin",
+    region: "TX",
+    country: "United States",
+  },
+};
+
+function codRequest(key: string) {
+  return new Request("http://localhost:3000/api/checkout/cod", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      items: [checkoutItem()],
+      customer: checkoutCustomer,
+      currency: "USD",
+      idempotencyKey: key,
+    }),
+  });
+}

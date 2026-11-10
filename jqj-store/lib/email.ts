@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { formatPrice } from "./utils";
 import { type SupportedCurrency } from "./currency";
@@ -198,19 +199,58 @@ export async function sendOrderEmails(data: OrderEmailData): Promise<boolean> {
     });
 
     const adminEmail = process.env.ADMIN_EMAIL?.trim();
-    if (!adminEmail) return customerSent;
-
-    const adminSent = await deliver({
-      orderId: data.orderId,
-      label: "order notification",
-      to: adminEmail,
-      subject: `New order ${data.orderId} — ${formatPrice(data.total, { currency: data.currency })}`,
-      html: buildHtml(data, "New order received"),
-    });
-    return customerSent && adminSent;
+    if (adminEmail) {
+      await deliver({
+        orderId: data.orderId,
+        label: "order notification",
+        to: adminEmail,
+        subject: `New order ${data.orderId} — ${formatPrice(data.total, { currency: data.currency })}`,
+        html: buildHtml(data, "New order received"),
+      });
+    }
+    return customerSent;
   } catch (error) {
     logSendFailure(data.orderId, "order emails", error);
     return false;
+  }
+}
+
+export async function claimOrderConfirmation(
+  supabase: SupabaseClient,
+  orderId: string,
+  send: () => Promise<boolean>
+): Promise<void> {
+  const { data: claimed, error: claimError } = await supabase
+    .from("orders")
+    .update({ confirmation_email_sent_at: new Date().toISOString() })
+    .eq("id", orderId)
+    .is("confirmation_email_sent_at", null)
+    .select("confirmation_email_sent_at")
+    .maybeSingle();
+  if (claimError) {
+    console.error("[email] confirmation claim failed", orderId);
+    return;
+  }
+
+  const storedAt = (claimed as { confirmation_email_sent_at?: string | null } | null)
+    ?.confirmation_email_sent_at;
+  if (!storedAt) return;
+
+  let customerSent = false;
+  try {
+    customerSent = await send();
+  } catch {
+    console.error("[email] order confirmation failed", orderId);
+  }
+  if (customerSent) return;
+
+  const { error: clearError } = await supabase
+    .from("orders")
+    .update({ confirmation_email_sent_at: null })
+    .eq("id", orderId)
+    .eq("confirmation_email_sent_at", storedAt);
+  if (clearError) {
+    console.error("[email] confirmation claim clear failed", orderId);
   }
 }
 

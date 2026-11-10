@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { sendInventoryExceptionAlert, sendOrderEmails } from "@/lib/email";
+import { claimOrderConfirmation, sendInventoryExceptionAlert, sendOrderEmails } from "@/lib/email";
 import { normalizeCurrency } from "@/lib/currency";
 import type { ResolvedCheckoutItem } from "@/lib/inventory";
 import {
@@ -302,7 +302,8 @@ async function sendOrderEmailsIfNeeded(supabase: SupabaseClient, orderId: string
   if (error) throw error;
 
   const order = data as unknown as OrderEmailRow;
-  if (order.confirmation_email_sent_at || !order.customer_email) {
+  const customerEmail = order.customer_email;
+  if (order.confirmation_email_sent_at || !customerEmail) {
     return;
   }
 
@@ -314,27 +315,11 @@ async function sendOrderEmailsIfNeeded(supabase: SupabaseClient, orderId: string
   const region = typeof shippingAddress.region === "string" ? shippingAddress.region : "";
   const country = typeof shippingAddress.country === "string" ? shippingAddress.country : "";
 
-  // One conditional update is the lock. Only the caller that moves the column off null sends.
-  const claimedAt = new Date().toISOString();
-  const { data: claimed, error: claimError } = await supabase
-    .from("orders")
-    .update({ confirmation_email_sent_at: claimedAt })
-    .eq("id", order.id)
-    .is("confirmation_email_sent_at", null)
-    .select("id")
-    .maybeSingle();
-  if (claimError) {
-    console.error("[email] confirmation claim failed", order.id);
-    return;
-  }
-  if (!claimed) return;
-
-  let sent = false;
-  try {
-    sent = await sendOrderEmails({
+  await claimOrderConfirmation(supabase, order.id, () =>
+    sendOrderEmails({
       orderId: order.id,
       customerName: order.customer_name ?? "Customer",
-      customerEmail: order.customer_email,
+      customerEmail,
       items: (order.order_items ?? []).map((item) => ({
         name:
           item.product_name +
@@ -361,21 +346,8 @@ async function sendOrderEmailsIfNeeded(supabase: SupabaseClient, orderId: string
         region,
         country,
       },
-    });
-  } catch {
-    console.error("[email] order confirmation failed", order.id);
-  }
-
-  if (sent) return;
-
-  const { error: clearError } = await supabase
-    .from("orders")
-    .update({ confirmation_email_sent_at: null })
-    .eq("id", order.id)
-    .eq("confirmation_email_sent_at", claimedAt);
-  if (clearError) {
-    console.error("[email] confirmation claim clear failed", order.id);
-  }
+    })
+  );
 }
 
 export async function upsertAirwallexPaymentIntent(

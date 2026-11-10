@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createHash } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendOrderEmails } from "@/lib/email";
+import { claimOrderConfirmation, sendOrderEmails } from "@/lib/email";
 import { normalizeCurrency } from "@/lib/currency";
 import {
   fetchInventoryBySlugs,
@@ -327,8 +327,8 @@ export async function POST(req: Request) {
       throw new Error("Order was not created.");
     }
 
-    try {
-      await sendOrderEmails({
+    await claimOrderConfirmation(supabase, orderId, () =>
+      sendOrderEmails({
         orderId,
         customerName,
         customerEmail: customer.email,
@@ -348,10 +348,8 @@ export async function POST(req: Request) {
         paymentMethod: "cod",
         currency: selectedCurrency,
         shippingAddress,
-      });
-    } catch {
-      console.error("[email] order confirmation failed", orderId);
-    }
+      })
+    );
 
     return NextResponse.json({ orderId }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {

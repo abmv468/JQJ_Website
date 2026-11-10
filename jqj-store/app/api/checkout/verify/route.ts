@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendOrderEmails } from "@/lib/email";
+import { claimOrderConfirmation, sendOrderEmails } from "@/lib/email";
 import { convertCurrencyToUsd, normalizeCurrency } from "@/lib/currency";
 import {
   fetchInventoryBySlugs,
@@ -440,8 +440,8 @@ export async function POST(req: Request) {
       throw persistError;
     }
 
-    try {
-      await sendOrderEmails({
+    await claimOrderConfirmation(supabase, orderId!, () =>
+      sendOrderEmails({
         orderId: orderId!,
         customerName,
         customerEmail,
@@ -460,10 +460,8 @@ export async function POST(req: Request) {
         paymentMethod: "stripe",
         currency: selectedCurrency,
         shippingAddress,
-      });
-    } catch {
-      console.error("[email] order confirmation failed", orderId);
-    }
+      })
+    );
 
     return NextResponse.json({ orderId }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
