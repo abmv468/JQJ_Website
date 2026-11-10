@@ -4,6 +4,7 @@
  * Vitest can import the same `quoteCheckout` without loading Playwright.
  */
 export {
+  FREE_SHIPPING_THRESHOLD_USD,
   checkoutExpectations,
   toCents,
   fromCents,

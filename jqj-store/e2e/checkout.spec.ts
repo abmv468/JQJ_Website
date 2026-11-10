@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
 import {
+  FREE_SHIPPING_THRESHOLD_USD,
   checkoutExpectations,
   quoteCheckout,
-  shippingUsd,
   toCents,
 } from "./helpers/checkout-expectations";
 import {
@@ -49,10 +49,8 @@ test("card checkout under the free-shipping announcement matches the server tota
     [{ unitPriceUsd: catalogUnitPrice(UNDER_THRESHOLD_SLUG), quantity: 1 }],
     "airwallex"
   );
-  expect(toCents(quote.subtotal)).toBeLessThan(
-    toCents(checkoutExpectations.announcedFreeShippingSubtotalUsd)
-  );
-  expect(quote.shipping).toBe(shippingUsd(quote.subtotal));
+  expect(toCents(quote.subtotal)).toBeLessThan(toCents(FREE_SHIPPING_THRESHOLD_USD));
+  expect(toCents(quote.shipping)).toBeGreaterThan(0);
 
   await addProductToCart(page, UNDER_THRESHOLD_SLUG);
   await page.goto("/checkout");
@@ -75,10 +73,8 @@ test("card checkout at or over the free-shipping announcement redirects through 
     [{ unitPriceUsd: catalogUnitPrice(OVER_THRESHOLD_SLUG), quantity: 1 }],
     "airwallex"
   );
-  expect(toCents(quote.subtotal)).toBeGreaterThanOrEqual(
-    toCents(checkoutExpectations.announcedFreeShippingSubtotalUsd)
-  );
-  expect(quote.shipping).toBe(shippingUsd(quote.subtotal));
+  expect(toCents(quote.subtotal)).toBeGreaterThanOrEqual(toCents(FREE_SHIPPING_THRESHOLD_USD));
+  expect(toCents(quote.shipping)).toBe(0);
 
   await addProductToCart(page, OVER_THRESHOLD_SLUG);
   await page.goto("/checkout");
@@ -149,7 +145,8 @@ test("cash on delivery shows the configured fee and matches the server total", a
     "cod"
   );
   expect(quote.codFee).toBe(checkoutExpectations.codFeeUsd);
-  expect(quote.shipping).toBe(shippingUsd(quote.subtotal));
+  expect(toCents(quote.subtotal)).toBeGreaterThanOrEqual(toCents(FREE_SHIPPING_THRESHOLD_USD));
+  expect(toCents(quote.shipping)).toBe(0);
 
   await addProductToCart(page, OVER_THRESHOLD_SLUG);
   await page.goto("/checkout");

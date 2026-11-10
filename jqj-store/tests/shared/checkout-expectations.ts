@@ -1,37 +1,25 @@
 /**
  * One checkout amount table for Playwright and Vitest.
  *
- * `quoteCheckout` is the expected server total (catalog subtotal + shipping +
- * COD fee). The browser stub and the real Airwallex/COD route tests both
- * import it. Do not copy the fee or the shipping figure into a spec.
+ * `quoteCheckout` is the expected server total: catalog subtotal, shipping
+ * from `computeShippingUsd`, and the COD fee. The browser stub and the real
+ * Airwallex/COD route tests both import it. Do not copy a shipping amount
+ * into a spec.
  *
- * The route files still have their own constants. The Vitest cases that call
- * those handlers fail when a route total disagrees with this function.
- *
- * Once PR #14 is on main, import `COD_FEE` from `lib/checkout-fees.ts` and
- * delete `codFeeUsd`. Once PR #16 is on main, import `computeShippingUsd`
- * from `lib/shipping.ts` and delete the local shipping copy.
+ * `codFeeUsd` is still a local copy of main's COD fee. Once PR #14 is on
+ * main, import `COD_FEE` from `lib/checkout-fees.ts` and delete it.
  *
  * Gift wrap is intentionally unused: nothing on main charges it, and no test
  * asserts it. BE-013/WEB-013 set `giftWrapUsd` and opt a case in.
  */
 
+import { computeShippingUsd, FREE_SHIPPING_THRESHOLD_USD } from "../../lib/shipping";
+
+export { computeShippingUsd, FREE_SHIPPING_THRESHOLD_USD };
+
 export type CheckoutMethod = "airwallex" | "cod";
 
 export const checkoutExpectations: {
-  /** Flat shipping charged while `freeShippingMinimumUsd` is null. */
-  shippingFlatUsd: number;
-  /**
-   * Subtotal (USD catalog cents) at or above which shipping is 0.
-   * Null means checkout still charges `shippingFlatUsd` on every cart.
-   * That is main today. Replaced by `computeShippingUsd` when PR #16 lands.
-   */
-  freeShippingMinimumUsd: number | null;
-  /**
-   * The storefront announcement's free-shipping subtotal. Parity carts sit on
-   * either side of it. It does not waive shipping until `freeShippingMinimumUsd` is set.
-   */
-  announcedFreeShippingSubtotalUsd: number;
   /**
    * Main's COD fee. The only test copy. PR #14 replaces this with
    * `COD_FEE` imported from `lib/checkout-fees.ts`.
@@ -41,9 +29,6 @@ export const checkoutExpectations: {
   /** Null until the Owner sets a gift-wrap price. Not added into totals and not asserted. */
   giftWrapUsd: number | null;
 } = {
-  shippingFlatUsd: 15,
-  freeShippingMinimumUsd: null,
-  announcedFreeShippingSubtotalUsd: 250,
   codFeeUsd: 20,
   giftWrapUsd: null,
 };
@@ -71,10 +56,9 @@ export function codFeeDisplay(feeUsd: number = checkoutExpectations.codFeeUsd): 
   return formatUsd(feeUsd);
 }
 
+/** Shipping for a merchandise subtotal, in USD. Delegates to `computeShippingUsd`. */
 export function shippingUsd(subtotalUsd: number): number {
-  const minimum = checkoutExpectations.freeShippingMinimumUsd;
-  if (minimum != null && toCents(subtotalUsd) >= toCents(minimum)) return 0;
-  return checkoutExpectations.shippingFlatUsd;
+  return computeShippingUsd(subtotalUsd);
 }
 
 export function quoteCheckout(
@@ -92,14 +76,16 @@ export function quoteCheckout(
     (sum, line) => sum + toCents(line.unitPriceUsd) * line.quantity,
     0
   );
-  const subtotal = fromCents(subtotalCents);
-  const shippingCents = toCents(shippingUsd(subtotal));
+  const shipping = computeShippingUsd(
+    lines.map((line) => ({ unitPriceUsd: line.unitPriceUsd, quantity: line.quantity }))
+  );
+  const shippingCents = toCents(shipping);
   const codFeeCents = method === "cod" ? toCents(checkoutExpectations.codFeeUsd) : 0;
   const totalCents = subtotalCents + shippingCents + codFeeCents;
 
   return {
-    subtotal,
-    shipping: fromCents(shippingCents),
+    subtotal: fromCents(subtotalCents),
+    shipping,
     codFee: fromCents(codFeeCents),
     total: fromCents(totalCents),
   };

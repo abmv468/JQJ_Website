@@ -63,13 +63,13 @@ The amount table is `tests/shared/checkout-expectations.ts`. `quoteCheckout` is 
 
 Cases on main today:
 
-- Card, catalog subtotal under `announcedFreeShippingSubtotalUsd`. Shipping is `shippingFlatUsd` because `freeShippingMinimumUsd` is null.
-- Card, catalog subtotal at or over that announcement. Shipping is still `shippingFlatUsd` until the waiver is actually implemented.
-- Cash on delivery, including the configured fee.
+- Card, catalog subtotal under `FREE_SHIPPING_THRESHOLD_USD`. `computeShippingUsd` charges shipping.
+- Card, catalog subtotal at or above that threshold. `computeShippingUsd` returns 0.
+- Cash on delivery on the at-or-above cart, including the configured fee and no shipping charge.
 
 `codFeeUsd` is the harness's only copy of the fee, and it must stay equal to the COD fee on main (the checkout page and the COD route). A non-zero fee must show as USD on the Cash on Delivery option and on the "Cash on Delivery fee" row. Zero must show as "Free" on the option and must omit that row. Do not hardcode the fee anywhere else in the e2e harness. Once PR #14 lands, delete that local copy and import `COD_FEE` from `lib/checkout-fees.ts`. The display rules above stay; they read whatever that import returns.
 
-`freeShippingMinimumUsd` is null on main, so both carts pay `shippingFlatUsd`. PR #16 adds `computeShippingUsd` in `lib/shipping.ts`. Once that lands, delete the local shipping copy and import `computeShippingUsd` from there. Until then the under-threshold cart and the at-or-over cart both expect flat shipping. No other shipping literal belongs in the specs.
+Shipping is not copied into the harness. `quoteCheckout` calls `computeShippingUsd` from `lib/shipping.ts`. A cart under the threshold must show a shipping charge. A cart at or above it must show no shipping charge. No shipping literal belongs in the specs.
 
 `giftWrapUsd` stays null. No test asserts gift wrap. BE-013/WEB-013 set the price, then opt a case into `quoteCheckout` and teach `readCheckoutTotals` to read the new row.
 

@@ -5,7 +5,7 @@ import { products } from "@/data/products";
 import { createAirwallexPaymentIntent } from "@/lib/payments/airwallex";
 import { MemoryDb, checkoutCustomer, setActiveDb } from "../helpers/memory-db";
 import {
-  checkoutExpectations,
+  FREE_SHIPPING_THRESHOLD_USD,
   quoteCheckout,
   toCents,
   type CheckoutMethod,
@@ -128,34 +128,32 @@ describe("real checkout routes match quoteCheckout", () => {
     return { quote, order };
   }
 
-  it("charges flat shipping for the under-announcement card cart", async () => {
+  it("charges shipping for the card cart under the free-shipping threshold", async () => {
     const product = catalogProduct(UNDER_SLUG);
-    expect(toCents(product.price)).toBeLessThan(
-      toCents(checkoutExpectations.announcedFreeShippingSubtotalUsd)
-    );
+    expect(toCents(product.price)).toBeLessThan(toCents(FREE_SHIPPING_THRESHOLD_USD));
 
     const { quote } = await place(
       "airwallex",
       UNDER_SLUG,
       "33333333-3333-4333-8333-333333333333"
     );
+    expect(toCents(quote.shipping)).toBeGreaterThan(0);
     const intent = vi.mocked(createAirwallexPaymentIntent).mock.calls[0]?.[0];
     expect(intent, "Airwallex intent").toBeTruthy();
     expectCents(intent?.amount, quote.total, "Airwallex amount");
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("charges flat shipping for the at-or-over-announcement card cart", async () => {
+  it("waives shipping for the card cart at or above the free-shipping threshold", async () => {
     const product = catalogProduct(OVER_SLUG);
-    expect(toCents(product.price)).toBeGreaterThanOrEqual(
-      toCents(checkoutExpectations.announcedFreeShippingSubtotalUsd)
-    );
+    expect(toCents(product.price)).toBeGreaterThanOrEqual(toCents(FREE_SHIPPING_THRESHOLD_USD));
 
     const { quote } = await place(
       "airwallex",
       OVER_SLUG,
       "44444444-4444-4444-8444-444444444444"
     );
+    expect(toCents(quote.shipping)).toBe(0);
     const intent = vi.mocked(createAirwallexPaymentIntent).mock.calls[0]?.[0];
     expectCents(intent?.amount, quote.total, "Airwallex amount");
   });
@@ -166,6 +164,7 @@ describe("real checkout routes match quoteCheckout", () => {
       OVER_SLUG,
       "55555555-5555-4555-8555-555555555555"
     );
+    expect(toCents(quote.shipping)).toBe(0);
     const address = order.shipping_address as { cod_fee?: number };
     expect(address.cod_fee, "COD fee").toBe(quote.codFee);
     expect(createAirwallexPaymentIntent).not.toHaveBeenCalled();
