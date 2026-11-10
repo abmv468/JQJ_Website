@@ -86,7 +86,11 @@ After they land:
 
 ## Follow-ups
 
-whichever of #26/#28 merges second wraps addr.postal_code in escapeHtml in lib/email.ts buildHtml
+Low 1 is still open: `addr.postal_code` in `lib/email.ts` `buildHtml` (around line 90) is not escaped. Whichever of #26/#28 merges second wraps `addr.postal_code` in `escapeHtml` in `lib/email.ts` `buildHtml`.
+
+## Backlog
+
+Low 4, plus COD `toPositiveInt` coercing `'5'` and `[5]` (SECOPS Info 4, not in this PR). A green CI run on the final SHA is required after the freeze.
 
 ## Merge notes
 

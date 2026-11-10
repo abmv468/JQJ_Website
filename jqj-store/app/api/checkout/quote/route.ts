@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { checkoutErrorResponse } from "@/lib/checkout-error";
+import { isAcceptableQuoteQuantity } from "@/lib/quote-quantity";
 import { computeShippingUsd, type MerchandiseLine } from "@/lib/shipping";
 import {
   fetchInventoryBySlugs,
@@ -11,7 +12,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const dynamic = "force-dynamic";
 
 const MAX_QUOTE_LINES = 50;
-const MAX_QUOTE_QUANTITY = 99;
 
 function usdCents(amount: number | string) {
   const cents = Math.round(Number(amount) * 100);
@@ -52,12 +52,7 @@ export async function POST(req: Request) {
       if (!entry || typeof entry !== "object") return invalidRequest();
       const item = entry as Record<string, unknown>;
       const quantity = item.quantity;
-      if (
-        typeof quantity !== "number" ||
-        !Number.isInteger(quantity) ||
-        quantity < 1 ||
-        quantity > MAX_QUOTE_QUANTITY
-      ) {
+      if (!isAcceptableQuoteQuantity(quantity)) {
         return NextResponse.json({ error: "Enter a quantity from 1 to 99." }, { status: 400 });
       }
       parsed.push({

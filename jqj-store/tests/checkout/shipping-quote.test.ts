@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST as postAirwallex } from "@/app/api/checkout/airwallex/route";
 import { POST as postCod } from "@/app/api/checkout/cod/route";
 import { POST as postQuote } from "@/app/api/checkout/quote/route";
+import { isAcceptableQuoteQuantity } from "@/lib/quote-quantity";
 import { createAirwallexPaymentIntent } from "@/lib/payments/airwallex";
 import {
   checkoutCustomer,
@@ -187,7 +188,7 @@ describe("POST /api/checkout/quote", () => {
     expect(tooLargeBody).toEqual({ error: "Enter a quantity from 1 to 99." });
     expect(tooLargeBody.fields).toBeUndefined();
 
-    for (const quantity of ["5", [5]]) {
+    for (const quantity of ["5", [5], 1.5, 0, -1]) {
       const rejected = await postQuote(
         quoteRequest({ items: [checkoutItem({ quantity })] })
       );
@@ -205,6 +206,9 @@ describe("POST /api/checkout/quote", () => {
     expect(badJson.status).toBe(400);
     expect(await badJson.json()).toEqual({ error: "Invalid request" });
     expect(from).not.toHaveBeenCalled();
+    for (const quantity of [Number.NaN, Number.POSITIVE_INFINITY, 1.5, 0, -1]) {
+      expect(isAcceptableQuoteQuantity(quantity)).toBe(false);
+    }
   });
 
   it("rejects an unknown item with 409 and does not write", async () => {

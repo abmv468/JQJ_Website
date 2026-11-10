@@ -88,6 +88,40 @@ function postcodeRequiredForCountry(country: string) {
 }
 
 const POSTCODE_CHARSET = /^[A-Za-z0-9 -]{0,12}$/;
+const FIELD_TYPE_ERROR = "Enter a valid postcode.";
+
+function readString(
+  value: unknown,
+  options: { required: boolean }
+): { ok: true; value: string } | { ok: false } {
+  if (value == null) {
+    if (options.required) return { ok: false };
+    return { ok: true, value: "" };
+  }
+  if (typeof value !== "string") return { ok: false };
+  const trimmed = value.trim();
+  if (options.required && !trimmed) return { ok: false };
+  return { ok: true, value: trimmed };
+}
+
+function takeString(
+  fields: CheckoutFieldErrors,
+  key: string,
+  value: unknown,
+  required: boolean,
+  emptyMessage: string
+) {
+  if (value != null && typeof value !== "string") {
+    fields[key] = FIELD_TYPE_ERROR;
+    return "";
+  }
+  const parsed = readString(value, { required });
+  if (!parsed.ok) {
+    fields[key] = emptyMessage;
+    return "";
+  }
+  return parsed.value;
+}
 
 function readPostcode(
   customer: CheckoutCustomerInput
@@ -115,27 +149,25 @@ function isValidPostcode(code: string, postcode: string) {
 }
 
 export function validateCheckoutCustomer(customer: CheckoutCustomerInput | null | undefined) {
-  const source = customer ?? {};
+  const source = (customer ?? {}) as CheckoutCustomerInput & Record<string, unknown>;
   const fields: CheckoutFieldErrors = {};
-
-  const name = (source.firstName ?? source.name ?? "").trim();
-  if (!name) fields.firstName = "Enter your name.";
-
-  const email = (source.email ?? "").trim();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  const nameSource = source.firstName != null ? source.firstName : source.name;
+  takeString(fields, "firstName", nameSource, true, "Enter your name.");
+  takeString(fields, "lastName", source.lastName, false, FIELD_TYPE_ERROR);
+  const email = takeString(fields, "email", source.email, true, "Enter a valid email address.");
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     fields.email = "Enter a valid email address.";
   }
-
-  if (!(source.address ?? "").trim()) fields.address = "Enter your address.";
-  if (!(source.city ?? "").trim()) fields.city = "Enter your city.";
-
-  const country = (source.country ?? "").trim();
+  takeString(fields, "address", source.address, true, "Enter your address.");
+  takeString(fields, "city", source.city, true, "Enter your city.");
+  takeString(fields, "phone", source.phone, false, FIELD_TYPE_ERROR);
+  const country = takeString(fields, "country", source.country, true, "Choose a country.");
   const parsedPostcode = readPostcode(source);
   const postcode = parsedPostcode.ok ? parsedPostcode.value : "";
   if (!parsedPostcode.ok || !POSTCODE_CHARSET.test(postcode)) {
     fields.postalCode = "Enter a valid postcode.";
   }
-  if (!country) {
+  if (!fields.country && !country) {
     fields.country = "Choose a country.";
   } else if (
     !fields.postalCode &&
