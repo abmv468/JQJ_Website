@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/checkout/cod/route";
 import { COD_FEE } from "@/lib/checkout-fees";
+import { convertUsdToCurrency } from "@/lib/currency";
+import { computeShippingUsd } from "@/lib/shipping";
 import {
   checkoutCustomer,
   checkoutItem,
@@ -50,15 +52,16 @@ describe("POST /api/checkout/cod", () => {
     expect(body.orderId).toEqual(expect.any(String));
     expect(db.rowsOf("products")[0].stock_count).toBe(3);
     const order = db.rowsOf("orders")[0];
-    expect(COD_FEE).toBe(0);
+    const subtotal = 200;
+    const shipping = computeShippingUsd(subtotal);
     expect(order).toMatchObject({
       payment_provider: "cod",
       payment_status: "pending",
       status: "pending",
       inventory_reserved: true,
-      subtotal_amount: 200,
-      shipping_amount: 15,
-      total_amount: 200 + 15 + COD_FEE,
+      subtotal_amount: subtotal,
+      shipping_amount: shipping,
+      total_amount: subtotal + shipping + COD_FEE,
       stripe_session_id: `COD-${KEY}`,
       shipping_address: expect.objectContaining({
         payment_method: "cod",
@@ -119,4 +122,43 @@ describe("POST /api/checkout/cod", () => {
     expect(db.rpcCalls.filter((call) => call.fn === "restore_order_inventory")).toHaveLength(1);
     expect(fetch).not.toHaveBeenCalled();
   });
+
+  it.each([
+    { usd: 249.99 },
+    { usd: 250 },
+    { usd: 499.98 },
+  ])(
+    "COD total for USD $usd is the subtotal plus computeShippingUsd plus COD_FEE, even in EUR",
+    async ({ usd }) => {
+      db.rowsOf("products")[0].price = usd;
+      const shipping = computeShippingUsd(usd);
+      const eurDisplay = convertUsdToCurrency(usd, "EUR");
+
+      const response = await POST(
+        request({
+          items: [checkoutItem({ price: 1, quantity: 1 })],
+          customer: checkoutCustomer,
+          currency: "EUR",
+          shipping: 0,
+          total: eurDisplay,
+          idempotencyKey: `${KEY}-${usd}`,
+        })
+      );
+
+      expect(response.status).toBe(200);
+      expect(shipping).toBe(usd >= 250 ? 0 : 15);
+      expect(db.rowsOf("orders")[0]).toMatchObject({
+        subtotal_amount: usd,
+        shipping_amount: shipping,
+        total_amount: usd + shipping + COD_FEE,
+        currency: "EUR",
+        shipping_address: expect.objectContaining({
+          payment_method: "cod",
+          cod_fee: COD_FEE,
+          currency: "EUR",
+        }),
+      });
+      expect(db.rowsOf("orders")[0].total_amount).not.toBe(eurDisplay);
+    }
+  );
 });
