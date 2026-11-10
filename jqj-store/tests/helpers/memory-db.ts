@@ -605,6 +605,7 @@ export const checkoutCustomer = {
   region: "TX",
   country: "United States",
   phone: "555-0100",
+  postalCode: "78701",
 };
 
 export function checkoutItem(overrides: Record<string, unknown> = {}) {

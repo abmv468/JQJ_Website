@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { validateCheckoutCustomer } from "@/lib/checkout-customer";
 import { resolveCheckoutSiteUrl } from "@/lib/checkout-site-url";
 import { normalizeCurrency, type SupportedCurrency } from "@/lib/currency";
 import {
@@ -103,9 +104,10 @@ export async function POST(req: Request) {
     if (!items?.length) {
       return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
     }
-    if (!customer?.email || !customer?.firstName || !customer?.address || !customer?.city) {
+    const customerValidation = validateCheckoutCustomer(customer);
+    if (!customerValidation.ok) {
       return NextResponse.json(
-        { error: "Missing required customer checkout details" },
+        { error: "Check the highlighted fields.", fields: customerValidation.fields },
         { status: 400 }
       );
     }
