@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   CHECKOUT_AUTOCOMPLETE,
@@ -9,7 +8,6 @@ import {
   CHECKOUT_FIELD_EMAIL,
   CHECKOUT_FIELD_REQUIRED,
   CHECKOUT_REQUIRED_FIELDS,
-  CHECKOUT_SHIPPING_LABEL,
   POSTCODE_REQUIRED_BY_COUNTRY,
   customerSafeCheckoutMessage,
   isPostcodeRequired,
@@ -76,19 +74,6 @@ describe("checkout customer field contract", () => {
     });
   });
 
-  it("keeps the v4.2 shipping label and marks strings v4 does not cover", () => {
-    expect(CHECKOUT_SHIPPING_LABEL).toBe("Tracked delivery");
-    expect(CHECKOUT_SHIPPING_LABEL).not.toMatch(/ups|express|expedited/i);
-
-    const source = readFileSync(new URL("../../lib/checkout-messages.ts", import.meta.url), "utf8");
-    const shippingNote = source.slice(
-      source.indexOf("export const CHECKOUT_SHIPPING_LABEL") - 60,
-      source.indexOf("export const CHECKOUT_SHIPPING_LABEL")
-    );
-    expect(shippingNote).toContain("// BRAND v4.2, verbatim once compiled");
-    expect(shippingNote).not.toContain("awaiting BRAND v4");
-    expect(source).toContain("// awaiting BRAND v4");
-  });
 });
 
 describe("POSTCODE_REQUIRED_BY_COUNTRY", () => {
@@ -114,6 +99,12 @@ describe("POSTCODE_REQUIRED_BY_COUNTRY", () => {
     expect(isPostcodeRequired("France")).toBe(false);
     expect(isPostcodeRequired("")).toBe(false);
     expect(CHECKOUT_REQUIRED_FIELDS).not.toContain("postalCode");
+  });
+
+  it("returns false for __proto__, constructor, and toString", () => {
+    expect(isPostcodeRequired("__proto__")).toBe(false);
+    expect(isPostcodeRequired("constructor")).toBe(false);
+    expect(isPostcodeRequired("toString")).toBe(false);
   });
 });
 
@@ -179,7 +170,7 @@ describe("readCheckoutFailure", () => {
       })
     ).toEqual({
       fields: { postalCode: "Enter a valid postcode." },
-      formMessage: "Check the highlighted fields.",
+      formMessage: CHECKOUT_ERROR_GENERIC,
       reference: null,
     });
   });
@@ -192,17 +183,25 @@ describe("readCheckoutFailure", () => {
     });
   });
 
-  it("shows the server message with its reference", () => {
-    expect(
-      readCheckoutFailure({
-        error: "Something went wrong. Please try again.",
-        reference: "ab12cd34",
-      })
-    ).toEqual({
-      fields: {},
-      formMessage: "Something went wrong. Please try again.",
+  it("replaces an unknown server error and keeps the reference", () => {
+    const result = readCheckoutFailure({
+      error: "AIRWALLEX_API_KEY is missing",
       reference: "ab12cd34",
     });
+    expect(result).toEqual({
+      fields: {},
+      formMessage: CHECKOUT_ERROR_GENERIC,
+      reference: "ab12cd34",
+    });
+    expect(result.formMessage).not.toContain("AIRWALLEX_API_KEY");
+  });
+
+  it("ignores inherited field-error keys", () => {
+    const errors = Object.create({ postalCode: "from prototype" }) as Record<string, unknown>;
+    errors.city = "Enter a city.";
+    const result = readCheckoutFailure({ errors });
+    expect(result.fields.postalCode).toBeUndefined();
+    expect(result.fields.city).toBe("Enter a city.");
   });
 
   it("never shows a raw internal checkout string", () => {

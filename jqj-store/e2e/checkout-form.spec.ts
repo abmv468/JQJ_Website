@@ -106,6 +106,7 @@ test("an empty required field shows an inline error", async ({ page }) => {
   await expect(emailError).toHaveText("This field is required.");
   await expect(email).toHaveAttribute("aria-describedby", "checkout-email-error");
   await expect(email).toHaveAttribute("aria-invalid", "true");
+  await expect(email).toBeFocused();
   await expect(page.locator("#checkout-postalCode-error")).toHaveText("This field is required.");
 
   const alert = page.locator("#checkout-form-error");
@@ -181,6 +182,7 @@ test("server field errors land on the matching inputs", async ({ page }) => {
     "aria-describedby",
     "checkout-postalCode-error"
   );
+  await expect(page.locator("#checkout-postalCode")).toBeFocused();
   await expect(page.locator("#checkout-form-error")).toHaveText("Delivery note was too long.");
   await expect(page).toHaveURL(/\/checkout$/);
 });
@@ -226,7 +228,10 @@ test("the fields map from checkout validation lands on the postcode input", asyn
   await page.getByRole("button", { name: "Continue to Secure Payment" }).click();
 
   await expect(page.locator("#checkout-postalCode-error")).toHaveText("Enter a valid postcode.");
-  await expect(page.locator("#checkout-form-error")).toContainText("Check the highlighted fields.");
+  await expect(page.locator("#checkout-form-error")).toContainText(
+    "Something went wrong. Please try again. You have not been charged."
+  );
+  await expect(page.locator("#checkout-form-error")).not.toContainText("Check the highlighted fields.");
 });
 
 test("Hong Kong submits with an empty postalCode", async ({ page }) => {

@@ -37,7 +37,7 @@ export const CHECKOUT_REQUIRED_FIELDS = [
 ] as const satisfies readonly CheckoutCustomerField[];
 
 /** Exact checkout country labels. Hong Kong does not use a postcode. Unknown countries are optional. */
-export const POSTCODE_REQUIRED_BY_COUNTRY: Record<string, boolean> = {
+export const POSTCODE_REQUIRED_BY_COUNTRY: Record<string, boolean> = Object.assign(Object.create(null), {
   "United States": true,
   "United Kingdom": true,
   Canada: true,
@@ -46,10 +46,13 @@ export const POSTCODE_REQUIRED_BY_COUNTRY: Record<string, boolean> = {
   Singapore: true,
   Netherlands: true,
   Germany: true,
-};
+});
 
 export function isPostcodeRequired(country: string) {
-  return POSTCODE_REQUIRED_BY_COUNTRY[country] === true;
+  return (
+    Object.hasOwn(POSTCODE_REQUIRED_BY_COUNTRY, country) &&
+    POSTCODE_REQUIRED_BY_COUNTRY[country] === true
+  );
 }
 
 export const CHECKOUT_FIELD_FOCUS_ORDER: readonly CheckoutCustomerField[] = [
@@ -108,14 +111,14 @@ export const CHECKOUT_FIELD_EMAIL = "Enter a valid email address.";
 // awaiting BRAND v4
 export const CHECKOUT_REFERENCE_PREFIX = "Reference:";
 
-const INTERNAL_ERROR_COPY: Record<string, string> = {
+const INTERNAL_ERROR_COPY: Record<string, string> = Object.assign(Object.create(null), {
   "Failed to load Airwallex checkout SDK": CHECKOUT_ERROR_PAYMENT,
   "Airwallex SDK is unavailable": CHECKOUT_ERROR_PAYMENT,
   "Airwallex SDK failed to initialize": CHECKOUT_ERROR_PAYMENT,
   "Airwallex checkout payload is incomplete": CHECKOUT_ERROR_PAYMENT,
   "Checkout failed": CHECKOUT_ERROR_PAYMENT,
   "Something went wrong": CHECKOUT_ERROR_GENERIC,
-};
+});
 
 const FIELD_KEYS = new Set<string>(CHECKOUT_CUSTOMER_FIELD_KEYS);
 
@@ -126,7 +129,8 @@ export function isCheckoutCustomerField(key: string): key is CheckoutCustomerFie
 }
 
 export function customerSafeCheckoutMessage(raw: string): string {
-  return INTERNAL_ERROR_COPY[raw] ?? CHECKOUT_ERROR_GENERIC;
+  if (Object.hasOwn(INTERNAL_ERROR_COPY, raw)) return INTERNAL_ERROR_COPY[raw];
+  return CHECKOUT_ERROR_GENERIC;
 }
 
 export function validateCheckoutCustomer(customer: CheckoutCustomer): CheckoutFieldErrors {
@@ -170,10 +174,13 @@ function readReference(value: unknown) {
 
 function readFieldMap(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
   const fields: CheckoutFieldErrors = {};
   const unknown: string[] = [];
 
-  for (const [key, message] of Object.entries(value)) {
+  for (const key of Object.keys(record)) {
+    if (!Object.hasOwn(record, key)) continue;
+    const message = record[key];
     if (typeof message !== "string" || message.trim() === "") continue;
     const shown = presentServerFieldMessage(message);
     if (isCheckoutCustomerField(key)) fields[key] = shown;
@@ -189,10 +196,13 @@ export function readCheckoutFailure(body: unknown): CheckoutFailure {
     body && typeof body === "object" && !Array.isArray(body)
       ? (body as Record<string, unknown>)
       : {};
-  const rawError = typeof record.error === "string" ? record.error.trim() : "";
-  const reference = readReference(record.reference);
-  const fieldMap = readFieldMap(record.errors) ?? readFieldMap(record.fields);
-  const safeError = rawError && !INTERNAL_ERROR_COPY[rawError] ? rawError : "";
+  const rawError =
+    Object.hasOwn(record, "error") && typeof record.error === "string" ? record.error.trim() : "";
+  const reference = readReference(Object.hasOwn(record, "reference") ? record.reference : undefined);
+  const fieldMap =
+    (Object.hasOwn(record, "errors") ? readFieldMap(record.errors) : null) ??
+    (Object.hasOwn(record, "fields") ? readFieldMap(record.fields) : null);
+  const safeError = rawError ? customerSafeCheckoutMessage(rawError) : "";
 
   if (fieldMap) {
     return {
@@ -204,13 +214,9 @@ export function readCheckoutFailure(body: unknown): CheckoutFailure {
     };
   }
 
-  if (reference && safeError) {
-    return { fields: {}, formMessage: safeError, reference };
-  }
-
   return {
     fields: {},
-    formMessage: customerSafeCheckoutMessage(rawError || "Checkout failed"),
+    formMessage: safeError || customerSafeCheckoutMessage("Checkout failed"),
     reference,
   };
 }

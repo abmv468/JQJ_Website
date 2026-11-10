@@ -130,6 +130,11 @@ type CheckoutResponse = {
   countryCode?: string;
 };
 
+function focusFirstInvalidField(fields: CheckoutFieldErrors) {
+  const firstInvalid = CHECKOUT_FIELD_FOCUS_ORDER.find((key) => fields[key]);
+  if (firstInvalid) document.getElementById(`checkout-${firstInvalid}`)?.focus();
+}
+
 async function readCheckoutResponse(response: Response): Promise<CheckoutResponse> {
   try {
     return (await response.json()) as CheckoutResponse;
@@ -273,8 +278,7 @@ export default function CheckoutPage() {
       setFieldErrors(clientErrors);
       setError(CHECKOUT_ERROR_FIELDS);
       setErrorReference(null);
-      const firstInvalid = CHECKOUT_FIELD_FOCUS_ORDER.find((key) => clientErrors[key]);
-      if (firstInvalid) document.getElementById(`checkout-${firstInvalid}`)?.focus();
+      focusFirstInvalidField(clientErrors);
       return;
     }
     if (stockErrors.length > 0) {
@@ -316,6 +320,7 @@ export default function CheckoutPage() {
         setFieldErrors(failure.fields);
         setError(failure.formMessage);
         setErrorReference(failure.reference);
+        focusFirstInvalidField(failure.fields);
         return;
       }
 
