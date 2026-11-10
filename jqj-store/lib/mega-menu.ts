@@ -25,15 +25,14 @@ export type MegaMenuConfig = {
   };
 };
 
-const tagLabels: Record<ProductTag, string> = {
+const tagLabels: Record<Exclude<ProductTag, "top-rated">, string> = {
   new: "New",
   limited: "Limited",
-  "top-rated": "Bestsellers",
   restocked: "Restocked",
   sale: "Sale",
 };
 
-const tagOrder: ProductTag[] = ["new", "limited", "top-rated", "restocked", "sale"];
+const tagOrder: Array<Exclude<ProductTag, "top-rated">> = ["new", "limited", "restocked", "sale"];
 
 function listingHref(category: CategorySlug, params: Record<string, string>): string {
   return `/${category}?${new URLSearchParams(params).toString()}`;

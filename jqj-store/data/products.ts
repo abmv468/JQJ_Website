@@ -22,8 +22,8 @@ export interface Product {
     sku: string;
     stockCount: number;
   }>;
-  rating: number;
-  reviewCount: number;
+  rating?: number;
+  reviewCount?: number;
   tags: ProductTag[];
   stone: string;
   features: string[];
@@ -254,8 +254,6 @@ export const products: Product[] = [
       { size: "45 cm", material: "Sterling silver", sku: "JQJ-BLAPEN-45-SS", stockCount: 7 },
       { size: "55 cm", material: "Sterling silver", sku: "JQJ-BLAPEN-55-SS", stockCount: 8 },
     ],
-    rating: 4.7,
-    reviewCount: 14,
     tags: ["new"],
     stone: "Blue Lace Agate",
     features: necklaceFeatures,
@@ -280,8 +278,6 @@ export const products: Product[] = [
     inStock: true,
     stockCount: 11,
     lowStockThreshold: 5,
-    rating: 4.8,
-    reviewCount: 17,
     tags: ["restocked"],
     stone: "Labradorite",
     features: necklaceFeatures,
@@ -306,9 +302,7 @@ export const products: Product[] = [
     inStock: true,
     stockCount: 5,
     lowStockThreshold: 5,
-    rating: 4.9,
-    reviewCount: 9,
-    tags: ["limited", "top-rated"],
+    tags: ["limited"],
     stone: "Freshwater Pearl",
     features: necklaceFeatures,
     specs: {

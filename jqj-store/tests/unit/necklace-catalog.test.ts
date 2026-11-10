@@ -158,4 +158,17 @@ describe("necklace catalog facts", () => {
       expect(labels).not.toContain(empty);
     }
   });
+
+  it("does not link the menu to top-rated or Bestsellers", () => {
+    for (const link of megaMenuLinks()) {
+      expect(link.label, link.href).not.toMatch(/bestsellers/i);
+      expect(link.href, link.label).not.toContain("top-rated");
+      expect(`${link.label} ${link.href}`, link.href).not.toMatch(/top-rated|bestsellers/i);
+    }
+    for (const product of products.filter((entry) => entry.category === "necklaces")) {
+      expect(product.tags, product.slug).not.toContain("top-rated");
+      expect(product.rating, product.slug).toBeUndefined();
+      expect(product.reviewCount, product.slug).toBeUndefined();
+    }
+  });
 });

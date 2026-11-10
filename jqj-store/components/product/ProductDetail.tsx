@@ -215,10 +215,12 @@ export default function ProductDetail({
               )}
               <span className="text-lg text-white">{formatFromUsd(product.price)}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <StarRating rating={product.rating} />
-              <span className="text-xs text-brand-muted">({product.reviewCount})</span>
-            </div>
+            {typeof product.rating === "number" && (
+              <div className="flex items-center gap-2">
+                <StarRating rating={product.rating} />
+                <span className="text-xs text-brand-muted">({product.reviewCount})</span>
+              </div>
+            )}
           </div>
 
           {product.compareAtPrice && (

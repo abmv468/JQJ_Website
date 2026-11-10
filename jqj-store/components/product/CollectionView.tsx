@@ -225,7 +225,7 @@ export default function CollectionView({
         list.sort((a, b) => b.price - a.price);
         break;
       case "rating":
-        list.sort((a, b) => b.rating - a.rating);
+        list.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
         break;
       case "newest":
         list.sort((a, b) => {
