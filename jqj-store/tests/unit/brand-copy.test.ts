@@ -28,10 +28,6 @@ function walkTs(dir: string): string[] {
   return files;
 }
 
-function stringLiterals(source: string): string[] {
-  return source.match(/`(?:\\`|[^`])*`|"(?:\\"|[^"\n])*"|'(?:\\'|[^'\n])*'/g) ?? [];
-}
-
 const COPY_SOURCES = [...walkTs("app"), ...walkTs("components"), "lib/brand-copy.ts"];
 
 describe("BRAND v4 copy constants", () => {
@@ -61,9 +57,9 @@ describe("customer copy sources", () => {
     const hits: string[] = [];
     for (const relativePath of COPY_SOURCES) {
       const source = readFileSync(path.resolve(process.cwd(), relativePath), "utf8");
-      for (const literal of stringLiterals(source)) {
-        if (BANNED.test(literal)) hits.push(`${relativePath}: ${literal}`);
-      }
+      source.split("\n").forEach((line, index) => {
+        if (BANNED.test(line)) hits.push(`${relativePath}:${index + 1}: ${line.trim()}`);
+      });
     }
     expect(hits).toEqual([]);
   });
