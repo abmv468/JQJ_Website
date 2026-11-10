@@ -318,22 +318,30 @@ describe("checkout customer validation", () => {
     "%s rejects a non-string value for each required field before any database call",
     async (_name, handler, path) => {
       const from = vi.spyOn(db, "from");
-      const requiredFields = ["firstName", "email", "address", "city", "country"] as const;
+      const requiredFields = [
+        ["firstName", "Enter your name."],
+        ["email", "Enter a valid email address."],
+        ["address", "Enter your address."],
+        ["city", "Enter your city."],
+        ["country", "Choose a country."],
+      ] as const;
       const badValues = [78701, true, { line: "1" }, ["Ada"]];
-      for (const field of requiredFields) {
+      for (const [field, message] of requiredFields) {
         for (const value of badValues) {
           const response = await handler(
             request(path, { ...checkoutCustomer, [field]: value }, `${REQUEST_ID}-${field}-type`)
           );
           expect(response.status).toBe(400);
-          expect((await response.json()).fields?.[field]).toBe("Enter a valid postcode.");
+          expect((await response.json()).fields?.[field]).toBe(message);
         }
       }
       const lastName = await handler(
         request(path, { ...checkoutCustomer, lastName: 12 }, `${REQUEST_ID}-last-type`)
       );
       expect(lastName.status).toBe(400);
-      expect((await lastName.json()).fields).toEqual({ lastName: "Enter a valid postcode." });
+      expect((await lastName.json()).fields).toEqual({
+        lastName: "Please check your details and try again.",
+      });
       for (const postalCode of [true, false]) {
         const response = await handler(
           request(path, { ...checkoutCustomer, postalCode }, `${REQUEST_ID}-post-bool`)

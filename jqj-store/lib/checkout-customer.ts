@@ -88,7 +88,7 @@ function postcodeRequiredForCountry(country: string) {
 }
 
 const POSTCODE_CHARSET = /^[A-Za-z0-9 -]{0,12}$/;
-const FIELD_TYPE_ERROR = "Enter a valid postcode.";
+const GENERIC_FIELD_ERROR = "Please check your details and try again.";
 
 function readString(
   value: unknown,
@@ -111,10 +111,6 @@ function takeString(
   required: boolean,
   emptyMessage: string
 ) {
-  if (value != null && typeof value !== "string") {
-    fields[key] = FIELD_TYPE_ERROR;
-    return "";
-  }
   const parsed = readString(value, { required });
   if (!parsed.ok) {
     fields[key] = emptyMessage;
@@ -153,14 +149,14 @@ export function validateCheckoutCustomer(customer: CheckoutCustomerInput | null 
   const fields: CheckoutFieldErrors = {};
   const nameSource = source.firstName != null ? source.firstName : source.name;
   takeString(fields, "firstName", nameSource, true, "Enter your name.");
-  takeString(fields, "lastName", source.lastName, false, FIELD_TYPE_ERROR);
+  takeString(fields, "lastName", source.lastName, false, GENERIC_FIELD_ERROR);
   const email = takeString(fields, "email", source.email, true, "Enter a valid email address.");
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     fields.email = "Enter a valid email address.";
   }
   takeString(fields, "address", source.address, true, "Enter your address.");
   takeString(fields, "city", source.city, true, "Enter your city.");
-  takeString(fields, "phone", source.phone, false, FIELD_TYPE_ERROR);
+  takeString(fields, "phone", source.phone, false, GENERIC_FIELD_ERROR);
   const country = takeString(fields, "country", source.country, true, "Choose a country.");
   const parsedPostcode = readPostcode(source);
   const postcode = parsedPostcode.ok ? parsedPostcode.value : "";
