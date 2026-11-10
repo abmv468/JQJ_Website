@@ -4,7 +4,7 @@
 
 `POST /api/checkout/airwallex` and `POST /api/checkout/cod` reject a non-standard `shippingMethod` with `400` and `{ "error": "That shipping option is unavailable." }` before `createAdminClient`, any order insert, the stock reservation RPC, or an Airwallex payment-intent call. Omitted, blank, and `standard` (any case, trimmed) stay on the current quote: $15.00 under $250.00 USD merchandise, and $0.00 at $250.00 and above. Cash on delivery still adds its existing fee.
 
-There is no checkout config endpoint on this branch. `GET /api/checkout/shipping` returns `{ expressShippingEnabled }` with `Cache-Control: no-store`, the same shape as BE-019's `cardEnabled` read. The checkout page fetches it with a 4 second `AbortController`. While that request is pending, and on a non-OK response, a timeout, a network error, or a body that is not exactly enabled, expedited stays hidden, standard stays selected, and submit stays enabled. There is no spinner for this request. If state still has expedited selected while the flag is false or unknown, submit resets it and posts `standard`. The summary amount is `computeShippingUsd` and does not change when expedited is hidden. The trust line says "Standard shipping" until the flag is exactly on.
+There is no checkout config endpoint on this branch. `GET /api/checkout/shipping` returns `{ expressShippingEnabled }` with `Cache-Control: no-store`, the same shape as BE-019's `cardEnabled` read. The checkout page fetches it with a 4 second `AbortController`. While that request is pending, and on a non-OK response, a timeout, a network error, or a body that is not exactly enabled, expedited stays hidden, standard stays selected, and submit stays enabled. There is no spinner for this request. If state still has expedited selected while the flag is false or unknown, submit posts `standard`. The summary amount is `computeShippingUsd` and does not change when expedited is hidden. The always-shown label is "Standard shipping · Tracked delivery". The flag-on option is "Expedited shipping".
 
 The Stripe shipping line item is `Shipping`. That file contains neither `UPS` nor `Express`. The Airwallex intent payload has no shipping line-item name or descriptor, so there was no Airwallex string to rename. The product accordion is unchanged; #17 and WEB-019 own that copy.
 
@@ -22,9 +22,11 @@ From `jqj-store/`, against the in-memory checkout stand-in. No live env, databas
 - A forged `shippingMethod` of `expedited`, `express`, `ups`, `UPS Express`, `priority`, `overnight`, or a non-string returns 400 on both routes. Spies on `Query.insert`, `reserveStockForOrder`, and `createAirwallexPaymentIntent` are not called. `db.rpcCalls` is empty and no order row is written. `createAdminClient` is not called. Unset and every value other than `true` behave this way.
 - Commenting out the two `return rejectedShipping` lines makes those tests return 200. The lines were restored after that check.
 - Flag exactly `true`: an expedited method still inserts, reserves, and (for card) creates an intent at the same $15.00 / free amounts.
-- Static checkout markup shows "Standard shipping" and does not show the expedited choice or the words `UPS` or `Express`.
+- Static checkout markup shows "Standard shipping · Tracked delivery" and does not show the expedited choice or the words `UPS` or `Express`.
+- A $100 cart that posts `shipping: 0` and a tampered total is still charged $15.00 shipping on card (intent $115.00) and on COD (order total $135.00, including the $20.00 fee).
+- With the flag exactly `true` and expedited selected, the charged amount equals `computeShippingUsd` for that merchandise. That is the standard quote.
 - Playwright (`e2e/shipping-method.spec.ts` and the existing `e2e/checkout.spec.ts`): flag false hides expedited, shows the $15.00 standard fee and $115.00 total on a $100 cart, and posts `shippingMethod: "standard"`. A 500 does the same. A hung `GET /api/checkout/shipping` does the same after the 4 second abort, and the pay button stays enabled. Flag true shows the expedited choice with standard still selected. The existing card, failed-return, and cash-on-delivery smokes passed.
-- `npm test` — 16 files, 115 tests passed.
+- `npm test` — 16 files, 119 tests passed.
 - `npm run typecheck` — clean.
 - `npm run lint` — no warnings or errors.
 - `npm run build` — succeeded with the documented fake public env used for the browser smoke. The build still prints the existing Edge Runtime warning for `process.version` inside `@supabase/supabase-js`, pulled in by middleware. This change does not touch that import.
@@ -48,5 +50,9 @@ Case-insensitive substring `ups` or `express` in the same server files also matc
 The checkout page uses the same `expressShippingEnabled` identifier. It does not render `UPS` or `Express`. Test fixtures send `express`, `ups`, and `UPS Express` as forged method names and are excluded here. `components/product/ProductDetail.tsx` still says "Complimentary UPS shipping" and is left for #17 and WEB-019.
 
 `app/(store)/shipping/page.tsx` still says "Domestic expedited shipping" as a timeline. That sentence does not contain `UPS` or `Express`. Catalog copy "expressive" in `data/products.ts` and `supabase/seed.sql` is the adjective, not a carrier.
+
+## Blocker before EXPRESS_SHIPPING_ENABLED may be true
+
+There is no expedited rate yet. With the flag on, the server charges the standard quote for an expedited method. Before the flag may be set to `true`, `computeShippingUsd` must take the shipping method, and the checkout page summary must use that same quote, so the amount shown and the amount charged match.
 
 ## Checkout change: needs CTO review + the Owner's own words before merge.

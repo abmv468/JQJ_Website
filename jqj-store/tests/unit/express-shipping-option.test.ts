@@ -37,7 +37,7 @@ vi.mock("@/context/CartContext", () => ({
 describe("checkout shipping option", () => {
   it("hides the paid option and defaults to standard before the flag is known", () => {
     const html = renderToStaticMarkup(createElement(CheckoutPage));
-    expect(html).toContain("Standard shipping");
+    expect(html).toContain("Standard shipping · Tracked delivery");
     expect(html).not.toContain("Expedited shipping");
     expect(html).not.toMatch(/\bUPS\b|\bExpress\b/);
   });

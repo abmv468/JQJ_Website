@@ -267,9 +267,6 @@ export default function CheckoutPage() {
     const offerExpedited = expressShippingEnabled === true;
     const postedShippingMethod =
       offerExpedited && shippingMethod === "expedited" ? "expedited" : "standard";
-    if (postedShippingMethod === "standard" && shippingMethod !== "standard") {
-      setShippingMethod("standard");
-    }
     const payload = {
       items: payloadItems,
       customer: form,
@@ -358,7 +355,7 @@ export default function CheckoutPage() {
                       onChange={() => setShippingMethod("standard")}
                       className="accent-brand-gold"
                     />
-                    Standard shipping
+                    Standard shipping · Tracked delivery
                   </label>
                   <label className="flex items-center gap-1.5">
                     <input
@@ -372,7 +369,7 @@ export default function CheckoutPage() {
                   </label>
                 </span>
               ) : (
-                "Standard shipping"
+                "Standard shipping · Tracked delivery"
               )}
             </div>
             <div className="flex items-center gap-2 text-xs text-brand-muted">

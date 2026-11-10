@@ -185,4 +185,28 @@ describe("POST /api/checkout/airwallex", () => {
       });
     }
   );
+
+  it("ignores a client shipping amount and total on a $100 cart", async () => {
+    db.rowsOf("products")[0].price = 100;
+    const response = await POST(
+      request({
+        items: [checkoutItem({ price: 0, quantity: 1 })],
+        customer: checkoutCustomer,
+        currency: "USD",
+        shipping: 0,
+        total: 0,
+        idempotencyKey: REQUEST_ID,
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(createAirwallexPaymentIntent).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: 115, currency: "USD" })
+    );
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      subtotal_amount: 100,
+      shipping_amount: 15,
+      total_amount: 115,
+    });
+  });
 });

@@ -80,7 +80,7 @@ function payButton(page: Page) {
 }
 
 async function expectStandardOnly(page: Page) {
-  await expect(page.getByText("Standard shipping", { exact: true })).toBeVisible();
+  await expect(page.getByText("Standard shipping · Tracked delivery", { exact: true })).toBeVisible();
   await expect(page.getByText("Expedited shipping", { exact: true })).toHaveCount(0);
   await expect(page.getByText("$15.00").first()).toBeVisible();
   await expect(page.getByText("$115.00")).toBeVisible();
@@ -137,6 +137,6 @@ test("a true shipping flag shows expedited shipping", async ({ page }) => {
   await page.goto("/checkout");
   await expect(page.getByText("Expedited shipping", { exact: true })).toBeVisible();
   await expect(page.getByRole("radio", { name: "Expedited shipping" })).toBeEnabled();
-  await expect(page.getByRole("radio", { name: "Standard shipping" })).toBeChecked();
+  await expect(page.getByRole("radio", { name: "Standard shipping · Tracked delivery" })).toBeChecked();
   await expect(payButton(page)).toBeEnabled();
 });

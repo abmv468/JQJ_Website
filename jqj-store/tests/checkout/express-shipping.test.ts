@@ -308,5 +308,48 @@ describe("EXPRESS_SHIPPING_ENABLED", () => {
         }
       }
     );
+
+    it("charges the standard quote for an expedited method", async () => {
+      setFlag("true");
+      db.rowsOf("products")[0].price = 100;
+      const standardQuote = computeShippingUsd([{ unitPriceUsd: 100, quantity: 1 }]);
+      const response =
+        channel === "card"
+          ? await postCard(
+              cardRequest({
+                items: [checkoutItem({ price: 0, quantity: 1 })],
+                customer: checkoutCustomer,
+                currency: "USD",
+                shipping: 0,
+                total: 0,
+                shippingMethod: "expedited",
+                idempotencyKey: REQUEST_ID,
+              })
+            )
+          : await postCod(
+              codRequest({
+                items: [checkoutItem({ price: 0, quantity: 1 })],
+                customer: checkoutCustomer,
+                currency: "USD",
+                shipping: 0,
+                total: 0,
+                shippingMethod: "expedited",
+                idempotencyKey: "cod-expedited-quote",
+              })
+            );
+
+      expect(response.status).toBe(200);
+      const codFee = channel === "cod" ? COD_FEE : 0;
+      expect(db.rowsOf("orders")[0]).toMatchObject({
+        subtotal_amount: 100,
+        shipping_amount: standardQuote,
+        total_amount: 100 + standardQuote + codFee,
+      });
+      if (channel === "card") {
+        expect(createAirwallexPaymentIntent).toHaveBeenCalledWith(
+          expect.objectContaining({ amount: 100 + standardQuote, currency: "USD" })
+        );
+      }
+    });
   });
 });
