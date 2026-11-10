@@ -1,15 +1,13 @@
 import { stones } from "@/data/products";
+import { stoneListingHref } from "@/lib/listing";
 import Image from "next/image";
 import Link from "next/link";
 
 const stoneImages: Record<string, string> = {
   Sodalite: "/stones/sodalite-raw.webp",
-  "Tiger Eye": "/stones/tiger-eye-raw.webp",
-  "Red Leopard Skin Jasper": "/products/red-leopard-jasper-bracelet.webp",
-  Tourmaline: "/stones/tourmaline-raw.webp",
-  Aquamarine: "/stones/aquamarine-raw.webp",
   Amethyst: "/stones/amethyst-raw.webp",
-  "Lapis Lazuli": "/stones/lapis-lazuli-raw.webp",
+  "Raw Brown Tourmaline": "/stones/tourmaline-raw.webp",
+  "Brown Tourmaline": "/stones/tourmaline-raw.webp",
 };
 
 export default function ShopByStone() {
@@ -25,25 +23,30 @@ export default function ShopByStone() {
           </p>
         </div>
 
-        <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7">
-          {stones.map((stone) => (
-            <Link
-              key={stone}
-              href={`/bracelets?stone=${encodeURIComponent(stone)}`}
-              className="group text-center transition-transform duration-200 hover:-translate-y-1"
-            >
-              <span className="relative mx-auto block aspect-square w-full max-w-[178px] overflow-hidden">
-                <Image
-                  src={stoneImages[stone]}
-                  alt={`${stone} raw stone`}
-                  fill
-                  sizes="(max-width: 640px) 42vw, (max-width: 768px) 28vw, (max-width: 1280px) 20vw, 12vw"
-                  className="object-contain transition-transform duration-500 group-hover:scale-[1.04]"
-                />
-              </span>
-              <span className="mt-4 block text-sm text-white/86">{stone}</span>
-            </Link>
-          ))}
+        <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {stones.map((stone) => {
+            const image = stoneImages[stone];
+            return (
+              <Link
+                key={stone}
+                href={stoneListingHref(stone)}
+                className="group text-center transition-transform duration-200 hover:-translate-y-1"
+              >
+                <span className="relative mx-auto block aspect-square w-full max-w-[178px] overflow-hidden bg-brand-card">
+                  {image ? (
+                    <Image
+                      src={image}
+                      alt={`${stone} raw stone`}
+                      fill
+                      sizes="(max-width: 640px) 42vw, (max-width: 1024px) 22vw, 178px"
+                      className="object-contain transition-transform duration-500 group-hover:scale-[1.04]"
+                    />
+                  ) : null}
+                </span>
+                <span className="mt-4 block text-sm text-white/86">{stone}</span>
+              </Link>
+            );
+          })}
         </div>
       </div>
     </section>

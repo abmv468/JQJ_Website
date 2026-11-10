@@ -7,11 +7,28 @@ import { ChevronDown, Minus, Plus } from "lucide-react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import type { Product } from "@/data/products";
 import { useCart } from "@/context/CartContext";
-import StarRating from "@/components/ui/StarRating";
+import { RETURNS_DAYS } from "@/lib/policy";
 import ProductCard from "./ProductCard";
-import { getStockState, getVariantLabel } from "@/lib/product-stock";
+import { fetchWithTimeout } from "@/lib/availability-client";
+import { getVariantLabel } from "@/lib/product-stock";
 import { FREE_SHIPPING_THRESHOLD_USD } from "@/lib/shipping";
 import { useCurrency } from "@/context/CurrencyContext";
+
+type AvailabilityVariant = {
+  id?: string;
+  size?: string | null;
+  material?: string | null;
+  sku: string;
+  stockCount: number;
+  inStock: boolean;
+};
+
+type Availability = {
+  inStock: boolean;
+  stockCount: number;
+  lowStockThreshold: number;
+  variants: AvailabilityVariant[];
+};
 
 const accordionData = (product: Product) => [
   { title: "Description", content: product.description },
@@ -23,8 +40,15 @@ const accordionData = (product: Product) => [
   },
   {
     title: "Shipping & Return",
-    content:
-      "Complimentary UPS shipping and returns. 30-day satisfaction guarantee, plus a complimentary first resize for new customers.",
+    content: [
+      "Free shipping on orders over $250.",
+      `Returns are accepted within ${RETURNS_DAYS} days of delivery. Customers pay return shipping.`,
+      product.category === "bracelets"
+        ? `Exchange or resize requests for bracelets are accepted within ${RETURNS_DAYS} days of delivery.`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" "),
   },
 ];
 
@@ -44,77 +68,92 @@ export default function ProductDetail({
   const [addState, setAddState] = useState<"idle" | "loading" | "success">("idle");
   const [openAccordion, setOpenAccordion] = useState<string | null>("Description");
   const resetAddStateTimerRef = useRef<number | null>(null);
-  const [liveStock, setLiveStock] = useState<{
-    inStock: boolean;
-    stockCount: number;
-    lowStockThreshold: number;
-    variants: Array<{
-      id?: string;
-      size?: string | null;
-      material?: string | null;
-      sku: string;
-      stockCount: number;
-      inStock: boolean;
-    }>;
-  } | null>(null);
+  const [stockState, setStockState] = useState<"loading" | "ready" | "unknown">("loading");
+  const [liveStock, setLiveStock] = useState<Availability | null>(null);
 
-  const fallbackStock = getStockState({
-    stockCount: product.stockCount,
-    inStock: product.inStock,
-    lowStockThreshold: product.lowStockThreshold,
-    variants:
-      product.variants?.map((variant) => ({
-        ...variant,
-        stockCount: variant.stockCount,
-      })) ?? [],
-  });
+  useEffect(() => {
+    const controller = new AbortController();
+    let cancelled = false;
+    setStockState("loading");
+    setLiveStock(null);
 
-  const variants = useMemo(
-    () =>
-      (liveStock?.variants ??
-        product.variants?.map((variant) => ({
-          ...variant,
-          inStock: variant.stockCount > 0,
-        })) ??
-        []),
-    [liveStock?.variants, product.variants]
-  );
+    fetchWithTimeout(`/api/products/availability?slug=${encodeURIComponent(product.slug)}`, {
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(String(response.status));
+        const data = await response.json();
+        if (!data?.product || typeof data.product.stockCount !== "number") {
+          throw new Error("availability unavailable");
+        }
+        if (cancelled) return;
+        setLiveStock({
+          inStock: Boolean(data.product.inStock),
+          stockCount: data.product.stockCount,
+          lowStockThreshold: Number(data.product.lowStockThreshold ?? 5),
+          variants: data.product.variants ?? [],
+        });
+        setStockState("ready");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLiveStock(null);
+        setStockState("unknown");
+      });
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [product.slug]);
+
+  const variants = useMemo(() => {
+    if (stockState === "ready" && liveStock) return liveStock.variants;
+    return (product.variants ?? []).map((variant) => ({
+      sku: variant.sku,
+      size: variant.size ?? null,
+      material: variant.material ?? null,
+      stockCount: 0,
+      inStock: true,
+    }));
+  }, [stockState, liveStock, product.variants]);
 
   const hasVariants = variants.length > 0;
   const selectedVariant = variants.find((variant) => variant.sku === variantSku) ?? null;
-  const effectiveStock = selectedVariant
-    ? selectedVariant.stockCount
-    : (liveStock?.stockCount ?? fallbackStock.availableStock);
-  const inStock = selectedVariant
-    ? selectedVariant.inStock
-    : (liveStock?.inStock ?? fallbackStock.inStock);
-  const lowStockThreshold = liveStock?.lowStockThreshold ?? fallbackStock.lowStockThreshold;
-  const isLowStock = inStock && effectiveStock <= lowStockThreshold;
-
-  useEffect(() => {
-    fetch(`/api/products/availability?slug=${encodeURIComponent(product.slug)}`)
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.product) {
-          setLiveStock({
-            inStock: data.product.inStock,
-            stockCount: data.product.stockCount,
-            lowStockThreshold: data.product.lowStockThreshold,
-            variants: data.product.variants ?? [],
-          });
-        }
-      })
-      .catch(() => {});
-  }, [product.slug]);
+  const stockKnown = stockState === "ready" && liveStock !== null;
+  const effectiveStock =
+    stockState === "ready" && liveStock
+      ? selectedVariant
+        ? selectedVariant.stockCount
+        : liveStock.stockCount
+      : null;
+  const inStock =
+    stockState === "ready" && liveStock
+      ? selectedVariant
+        ? selectedVariant.inStock
+        : liveStock.inStock
+      : false;
+  const lowStockThreshold = stockState === "ready" && liveStock ? liveStock.lowStockThreshold : null;
+  const isLowStock =
+    stockKnown &&
+    inStock &&
+    effectiveStock !== null &&
+    lowStockThreshold !== null &&
+    effectiveStock <= lowStockThreshold;
+  const purchaseBlocked =
+    stockKnown && (!inStock || (effectiveStock ?? 0) < 1 || (hasVariants && !selectedVariant));
 
   useEffect(() => {
     if (!hasVariants) return;
     if (selectedVariant) return;
-    const firstAvailable = variants.find((variant) => variant.inStock) ?? variants[0];
+    const firstAvailable = stockKnown
+      ? (variants.find((variant) => variant.inStock) ?? variants[0])
+      : variants[0];
     if (firstAvailable) setVariantSku(firstAvailable.sku);
-  }, [hasVariants, selectedVariant, variants]);
+  }, [hasVariants, selectedVariant, variants, stockKnown]);
 
   useEffect(() => {
+    if (effectiveStock === null) return;
     if (effectiveStock < qty) {
       setQty(Math.max(1, effectiveStock || 1));
     }
@@ -129,7 +168,7 @@ export default function ProductDetail({
   }, []);
 
   async function handleAdd() {
-    if (!inStock || (hasVariants && !selectedVariant)) return;
+    if (purchaseBlocked || (hasVariants && !selectedVariant)) return;
     if (addState !== "idle") return;
 
     setAddState("loading");
@@ -201,7 +240,7 @@ export default function ProductDetail({
         </div>
 
         {/* Info */}
-        <div className="lg:pl-6">
+        <div className="lg:pl-6" data-stock-state={stockState}>
           <h1 className="font-heading text-xl uppercase tracking-wider2 text-white">
             {product.name}
           </h1>
@@ -214,12 +253,6 @@ export default function ProductDetail({
               )}
               <span className="text-lg text-white">{formatFromUsd(product.price)}</span>
             </div>
-            {typeof product.rating === "number" && typeof product.reviewCount === "number" ? (
-              <div className="flex items-center gap-2">
-                <StarRating rating={product.rating} />
-                <span className="text-xs text-brand-muted">({product.reviewCount})</span>
-              </div>
-            ) : null}
           </div>
 
           {product.compareAtPrice && (
@@ -248,13 +281,21 @@ export default function ProductDetail({
                     key={variant.sku}
                     value={variant.sku}
                     className="bg-brand-surface"
-                    disabled={!variant.inStock}
+                    disabled={stockKnown && !variant.inStock}
                   >
-                    {getVariantLabel(variant)} {!variant.inStock ? "— Out of stock" : ""}
+                    {getVariantLabel(variant)}
+                    {stockKnown && !variant.inStock ? " — Out of stock" : ""}
                   </option>
                 ))}
               </select>
             </div>
+          ) : product.category === "necklaces" ? (
+            product.specs["Chain Length"] ? (
+              <div className="mt-8">
+                <p className="text-xs uppercase tracking-wider2 text-white/80">Chain length</p>
+                <p className="mt-2 text-sm text-white">{product.specs["Chain Length"]}</p>
+              </div>
+            ) : null
           ) : (
             <div className="mt-8">
               <div className="mb-2 flex items-center justify-between">
@@ -275,10 +316,18 @@ export default function ProductDetail({
             </div>
           )}
 
-          {!inStock ? (
-            <p className="mt-4 text-sm text-red-400">Out of stock</p>
-          ) : isLowStock ? (
-            <p className="mt-4 text-sm text-brand-gold">Low stock — only {effectiveStock} left</p>
+          {stockKnown && !inStock ? (
+            <p data-testid="stock-status" className="mt-4 text-sm text-red-400">
+              Out of stock
+            </p>
+          ) : stockKnown && isLowStock ? (
+            <p data-testid="stock-status" className="mt-4 text-sm text-brand-gold">
+              Low stock — only {effectiveStock} left
+            </p>
+          ) : stockKnown ? (
+            <p data-testid="stock-status" className="mt-4 text-sm text-white/80">
+              In stock — {effectiveStock} available
+            </p>
           ) : null}
 
           {/* Quantity + Add */}
@@ -297,8 +346,10 @@ export default function ProductDetail({
                 type="button"
                 aria-label="Increase"
                 className="px-3 py-3"
-                onClick={() => setQty((q) => Math.min(effectiveStock, q + 1))}
-                disabled={!inStock || qty >= effectiveStock}
+                onClick={() =>
+                  setQty((q) => (effectiveStock === null ? q + 1 : Math.min(effectiveStock, q + 1)))
+                }
+                disabled={effectiveStock !== null && (purchaseBlocked || qty >= effectiveStock)}
               >
                 <Plus className="h-4 w-4" />
               </button>
@@ -310,9 +361,7 @@ export default function ProductDetail({
               className={`btn-gold w-full disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto ${
                 addState === "idle" ? "flex-1" : "w-12 px-0"
               }`}
-              disabled={
-                addState !== "idle" || !inStock || effectiveStock < 1 || (hasVariants && !selectedVariant)
-              }
+              disabled={addState !== "idle" || purchaseBlocked || (hasVariants && !selectedVariant)}
             >
               <LayoutGroup id={`add-to-cart-${product.id}`}>
                 <AnimatePresence mode="wait" initial={false}>
@@ -322,7 +371,7 @@ export default function ProductDetail({
                       layoutId={`add-to-cart-content-${product.id}`}
                       className="inline-flex items-center justify-center"
                     >
-                      {inStock ? "Add to Cart" : "Unavailable"}
+                      {purchaseBlocked ? "Unavailable" : "Add to Cart"}
                     </motion.span>
                   )}
 
@@ -387,9 +436,9 @@ export default function ProductDetail({
 
           {/* Trust list */}
           <ul className="mt-8 space-y-3 border-t border-brand-border pt-6">
-            {product.features.map((f) => (
-              <li key={f} className="text-xs text-brand-muted">
-                {f}
+            {product.features.map((feature) => (
+              <li key={feature} className="text-xs text-brand-muted">
+                {feature}
               </li>
             ))}
           </ul>

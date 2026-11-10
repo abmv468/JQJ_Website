@@ -1,5 +1,10 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { products, stones } from "@/data/products";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 const SLUG = "red-leopard-skin-jasper-bracelet-iii";
 const ONLY_IMAGE = "/products/red-leopard-jasper-bracelet.webp";
@@ -109,8 +114,8 @@ describe("red leopard skin jasper cube bracelet copy", () => {
     expect(entry.compareAtPrice).toBeNull();
     expect(entry.tags).not.toContain("sale");
     expect(entry.tags).toEqual([]);
-    expect(entry.rating).toBeUndefined();
-    expect(entry.reviewCount).toBeUndefined();
+    expect(entry).not.toHaveProperty("rating");
+    expect(entry).not.toHaveProperty("reviewCount");
     expect(entry.specs["Bead Size"]).toBeUndefined();
     expect(entry.specs.Clasp).toBeUndefined();
     expect(entry.specs.Color).toBeUndefined();
@@ -132,10 +137,44 @@ describe("red leopard skin jasper cube bracelet copy", () => {
     expect(text).not.toMatch(/\b\d+(?:\.\d+)?\s*(?:cm|mm)\b/i);
     expect(text).not.toMatch(/handmade|hand-made|hand-finished|handcrafted|atelier/i);
     expect(entry.tags).not.toContain("top-rated");
-    expect(entry.rating).toBeUndefined();
-    expect(entry.reviewCount).toBeUndefined();
-    expect("rating" in entry).toBe(false);
-    expect("reviewCount" in entry).toBe(false);
+    expect(entry).not.toHaveProperty("rating");
+    expect(entry).not.toHaveProperty("reviewCount");
+  });
+
+  it("has no compare-at price, sale tag, 6mm, or Sterling in the catalog or the seed", () => {
+    const entry = product();
+    const catalogFields = [
+      entry.features.join("\n"),
+      ...Object.entries(entry.specs).flatMap(([key, value]) => [key, value]),
+      ...(entry.variants ?? []).flatMap((variant) => [
+        variant.size ?? "",
+        variant.material ?? "",
+      ]),
+    ].join("\n");
+
+    expect(entry.compareAtPrice).toBeNull();
+    expect(entry.tags).not.toContain("sale");
+    expect(catalogFields).not.toMatch(/6\s*mm/i);
+    expect(catalogFields).not.toMatch(/sterling/i);
+
+    const seed = readFileSync(path.join(root, "supabase/seed.sql"), "utf8");
+    const productRow = seed
+      .split("\n")
+      .find((line) => line.includes("'red-leopard-skin-jasper-bracelet-iii'"));
+    const variantRows = seed
+      .split("\n")
+      .filter((line) => line.includes("red-leopard-skin-jasper-bracelet-iii") && line.includes("JQJ-RLSJ-III-"));
+    expect(productRow).toBeDefined();
+    expect(productRow).toContain("599.99, null");
+    expect(productRow).not.toContain("'sale'");
+    expect(productRow).not.toMatch(/6\s*mm/i);
+    expect(productRow).not.toMatch(/sterling/i);
+    expect(variantRows).toHaveLength(3);
+    for (const row of variantRows) {
+      expect(row).toContain("'Silver-tone'");
+      expect(row).not.toMatch(/sterling/i);
+      expect(row).not.toMatch(/6\s*mm/i);
+    }
   });
 
   it("is findable as Red Leopard Skin Jasper in the stone list, collection filter, and search", () => {

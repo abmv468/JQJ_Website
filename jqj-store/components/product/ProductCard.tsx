@@ -4,14 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import type { Product } from "@/data/products";
-import { getStockState } from "@/lib/product-stock";
-import StarRating from "@/components/ui/StarRating";
 import { useCurrency } from "@/context/CurrencyContext";
 
 const tagLabels: Record<string, string> = {
   new: "New",
   limited: "Limited",
-  "top-rated": "Top Rated",
   restocked: "Restocked",
   sale: "Sale",
 };
@@ -27,18 +24,6 @@ export default function ProductCard({
   const primaryTag = product.tags[0];
   const hoverImage = product.hoverImage;
   const imageAlt = product.imageAlt ?? product.name;
-  const rating = product.rating;
-  const reviewCount = product.reviewCount;
-  const stock = getStockState({
-    stockCount: product.stockCount,
-    inStock: product.inStock,
-    lowStockThreshold: product.lowStockThreshold,
-    variants:
-      product.variants?.map((variant) => ({
-        ...variant,
-        stockCount: variant.stockCount,
-      })) ?? [],
-  });
 
   return (
     <Link href={`/products/${product.slug}`} className="group block h-full">
@@ -52,21 +37,6 @@ export default function ProductCard({
               {tagLabels[primaryTag] ?? primaryTag}
             </span>
           )}
-          {!stock.inStock ? (
-            <span
-              className="absolute right-3 top-3 z-10 rounded-full border border-red-500/45 bg-black/58 px-2.5 py-1 text-[9px] uppercase text-red-200 backdrop-blur-md"
-              style={{ letterSpacing: "0.18em" }}
-            >
-              Out of stock
-            </span>
-          ) : stock.isLowStock ? (
-            <span
-              className="absolute right-3 top-3 z-10 rounded-full border border-brand-gold/45 bg-black/58 px-2.5 py-1 text-[9px] uppercase text-brand-gold backdrop-blur-md"
-              style={{ letterSpacing: "0.18em" }}
-            >
-              Low stock
-            </span>
-          ) : null}
           <Image
             src={product.images[0]}
             alt={imageAlt}
@@ -90,15 +60,7 @@ export default function ProductCard({
         </div>
 
         <div className="flex flex-1 flex-col px-1 pb-1 pt-4">
-          <div className="flex items-center justify-between gap-3">
-            {typeof rating === "number" && typeof reviewCount === "number" ? (
-              <div className="flex items-center gap-2 text-[11px] text-white/58">
-                <StarRating rating={rating} size={11} />
-                <span>{reviewCount} reviews</span>
-              </div>
-            ) : (
-              <span />
-            )}
+          <div className="flex items-center justify-end">
             <ArrowUpRight className="h-4 w-4 text-white/42 transition-colors duration-200 group-hover:text-white" />
           </div>
 

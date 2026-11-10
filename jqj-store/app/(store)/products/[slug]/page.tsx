@@ -73,9 +73,6 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
       url: absoluteUrl(`/products/${product.slug}`),
       priceCurrency: "USD",
       price: product.price.toFixed(2),
-      availability: product.inStock
-        ? "https://schema.org/InStock"
-        : "https://schema.org/OutOfStock",
       itemCondition: "https://schema.org/NewCondition",
     },
   };
