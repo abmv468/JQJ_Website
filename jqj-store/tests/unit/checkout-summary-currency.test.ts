@@ -10,6 +10,7 @@ import {
   type CheckoutSummary,
 } from "@/lib/checkout-currency";
 import { createAirwallexPaymentIntent } from "@/lib/payments/airwallex";
+import { SHIPPING_FLAT_USD, computeShippingUsd } from "@/lib/shipping";
 import { formatPrice } from "@/lib/utils";
 import {
   checkoutCustomer,
@@ -110,19 +111,29 @@ function expectEntirelyUsd(summary: CheckoutSummary, display: SupportedCurrency)
   }
 }
 
-function summaryFromDb(display: SupportedCurrency, codFeeUsd: number) {
+function summaryFromPrices(
+  display: SupportedCurrency,
+  codFeeUsd: number,
+  unitPriceUsd: number,
+  quantity: number
+) {
+  const items = [
+    {
+      name: "Amethyst Bracelet XV (5mm)",
+      unitPriceUsd,
+      quantity,
+    },
+  ];
   return buildCheckoutSummary({
-    items: [
-      {
-        name: "Amethyst Bracelet XV (5mm)",
-        unitPriceUsd: DB_UNIT_USD,
-        quantity: QTY,
-      },
-    ],
-    shippingUsd: SHIPPING_USD,
+    items,
+    shippingUsd: computeShippingUsd(items),
     codFeeUsd,
     displayCurrency: display,
   });
+}
+
+function summaryFromDb(display: SupportedCurrency, codFeeUsd: number) {
+  return summaryFromPrices(display, codFeeUsd, DB_UNIT_USD, QTY);
 }
 
 describe("checkout summary charge currency", () => {
@@ -267,5 +278,62 @@ describe("checkout summary charge currency", () => {
     expect(html).toContain(formatPrice(215, { currency: "USD" }));
     expect(html).not.toContain("Charged in USD");
     expect(html).not.toContain("DISPLAY:");
+  });
+
+  it.each([
+    { usd: 200, shipping: SHIPPING_FLAT_USD },
+    { usd: 249.99, shipping: SHIPPING_FLAT_USD },
+    { usd: 250, shipping: 0 },
+    { usd: 300, shipping: 0 },
+  ])(
+    "a USD merchandise total of $usd shows $shipping shipping and matches Airwallex",
+    async ({ usd, shipping }) => {
+      db.rowsOf("products")[0].price = usd;
+      const summary = summaryFromPrices("EUR", 0, usd, 1);
+      const response = await postAirwallex(
+        new Request("http://localhost:3000/api/checkout/airwallex", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            items: [checkoutItem({ price: CLIENT_PRICE, quantity: 1 })],
+            customer: checkoutCustomer,
+            currency: "USD",
+            idempotencyKey: "22222222-2222-4222-8222-222222222222",
+          }),
+        })
+      );
+
+      expect(response.status).toBe(200);
+      const order = db.rowsOf("orders")[0];
+      expect(summary.subtotalUsd).toBe(usd);
+      expect(summary.shippingUsd).toBe(shipping);
+      expect(summary.shippingUsd).toBe(order.shipping_amount);
+      expect(summary.totalUsd).toBe(usd + shipping);
+      expect(summary.totalUsd).toBe(order.total_amount);
+      expect(summary.shipping).toBe(formatPrice(shipping, { currency: "USD" }));
+      expect(summary.total).toBe(formatPrice(usd + shipping, { currency: "USD" }));
+      expect(createAirwallexPaymentIntent).toHaveBeenCalledWith(
+        expect.objectContaining({ amount: summary.totalUsd, currency: "USD" })
+      );
+      expectEntirelyUsd(summary, "EUR");
+    }
+  );
+
+  it("renders flat USD shipping under $250 and free USD shipping at and above $250", () => {
+    displayCurrency.value = "EUR";
+    const cases = [
+      { price: 200, shipping: SHIPPING_FLAT_USD },
+      { price: 249.99, shipping: SHIPPING_FLAT_USD },
+      { price: 250, shipping: 0 },
+      { price: 300, shipping: 0 },
+    ];
+    for (const { price, shipping } of cases) {
+      cartState.items[0].price = price;
+      cartState.items[0].quantity = 1;
+      const html = renderToStaticMarkup(createElement(CheckoutPage));
+      expect(html).toContain(`Shipping</span><span>${formatPrice(shipping, { currency: "USD" })}</span>`);
+      expect(html).toContain(formatPrice(price + shipping, { currency: "USD" }));
+      expect(html).toContain("Charged in USD");
+    }
   });
 });
