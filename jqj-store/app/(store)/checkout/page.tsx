@@ -7,10 +7,10 @@ import { ChevronLeft, CreditCard, Truck } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
 import { createClient } from "@/lib/supabase/client";
+import { COD_FEE } from "@/lib/checkout-fees";
 import { formatPrice } from "@/lib/utils";
 
 const SHIPPING_FLAT = 15;
-const COD_FEE = 20;
 const AIRWALLEX_SDK_SRC = "https://static.airwallex.com/components/sdk/v1/index.js";
 
 declare global {
@@ -375,14 +375,9 @@ export default function CheckoutPage() {
               </label>
               <label className={`flex cursor-pointer items-center gap-3 border p-4 ${method === "cod" ? "border-brand-gold" : "border-brand-border"}`}>
                 <input type="radio" name="method" checked={method === "cod"} onChange={() => setMethod("cod")} className="accent-brand-gold" />
-                <span className="text-sm">Cash on Delivery (+{codFeeInCurrency} fee)</span>
+                <span className="text-sm">Cash on Delivery (+{formatCheckoutAmount(COD_FEE)} fee)</span>
               </label>
             </div>
-            {method === "airwallex" && (
-              <p className="mt-3 text-xs text-brand-muted">
-                Airwallex sandbox checkout currently charges in USD only.
-              </p>
-            )}
           </section>
 
           {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
