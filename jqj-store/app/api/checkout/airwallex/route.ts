@@ -489,18 +489,16 @@ export async function POST(req: Request) {
     );
   } catch (error) {
     let reservationStillHeld = false;
-    if (supabase && orderId) {
+    if (supabase && orderId && reservedStock) {
       try {
         await releaseOrderReservation(
           supabase,
           orderId,
-          reservedStock
-            ? resolvedItems.map((line) => ({
-                product_id: line.product.id,
-                variant_id: line.variant?.id ?? null,
-                quantity: line.requestedQuantity,
-              }))
-            : undefined
+          resolvedItems.map((line) => ({
+            product_id: line.product.id,
+            variant_id: line.variant?.id ?? null,
+            quantity: line.requestedQuantity,
+          }))
         );
       } catch {
         reservationStillHeld = true;
@@ -508,7 +506,7 @@ export async function POST(req: Request) {
       }
     }
 
-    if (supabase && orderId && !reservationStillHeld) {
+    if (supabase && orderId && reservedStock && !reservationStillHeld) {
       const { error: markFailedError } = await supabase
         .from("orders")
         .update({
