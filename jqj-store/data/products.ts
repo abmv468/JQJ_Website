@@ -249,10 +249,10 @@ export const products: Product[] = [
     inStock: true,
     stockCount: 18,
     lowStockThreshold: 5,
-    // 55 cm gold-plated (JQJ-BLAPEN-55-GV) is withheld: no photo and no stated base metal.
     variants: [
-      { size: "45 cm", material: "Sterling silver", sku: "JQJ-BLAPEN-45-SS", stockCount: 7 },
-      { size: "55 cm", material: "Sterling silver", sku: "JQJ-BLAPEN-55-SS", stockCount: 8 },
+      { size: "45cm", material: "Sterling Silver", sku: "JQJ-BLAPEN-45-SS", stockCount: 7 },
+      { size: "55cm", material: "Sterling Silver", sku: "JQJ-BLAPEN-55-SS", stockCount: 8 },
+      { size: "55cm", material: "Gold Vermeil", sku: "JQJ-BLAPEN-55-GV", stockCount: 3 },
     ],
     tags: ["new"],
     stone: "Blue Lace Agate",

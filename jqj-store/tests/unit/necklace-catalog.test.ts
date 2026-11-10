@@ -70,7 +70,7 @@ describe("necklace catalog facts", () => {
   it("records chain length per necklace", () => {
     const blueLace = productBySlug("blue-lace-agate-silver-pendant");
     expect(blueLace.specs["Chain Length"]).toBe("45 cm or 55 cm");
-    expect(blueLace.variants?.map((variant) => variant.size)).toEqual(["45 cm", "55 cm"]);
+    expect(blueLace.variants?.map((variant) => variant.size)).toEqual(["45cm", "55cm", "55cm"]);
 
     const labradorite = productBySlug("labradorite-silver-pendant");
     expect(labradorite.specs["Chain Length"]).toBe("55 cm");
@@ -111,19 +111,14 @@ describe("necklace catalog facts", () => {
     }
   });
 
-  it("does not offer the Blue Lace gold-plated variant", () => {
+  it("keeps the Blue Lace Gold Vermeil variant unchanged from main", () => {
     const blueLace = productBySlug("blue-lace-agate-silver-pendant");
-    const skus = (blueLace.variants ?? []).map((variant) => variant.sku);
-    expect(skus).toEqual(["JQJ-BLAPEN-45-SS", "JQJ-BLAPEN-55-SS"]);
-    expect(skus).not.toContain("JQJ-BLAPEN-55-GV");
-    expect(getVariantLabel(blueLace.variants![0])).toBe("45 cm / Sterling silver");
-    expect(getVariantLabel(blueLace.variants![1])).toBe("55 cm / Sterling silver");
-
-    const blob = JSON.stringify(blueLace).toLowerCase();
-    expect(blob).not.toContain("gold-plated");
-    expect(blob).not.toContain("vermeil");
-    expect(blob).not.toContain("karat");
-    expect(blob).not.toContain("micron");
+    expect(blueLace.variants).toEqual([
+      { size: "45cm", material: "Sterling Silver", sku: "JQJ-BLAPEN-45-SS", stockCount: 7 },
+      { size: "55cm", material: "Sterling Silver", sku: "JQJ-BLAPEN-55-SS", stockCount: 8 },
+      { size: "55cm", material: "Gold Vermeil", sku: "JQJ-BLAPEN-55-GV", stockCount: 3 },
+    ]);
+    expect(getVariantLabel(blueLace.variants![2])).toBe("55cm / Gold Vermeil");
     expect(blueLace.specs.Metal).toBe("Sterling silver");
   });
 

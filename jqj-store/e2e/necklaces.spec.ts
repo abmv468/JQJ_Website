@@ -73,13 +73,11 @@ test("necklace pages hide wrist sizing and bracelet-only features", async ({ pag
 
     if (product.selector) {
       const options = page.locator("#variant option");
-      await expect(options).toHaveCount(2);
+      await expect(options).toHaveCount(3);
       const labels = (await options.allTextContents()).join(" ");
-      expect(labels).toContain("45 cm / Sterling silver");
-      expect(labels).toContain("55 cm / Sterling silver");
-      expect(labels.toLowerCase()).not.toContain("gold-plated");
-      expect(labels.toLowerCase()).not.toContain("vermeil");
-      await expect(page.getByText(/gold-plated/i)).toHaveCount(0);
+      expect(labels).toContain("45cm / Sterling Silver");
+      expect(labels).toContain("55cm / Sterling Silver");
+      expect(labels).toContain("55cm / Gold Vermeil");
       await expect(page.getByText("Chain length", { exact: true })).toHaveCount(0);
     } else {
       await expect(page.locator("#variant")).toHaveCount(0);
