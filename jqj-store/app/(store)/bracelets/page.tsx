@@ -12,13 +12,13 @@ export function generateMetadata({
   return {
     title: "Natural Stone Bracelets",
     description:
-      "Natural stone bracelets, designed in Hong Kong with materials sourced from around the world. Explore hand-finished natural stone bracelets crafted for everyday wear, thoughtful gifting, and a personal fit.",
+      "Natural stone bracelets, designed in Hong Kong with materials sourced from around the world.",
     alternates: { canonical: "/bracelets" },
     robots: isFiltered ? { index: false, follow: true } : undefined,
     openGraph: {
       title: "Natural Stone Bracelets | JQD Group",
       description:
-        "Natural stone bracelets, designed in Hong Kong with materials sourced from around the world. Explore hand-finished natural stone bracelets crafted for everyday wear, thoughtful gifting, and a personal fit.",
+        "Natural stone bracelets, designed in Hong Kong with materials sourced from around the world.",
       url: "/bracelets",
     },
   };
@@ -35,13 +35,13 @@ export default function BraceletsPage({
     <CollectionView
       title="Bracelets"
       limitedTitle="Limited Edition Bracelets"
-      subtitle="Museum-inspired bracelet designs, hand-finished in our atelier with carefully selected natural stones. Natural stone bracelets, designed in Hong Kong with materials sourced from around the world."
+      subtitle="Natural stone bracelets, designed in Hong Kong with materials sourced from around the world."
       products={items}
       editorialSections={[
         {
           title: "Natural stone bracelets for everyday wear",
           paragraphs: [
-            "JQD Group bracelets are selected for natural color, texture, and a presence that works with everyday dressing. Each piece is hand-finished to highlight the individual character of its stones rather than flatten it into a uniform look.",
+            "Natural stone bracelets, designed in Hong Kong with materials sourced from around the world.",
             "Choose a smaller bead profile for a quieter stack, or a more substantial stone when you want a single piece to carry the outfit. Natural variation in tone and pattern is part of the material, so every bracelet has its own character.",
           ],
           links: [
