@@ -207,7 +207,7 @@ describe("POST /api/checkout/quote", () => {
     expect(from).not.toHaveBeenCalled();
   });
 
-  it("rejects an unknown item with 400 and does not write", async () => {
+  it("rejects an unknown item with 409 and does not write", async () => {
     const response = await postQuote(
       quoteRequest({ items: [{ id: "missing-product", quantity: 1, price: 250 }] })
     );
