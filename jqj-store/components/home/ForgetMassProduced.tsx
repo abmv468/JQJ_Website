@@ -12,24 +12,21 @@ export default function ForgetMassProduced() {
             className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(24,76,82,0.22),transparent_40%),radial-gradient(circle_at_bottom_right,rgba(187,157,123,0.14),transparent_30%)]"
           />
           <div className="relative max-w-xl">
-            <p className="eyebrow">From the atelier</p>
+            <p className="eyebrow">Our approach</p>
             <h2 className="mt-4 font-heading text-3xl font-light leading-tight text-white sm:text-4xl">
-              Beyond mass production, closer to ritual.
+              Considered, not mass-produced.
             </h2>
             <p className="mt-6 text-sm leading-7 text-white/68">
-              We design from the idea that jewelry can carry meaning. In our
-              family atelier, each piece is hand-finished with natural gemstones
-              selected for energy, tone, and character.
+              Each design begins in Hong Kong, with natural stones and materials sourced from around the world, chosen for colour, character and finish.
             </p>
             <p className="mt-4 text-sm leading-7 text-white/68">
-              Rooted in cultural symbolism and made for modern wear, every design
-              is crafted to feel personal, balanced, and enduring.
+              Drawing on cultural symbolism and made for modern wear, each design is meant to feel personal and enduring.
             </p>
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
               {[
-                ["Family-run", "Since 2015"],
-                ["Hand-finished", "Tailored fit"],
+                ["Hong Kong", "Designed since 2015"],
                 ["Natural stones", "Selected one by one"],
+                ["Gift-ready", "Every order"],
               ].map(([label, value]) => (
                 <div
                   key={label}
@@ -55,7 +52,7 @@ export default function ForgetMassProduced() {
         <div className="relative min-h-[380px]">
           <Image
             src="/products/lifestyle.webp"
-            alt="JQD Group artisan fitting a bracelet"
+            alt="Hands adjusting a natural stone bracelet"
             fill
             sizes="(max-width: 768px) 100vw, 50vw"
             className="object-cover"
@@ -66,11 +63,10 @@ export default function ForgetMassProduced() {
               className="text-[10px] uppercase text-brand-gold/80"
               style={{ letterSpacing: "0.18em" }}
             >
-              Hand-finished
+              Designed in Hong Kong
             </p>
             <p className="mt-2 text-sm leading-6 text-white/82">
-              Each piece is balanced, fitted, and finished to feel collected
-              rather than mass-made.
+              Each piece is designed to feel collected rather than mass-made.
             </p>
           </div>
         </div>

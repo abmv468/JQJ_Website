@@ -19,11 +19,11 @@ const body = Manrope({
 export const metadata: Metadata = {
   metadataBase: siteUrl,
   title: {
-    default: "JQD Group | Natural Stone Jewelry with Cultural Craft",
-    template: "%s | JQD Group",
+    default: "Jewellery Quintessential · 極氣 | Natural Stone Jewellery",
+    template: "%s | Jewellery Quintessential",
   },
   description:
-    "Handcrafted bracelets and necklaces inspired by Eastern cultural heritage, museum collaborations, and natural gemstone artistry.",
+    "Jewellery Quintessential · 極氣: natural stone bracelets and necklaces, designed in Hong Kong since 2015, with museum collaborations.",
   icons: { icon: "/JQD-logo.png" },
   alternates: { canonical: "/" },
   openGraph: {
@@ -31,9 +31,9 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: "/",
     siteName: "JQD Group",
-    title: "JQD Group | Natural Stone Jewelry with Cultural Craft",
+    title: "Jewellery Quintessential · 極氣 | Natural Stone Jewellery",
     description:
-      "Handcrafted bracelets and necklaces inspired by Eastern cultural heritage, museum collaborations, and natural gemstone artistry.",
+      "Jewellery Quintessential · 極氣: natural stone bracelets and necklaces, designed in Hong Kong since 2015, with museum collaborations.",
     images: [
       {
         url: "/products/hero-image.jpg",
@@ -45,9 +45,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "JQD Group | Natural Stone Jewelry with Cultural Craft",
+    title: "Jewellery Quintessential · 極氣 | Natural Stone Jewellery",
     description:
-      "Handcrafted bracelets and necklaces inspired by Eastern cultural heritage, museum collaborations, and natural gemstone artistry.",
+      "Jewellery Quintessential · 極氣: natural stone bracelets and necklaces, designed in Hong Kong since 2015, with museum collaborations.",
     images: ["/products/hero-image.jpg"],
   },
   robots: {

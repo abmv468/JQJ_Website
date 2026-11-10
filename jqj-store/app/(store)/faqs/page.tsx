@@ -1,6 +1,7 @@
 import PolicyPage from "@/components/trust/PolicyPage";
 import type { Metadata } from "next";
 import { jsonLd } from "@/lib/seo";
+import { DELIVERY_RANGE } from "@/lib/brand-copy";
 
 export const metadata = {
   title: "Jewelry FAQs",
@@ -34,7 +35,7 @@ const faqSections = [
     questions: [
       {
         question: "When will my order ship?",
-        answer: "Most in-stock orders ship within 1-3 business days.",
+        answer: DELIVERY_RANGE,
       },
       {
         question: "Do you ship internationally?",

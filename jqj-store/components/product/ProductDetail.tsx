@@ -11,6 +11,12 @@ import StarRating from "@/components/ui/StarRating";
 import ProductCard from "./ProductCard";
 import { getStockState, getVariantLabel } from "@/lib/product-stock";
 import { useCurrency } from "@/context/CurrencyContext";
+import {
+  DELIVERY_SHORT,
+  DUTIES_LINE,
+  PDP_SHIPPING_LEAD,
+  RETURN_SHIPPING_LINE,
+} from "@/lib/brand-copy";
 
 const accordionData = (product: Product) => [
   { title: "Description", content: product.description },
@@ -22,8 +28,7 @@ const accordionData = (product: Product) => [
   },
   {
     title: "Shipping & Return",
-    content:
-      "Complimentary UPS shipping and returns. 30-day satisfaction guarantee, plus a complimentary first resize for new customers.",
+    content: `${PDP_SHIPPING_LEAD}. ${DELIVERY_SHORT}. ${RETURN_SHIPPING_LINE} ${DUTIES_LINE}`,
   },
 ];
 

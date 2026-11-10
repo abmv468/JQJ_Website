@@ -138,10 +138,10 @@ export default function Footer() {
             className="text-[11px] uppercase text-white/60"
             style={{ letterSpacing: "0.18em" }}
           >
-            © {new Date().getFullYear()} — JQD Group
+            © 2026 JQD Group · Jewellery Quintessential
           </p>
           <p className="text-center text-xs text-white/56">
-            Hand-finished natural stone pieces designed for everyday ritual.
+            Natural stone jewellery, designed in Hong Kong since 2015.
           </p>
         </div>
       </div>

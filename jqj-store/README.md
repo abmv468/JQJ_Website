@@ -75,6 +75,8 @@ without backend keys. Checkout, orders, auth and admin require the keys above.
 
 ## Branding
 
+jqd.app is the canonical site domain (canonical URLs, Open Graph, JSON-LD); jqdgroup.com is used for email only. This split is intentional.
+
 - Background `#010101`, gold accents `#BB9D7B` / `#E1C19D`
 - Headings: Instrument Sans · Body: Manrope
 - Logo: `public/JQD-logo.png`

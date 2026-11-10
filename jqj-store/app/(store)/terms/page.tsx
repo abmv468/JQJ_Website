@@ -32,7 +32,7 @@ export default function TermsPage() {
             "You can select a supported display currency on the website; converted prices are estimates and may change without notice.",
             "Checkout settlement is processed in the selected supported currency for your order.",
             "We reserve the right to cancel or limit any order if pricing, availability, or fraud concerns arise.",
-            "Product images are representative; natural stones and handcrafted pieces may vary slightly.",
+            "Product images are representative; natural stones may vary slightly.",
           ],
         },
         {
