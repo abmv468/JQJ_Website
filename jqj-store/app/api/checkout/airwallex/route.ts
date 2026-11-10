@@ -7,7 +7,6 @@ import { normalizeCurrency, type SupportedCurrency } from "@/lib/currency";
 import {
   fetchInventoryBySlugs,
   reserveStockForOrder,
-  restoreStockForOrder,
   validateCheckoutItems,
   type CheckoutItemInput,
   type ResolvedCheckoutItem,
@@ -19,7 +18,7 @@ import {
 } from "@/lib/payments/airwallex";
 import {
   applyAirwallexPaymentIntentStatus,
-  releaseExpiredAirwallexReservations,
+  releaseOrderReservation,
   upsertAirwallexPaymentIntent,
 } from "@/lib/payments/airwallex-orders";
 
@@ -123,12 +122,11 @@ export async function POST(req: Request) {
     const shippingAmount = items.length ? SHIPPING_FLAT : 0;
     const userId = await getAuthenticatedUserId();
     const customerName = `${customer.firstName} ${customer.lastName ?? ""}`.trim();
-    const requestId = asUuid(idempotencyKey) ?? randomUUID();
+    let requestId = asUuid(idempotencyKey) ?? randomUUID();
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
     const returnUrl = `${siteUrl}/order-confirmation?provider=airwallex`;
 
     supabase = createAdminClient();
-    await releaseExpiredAirwallexReservations(supabase);
 
     const slugs = Array.from(new Set(items.map((item) => item.slug).filter(Boolean) as string[]));
     const inventoryBySlug = await fetchInventoryBySlugs(supabase, slugs);
@@ -166,7 +164,24 @@ export async function POST(req: Request) {
       .maybeSingle();
     if (existingPaymentError) throw existingPaymentError;
 
-    orderId = existingPaymentByRequest?.order_id ?? null;
+    orderId = null;
+    if (existingPaymentByRequest?.order_id) {
+      const { data: existingOrder, error: existingOrderError } = await supabase
+        .from("orders")
+        .select("id, status")
+        .eq("id", existingPaymentByRequest.order_id)
+        .maybeSingle();
+      if (existingOrderError) throw existingOrderError;
+      const existingStatus = (existingOrder?.status ?? "").trim().toLowerCase();
+      if (existingOrder && existingStatus !== "failed") {
+        orderId = existingOrder.id;
+      } else {
+        // A failed order must not be reused. A new request id makes Airwallex
+        // create a new PaymentIntent instead of replaying the old one.
+        requestId = randomUUID();
+      }
+    }
+
     if (!orderId) {
       const { data: order, error: orderError } = await supabase
         .from("orders")
@@ -297,24 +312,13 @@ export async function POST(req: Request) {
       }
     );
   } catch (error) {
-    if (supabase && orderId && reservedStock && resolvedItems.length) {
+    if (supabase && orderId) {
       try {
-        await restoreStockForOrder(supabase, orderId, resolvedItems);
+        await releaseOrderReservation(supabase, orderId, reservedStock ? resolvedItems : undefined);
       } catch (restoreError) {
         console.error("[airwallex-checkout] failed to restore stock after error", restoreError);
-        return NextResponse.json(
-          {
-            error:
-              restoreError instanceof Error
-                ? restoreError.message
-                : "Checkout failed and inventory restore could not complete",
-          },
-          { status: 500 }
-        );
       }
-    }
 
-    if (supabase && orderId) {
       const { error: markFailedError } = await supabase
         .from("orders")
         .update({

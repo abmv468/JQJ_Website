@@ -26,13 +26,25 @@ function truncateError(input: string, maxLength = 1000) {
   return `${input.slice(0, maxLength - 3)}...`;
 }
 
+const INVALID_SIGNATURE = { error: "Invalid webhook signature" };
+
+function invalidSignatureResponse() {
+  return NextResponse.json(INVALID_SIGNATURE, { status: 400 });
+}
+
+function webhookSkewSeconds() {
+  const raw = process.env.AIRWALLEX_WEBHOOK_MAX_SKEW_SECONDS;
+  if (raw == null || raw.trim() === "") return 300;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 300;
+  return parsed;
+}
+
 export async function POST(req: Request) {
-  const webhookSecret = process.env.AIRWALLEX_WEBHOOK_SECRET;
+  const webhookSecret = process.env.AIRWALLEX_WEBHOOK_SECRET?.trim();
   if (!webhookSecret) {
-    return NextResponse.json(
-      { error: "AIRWALLEX_WEBHOOK_SECRET is not configured" },
-      { status: 500 }
-    );
+    console.error("[airwallex-webhook] webhook secret is not set");
+    return invalidSignatureResponse();
   }
 
   const rawBody = await req.text();
@@ -44,14 +56,11 @@ export async function POST(req: Request) {
     signature,
     timestamp,
     secret: webhookSecret,
-    maxSkewSeconds: Number(process.env.AIRWALLEX_WEBHOOK_MAX_SKEW_SECONDS || 300),
+    maxSkewSeconds: webhookSkewSeconds(),
   });
 
   if (!signatureResult.ok) {
-    return NextResponse.json(
-      { error: signatureResult.error || "Invalid webhook signature" },
-      { status: 400 }
-    );
+    return invalidSignatureResponse();
   }
 
   let event: AirwallexWebhookEvent;

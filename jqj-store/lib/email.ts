@@ -93,14 +93,25 @@ function buildHtml(data: OrderEmailData, heading: string): string {
   </div>`;
 }
 
-export async function sendOrderEmails(data: OrderEmailData): Promise<void> {
+function senderAddress(): string | null {
+  const from = process.env.EMAIL_FROM?.trim();
+  if (!from) {
+    console.error("[email] EMAIL_FROM is not set — skipping send");
+    return null;
+  }
+  return from;
+}
+
+export async function sendOrderEmails(data: OrderEmailData): Promise<boolean> {
+  const from = senderAddress();
+  if (!from) return false;
+
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM || "orders@danvapes.shop";
   const adminEmail = process.env.ADMIN_EMAIL;
 
   if (!apiKey) {
     console.warn("[email] RESEND_API_KEY missing — skipping order emails");
-    return;
+    return false;
   }
 
   const resend = new Resend(apiKey);
@@ -121,7 +132,42 @@ export async function sendOrderEmails(data: OrderEmailData): Promise<void> {
         html: buildHtml(data, "New order received"),
       });
     }
+    return true;
   } catch (err) {
     console.error("[email] Failed to send order emails", err);
+    return false;
+  }
+}
+
+export async function sendInventoryExceptionAlert(input: {
+  orderId: string;
+  customerEmail?: string | null;
+  totalAmount?: number | null;
+  currency?: string | null;
+}): Promise<void> {
+  console.error("[inventory] paid order has no stock; manual review required", input.orderId);
+  const from = senderAddress();
+  if (!from) return;
+
+  const apiKey = process.env.RESEND_API_KEY;
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (!apiKey || !adminEmail) return;
+
+  try {
+    const resend = new Resend(apiKey);
+    await resend.emails.send({
+      from,
+      to: adminEmail,
+      subject: `Manual review required: order ${input.orderId} was paid without stock`,
+      text: [
+        `Order ${input.orderId} captured a card payment after its stock reservation had been released.`,
+        "Stock could not be reserved again, so the order status is inventory_exception and payment_status is succeeded.",
+        `Customer: ${input.customerEmail ?? "unknown"}.`,
+        `Total: ${input.totalAmount ?? "unknown"} ${input.currency ?? "USD"}.`,
+        "Do not ship this order. Refund the payment or source the item.",
+      ].join(" "),
+    });
+  } catch (err) {
+    console.error("[email] inventory exception alert failed", err);
   }
 }
