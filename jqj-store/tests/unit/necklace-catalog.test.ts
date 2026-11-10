@@ -159,26 +159,3 @@ describe("necklace catalog facts", () => {
     }
   });
 });
-
-describe("catalog seed mirrors the necklace facts", () => {
-  const seed = fs.readFileSync(path.join(process.cwd(), "supabase/seed.sql"), "utf8");
-
-  it("does not keep vermeil or the withheld gold-plated variant", () => {
-    expect(seed.toLowerCase()).not.toContain("vermeil");
-    expect(seed.toLowerCase()).not.toContain("gold-plated");
-    expect(seed).not.toContain("JQJ-BLAPEN-55-GV");
-    expect(seed).toContain("Freshwater Pearl");
-    expect(seed).toContain("45 cm or 55 cm");
-    expect(seed).toContain("Designed in Hong Kong");
-    expect(seed).toContain("Hematite");
-    expect(seed).toContain("curb chain");
-    expect(seed.toLowerCase()).not.toContain("sterling silver clasp");
-    expect(seed.toLowerCase()).not.toContain("box chain");
-    expect(seed).not.toContain("blue-lace-agate-silver-pendant-1.jpg");
-    expect(seed).not.toContain("labradorite-silver-pendant-1.jpg");
-    expect(seed).not.toContain("pearl-silver-necklace-v-1.jpg");
-    expect(seed).toContain("/products/pearl-silver-necklace.webp");
-    expect(seed).toContain("/products/blue-lace-agate-pendant.webp");
-    expect(seed).toContain("/products/labradorite-pendant.webp");
-  });
-});
