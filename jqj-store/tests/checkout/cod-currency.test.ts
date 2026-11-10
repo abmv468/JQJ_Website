@@ -83,6 +83,20 @@ describe("COD order currency", () => {
     }
   );
 
+  it("creates one USD order when the same cart is posted in EUR and then GBP with no idempotency key", async () => {
+    const body = {
+      items: [checkoutItem()],
+      customer: checkoutCustomer,
+    };
+    const eur = await POST(request({ ...body, currency: "EUR" }));
+    const gbp = await POST(request({ ...body, currency: "GBP" }));
+
+    expect(eur.status).toBe(200);
+    expect(gbp.status).toBe(200);
+    expect(db.rowsOf("orders")).toHaveLength(1);
+    expect(db.rowsOf("orders")[0].currency).toBe("USD");
+  });
+
   it("reuses one idempotency key when the same cart is submitted in EUR and then USD", async () => {
     const cart = {
       items: [checkoutItem()],
