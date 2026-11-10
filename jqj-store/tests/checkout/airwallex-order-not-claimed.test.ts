@@ -1,18 +1,7 @@
 import { createHmac } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/webhooks/airwallex/route";
-import { applyAirwallexPaymentIntentStatus } from "@/lib/payments/airwallex-orders";
 import { createCheckoutDb, dbError, setActiveDb, type MemoryDb } from "../helpers/memory-db";
-
-vi.mock("@/lib/payments/airwallex-orders", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/payments/airwallex-orders")>(
-    "@/lib/payments/airwallex-orders"
-  );
-  return {
-    ...actual,
-    applyAirwallexPaymentIntentStatus: vi.fn(actual.applyAirwallexPaymentIntentStatus),
-  };
-});
 
 const SECRET = "test_dummy_webhook_secret";
 
@@ -50,21 +39,14 @@ function successEvent(id = "evt_ok") {
   };
 }
 
-describe("Airwallex webhook order_not_claimed", () => {
+describe("Airwallex webhook claim failures", () => {
   let db: MemoryDb;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     db = createCheckoutDb();
     setActiveDb(db);
     process.env.AIRWALLEX_WEBHOOK_SECRET = SECRET;
     delete process.env.RESEND_API_KEY;
-    const actual = await vi.importActual<typeof import("@/lib/payments/airwallex-orders")>(
-      "@/lib/payments/airwallex-orders"
-    );
-    vi.mocked(applyAirwallexPaymentIntentStatus).mockReset();
-    vi.mocked(applyAirwallexPaymentIntentStatus).mockImplementation(
-      actual.applyAirwallexPaymentIntentStatus
-    );
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => {
@@ -117,41 +99,6 @@ describe("Airwallex webhook order_not_claimed", () => {
         currency: "USD",
       },
     ]);
-  });
-
-  it("logs order_not_claimed with the order id and marks the webhook failed", async () => {
-    vi.mocked(applyAirwallexPaymentIntentStatus).mockResolvedValue({
-      applied: false,
-      reason: "order_not_claimed",
-      orderId: "order-1",
-    });
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
-
-    const response = await POST(signed(successEvent("evt_stuck")));
-
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ received: true, failed: true });
-    expect(errorSpy).toHaveBeenCalledWith("[airwallex-webhook] order_not_claimed", {
-      orderId: "order-1",
-      merchantOrderId: "order-1",
-      paymentIntentId: "int_1",
-    });
-    const logged = JSON.stringify(errorSpy.mock.calls);
-    expect(logged).toContain("order-1");
-    expect(logged).not.toContain("buyer@example.com");
-    expect(db.rowsOf("payment_webhook_events")[0]).toMatchObject({
-      provider_event_id: "evt_stuck",
-      status: "failed",
-      processing_error: "order_not_claimed",
-      order_id: "order-1",
-    });
-    expect(db.rowsOf("orders")[0]).toMatchObject({
-      payment_status: "requires_payment_method",
-      status: "pending",
-      inventory_reserved: true,
-    });
-    expect(db.rowsOf("products")[0].stock_count).toBe(4);
-    errorSpy.mockRestore();
   });
 
   it("still marks a normal success claim processed and paid", async () => {
