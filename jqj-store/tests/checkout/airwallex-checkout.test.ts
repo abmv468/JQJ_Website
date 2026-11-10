@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/checkout/airwallex/route";
 import { createAirwallexPaymentIntent } from "@/lib/payments/airwallex";
+import { computeShippingUsd } from "@/lib/shipping";
 import {
   checkoutCustomer,
   checkoutItem,
@@ -159,4 +160,40 @@ describe("POST /api/checkout/airwallex", () => {
     );
     expect(db.rowsOf("products")[0].stock_count).toBe(5);
   });
+
+  it.each([
+    { usd: 249.99 },
+    { usd: 250 },
+    { usd: 499.98 },
+  ])(
+    "sends Airwallex subtotal + helper shipping for a USD $usd catalog price and ignores the client total",
+    async ({ usd }) => {
+      db.rowsOf("products")[0].price = usd;
+      const shipping = computeShippingUsd([{ unitPriceUsd: usd, quantity: 1 }]);
+
+      const response = await POST(
+        request({
+          items: [checkoutItem({ price: 1, quantity: 1 })],
+          customer: checkoutCustomer,
+          currency: "USD",
+          shipping: 0,
+          total: 1,
+          idempotencyKey: REQUEST_ID,
+        })
+      );
+
+      expect(response.status).toBe(200);
+      expect(shipping).toBe(usd >= 250 ? 0 : 15);
+      const amount = usd + shipping;
+      expect(createAirwallexPaymentIntent).toHaveBeenCalledWith(
+        expect.objectContaining({ amount, currency: "USD" })
+      );
+      expect(db.rowsOf("orders")[0]).toMatchObject({
+        subtotal_amount: usd,
+        shipping_amount: shipping,
+        total_amount: amount,
+        currency: "USD",
+      });
+    }
+  );
 });

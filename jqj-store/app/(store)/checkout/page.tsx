@@ -7,9 +7,9 @@ import { ChevronLeft, CreditCard, Truck } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
 import { createClient } from "@/lib/supabase/client";
+import { computeShippingUsd } from "@/lib/shipping";
 import { formatPrice } from "@/lib/utils";
 
-const SHIPPING_FLAT = 15;
 const COD_FEE = 20;
 const AIRWALLEX_SDK_SRC = "https://static.airwallex.com/components/sdk/v1/index.js";
 
@@ -169,8 +169,11 @@ export default function CheckoutPage() {
   }, []);
 
   const codFee = method === "cod" ? COD_FEE : 0;
+  const fallbackShipping = items.length
+    ? computeShippingUsd(items.map((item) => ({ unitPriceUsd: item.price, quantity: item.quantity })))
+    : 0;
   const subtotalUsd = quote?.subtotalUsd ?? subtotal;
-  const shipping = quote?.shippingUsd ?? (items.length ? SHIPPING_FLAT : 0);
+  const shipping = quote?.shippingUsd ?? fallbackShipping;
   const total = quote ? quote.totalUsd + codFee : subtotalUsd + shipping + codFee;
   const chargeCurrency = method === "airwallex" ? "USD" : currency;
   const formatCheckoutAmount = (amountUsd: number) =>

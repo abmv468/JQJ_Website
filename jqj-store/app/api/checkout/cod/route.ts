@@ -4,7 +4,6 @@ import { cookies } from "next/headers";
 import { createHash } from "crypto";
 import { validateCheckoutCustomer } from "@/lib/checkout-customer";
 import { checkoutErrorResponse } from "@/lib/checkout-error";
-import { computeShippingUsd } from "@/lib/checkout-shipping";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendOrderEmails } from "@/lib/email";
 import { normalizeCurrency } from "@/lib/currency";
@@ -15,7 +14,7 @@ import {
   validateCheckoutItems,
   type CheckoutItemInput,
 } from "@/lib/inventory";
-
+import { computeShippingUsd } from "@/lib/shipping";
 export const dynamic = "force-dynamic";
 
 const COD_FEE = 20;

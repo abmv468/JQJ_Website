@@ -5,9 +5,9 @@ import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateCheckoutCustomer } from "@/lib/checkout-customer";
 import { checkoutErrorResponse } from "@/lib/checkout-error";
-import { computeShippingUsd } from "@/lib/checkout-shipping";
 import { resolveCheckoutSiteUrl } from "@/lib/checkout-site-url";
 import { normalizeCurrency, type SupportedCurrency } from "@/lib/currency";
+import { computeShippingUsd } from "@/lib/shipping";
 import {
   fetchInventoryBySlugs,
   reserveStockForOrder,

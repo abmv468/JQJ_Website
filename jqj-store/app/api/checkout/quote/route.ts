@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { checkoutErrorResponse } from "@/lib/checkout-error";
-import { computeShippingUsd, type MerchandiseLine } from "@/lib/checkout-shipping";
+import { computeShippingUsd, type MerchandiseLine } from "@/lib/shipping";
 import {
   fetchInventoryBySlugs,
   validateCheckoutItems,
