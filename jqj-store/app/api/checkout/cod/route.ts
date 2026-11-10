@@ -184,7 +184,7 @@ export async function POST(req: Request) {
           shipping_amount: shippingAmount,
           discount_amount: 0,
           tax_amount: 0,
-          currency: selectedCurrency,
+          currency: "USD",
           shipping_address: shippingAddress,
           customer_email: customer.email,
           customer_name: customerName,
@@ -230,7 +230,7 @@ export async function POST(req: Request) {
             shipping_amount: shippingAmount,
             discount_amount: 0,
             tax_amount: 0,
-            currency: selectedCurrency,
+            currency: "USD",
             shipping_address: shippingAddress,
             customer_email: customer.email,
             customer_name: customerName,
@@ -345,7 +345,7 @@ export async function POST(req: Request) {
       codFee: COD_FEE,
       total,
       paymentMethod: "cod",
-      currency: selectedCurrency,
+      currency: "USD",
       shippingAddress,
     });
 
