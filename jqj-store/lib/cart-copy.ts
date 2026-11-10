@@ -16,3 +16,9 @@ export const CART_SHIPPING_LINE = "Shipping calculated at checkout";
 
 // add only schemes confirmed enabled in Airwallex
 export const CARD_NETWORK_LABELS: readonly string[] = [];
+
+// awaiting BRAND
+export const STOCK_CHECK_RETRY_MESSAGE = "We couldn't check stock. Please try again.";
+
+// awaiting BRAND
+export const STOCK_CHECK_RETRY_ACTION = "Retry";

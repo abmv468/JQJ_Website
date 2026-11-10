@@ -31,6 +31,12 @@ async function stubExternalHosts(page: Page) {
   });
 }
 
+function visibleCartCheckout(page: Page) {
+  const width = page.viewportSize()?.width ?? 1280;
+  if (width < 1024) return page.getByTestId("cart-sticky-checkout");
+  return page.locator("aside").filter({ has: page.getByRole("heading", { name: "Order Summary" }) });
+}
+
 async function seedCart(page: Page, quantity = 2) {
   await page.addInitScript(
     ({ key, item }) => {
@@ -135,21 +141,101 @@ test("Checkout is disabled while stock is checked", async ({ page }) => {
   });
   await seedCart(page, 1);
   await page.goto("/cart");
-  const checkout = page.getByRole("button", { name: "Checkout" });
+  const surface = visibleCartCheckout(page);
+  const checkout = surface.getByRole("button", { name: "Checkout" });
   await expect(checkout).toBeDisabled();
   await expect(checkout).toHaveAttribute("aria-busy", "true");
-  await expect(page.locator("aside").getByRole("status")).toHaveText("Checking stock…");
+  await expect(surface.getByRole("status")).toHaveText("Checking stock…");
   await expect(checkout).toBeEnabled();
-  await expect(checkout).toHaveAttribute("aria-busy", "false");
+  await expect(checkout).not.toHaveAttribute("aria-busy");
+});
+
+test("a failed stock check re-enables Checkout and offers retry", async ({ page }) => {
+  let calls = 0;
+  await page.route(/\/api\/products\/availability$/, async (route) => {
+    calls += 1;
+    if (calls === 1) {
+      await route.fulfill({ status: 500, contentType: "application/json", body: "{}" });
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ errors: [] }),
+    });
+  });
+  await seedCart(page, 1);
+  await page.goto("/cart");
+  const surface = visibleCartCheckout(page);
+  const checkout = surface.getByRole("button", { name: "Checkout" });
+  await expect(surface.getByTestId("stock-check-retry")).toContainText(
+    "We couldn't check stock. Please try again."
+  );
+  await expect(checkout).toBeEnabled();
+  await expect(checkout).not.toHaveAttribute("aria-busy");
+  await expect(surface.getByRole("button", { name: "Retry" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Cart" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("button", { name: "Checkout" })).toBeEnabled();
+  await expect(dialog.getByRole("button", { name: "Checkout" })).not.toHaveAttribute("aria-busy");
+  await expect(dialog.getByTestId("stock-check-retry")).toContainText(
+    "We couldn't check stock. Please try again."
+  );
+  await page.keyboard.press("Escape");
+
+  await surface.getByRole("button", { name: "Retry" }).click();
+  await expect(checkout).toBeDisabled();
+  await expect(checkout).toHaveAttribute("aria-busy", "true");
+  await expect(checkout).toBeEnabled();
+  await expect(surface.getByTestId("stock-check-retry")).toHaveCount(0);
+});
+
+test("a stock check that never answers times out and shows retry", async ({ page }) => {
+  await page.route(/\/api\/products\/availability$/, () => new Promise(() => {}));
+  await seedCart(page, 1);
+  await page.goto("/cart");
+  const surface = visibleCartCheckout(page);
+  const checkout = surface.getByRole("button", { name: "Checkout" });
+  await expect(checkout).toBeDisabled();
+  await expect(checkout).toHaveAttribute("aria-busy", "true");
+  await expect(surface.getByTestId("stock-check-retry")).toContainText(
+    "We couldn't check stock. Please try again.",
+    { timeout: 15_000 }
+  );
+  await expect(checkout).toBeEnabled();
+  await expect(checkout).not.toHaveAttribute("aria-busy");
+  await expect(surface.getByRole("button", { name: "Retry" })).toBeVisible();
+});
+
+test("Shift+Tab wraps focus inside the cart drawer", async ({ page }) => {
+  await seedCart(page, 1);
+  await page.goto("/");
+  await page.getByRole("button", { name: "Cart" }).click();
+  const dialog = page.getByRole("dialog", { name: /Cart/ });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Close cart" }).focus();
+  await page.keyboard.press("Shift+Tab");
+  await expect(dialog.getByRole("button", { name: "Continue Shopping" })).toBeFocused();
+});
+
+test("the close button returns focus to the cart trigger", async ({ page }) => {
+  await seedCart(page, 1);
+  await page.goto("/");
+  const trigger = page.getByRole("button", { name: "Cart" });
+  await trigger.click();
+  const dialog = page.getByRole("dialog", { name: /Cart/ });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Close cart" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(trigger).toBeFocused();
 });
 
 test("the trust strip names enabled methods and no card schemes or wallets", async ({ page }) => {
   await seedCart(page, 1);
   await page.goto("/cart");
-  const strip = page
-    .locator("aside")
-    .filter({ has: page.getByRole("heading", { name: "Order Summary" }) })
-    .getByTestId("checkout-trust-strip");
+  const strip = visibleCartCheckout(page).getByTestId("checkout-trust-strip");
   await expect(strip).toBeVisible();
   await expect(strip).toContainText("Secure checkout");
   await expect(strip).toContainText("Cash on delivery");

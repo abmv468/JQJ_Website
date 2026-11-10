@@ -1,89 +1,30 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
+import CartCheckoutButton from "@/components/cart/CartCheckoutButton";
 import CheckoutTrustStrip from "@/components/cart/CheckoutTrustStrip";
 import LineItemThumbnail from "@/components/cart/LineItemThumbnail";
 import QuantityStepper from "@/components/cart/QuantityStepper";
+import StockCheckNotice from "@/components/cart/StockCheckNotice";
 import { CART_SHIPPING_LINE } from "@/lib/cart-copy";
-import { cn } from "@/lib/utils";
-
-function CheckoutButton({
-  busy,
-  blocked,
-  className,
-  onCheckout,
-}: {
-  busy: boolean;
-  blocked: boolean;
-  className?: string;
-  onCheckout: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className={cn(
-        "btn-gold min-h-11 w-full disabled:cursor-not-allowed disabled:opacity-60",
-        className
-      )}
-      disabled={busy || blocked}
-      aria-busy={busy}
-      onClick={onCheckout}
-    >
-      Checkout
-    </button>
-  );
-}
 
 export default function CartPage() {
   const router = useRouter();
-  const { items, updateQuantity, removeItem, subtotal } = useCart();
+  const {
+    items,
+    updateQuantity,
+    removeItem,
+    subtotal,
+    stockLoading,
+    stockErrors,
+    stockCheckFailed,
+    retryStockCheck,
+  } = useCart();
   const { formatFromUsd } = useCurrency();
-  const [stockErrors, setStockErrors] = useState<string[]>([]);
-  const [stockLoading, setStockLoading] = useState(false);
-
-  const payloadItems = useMemo(
-    () =>
-      items.map((item) => ({
-        id: item.id,
-        slug: item.slug,
-        name: item.name,
-        quantity: item.quantity,
-        price: item.price,
-        size: item.size,
-        material: item.material,
-        sku: item.sku,
-      })),
-    [items]
-  );
-
-  useEffect(() => {
-    if (!payloadItems.length) return;
-    let cancelled = false;
-    setStockLoading(true);
-    fetch("/api/products/availability", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items: payloadItems }),
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        if (!cancelled) setStockErrors(data.errors ?? []);
-      })
-      .catch(() => {
-        if (!cancelled) setStockErrors([]);
-      })
-      .finally(() => {
-        if (!cancelled) setStockLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [payloadItems]);
 
   function goToCheckout() {
     if (stockLoading || stockErrors.length > 0) return;
@@ -166,12 +107,12 @@ export default function CartPage() {
             </p>
           )}
           <div className="mt-6 hidden lg:block">
-            <CheckoutButton busy={stockLoading} blocked={stockErrors.length > 0} onCheckout={goToCheckout} />
-            {stockLoading && (
-              <p className="mt-2 text-xs text-brand-muted" role="status">
-                Checking stock…
-              </p>
-            )}
+            <CartCheckoutButton
+              busy={stockLoading}
+              blocked={stockErrors.length > 0}
+              onCheckout={goToCheckout}
+            />
+            <StockCheckNotice loading={stockLoading} failed={stockCheckFailed} onRetry={retryStockCheck} />
             <CheckoutTrustStrip />
           </div>
         </aside>
@@ -186,18 +127,14 @@ export default function CartPage() {
             <p className="font-heading text-[10px] uppercase tracking-wider2 text-brand-muted">Subtotal</p>
             <p className="font-heading text-lg leading-tight text-brand-gold">{formatFromUsd(subtotal)}</p>
           </div>
-          <CheckoutButton
+          <CartCheckoutButton
             busy={stockLoading}
             blocked={stockErrors.length > 0}
             className="flex-1"
             onCheckout={goToCheckout}
           />
         </div>
-        {stockLoading && (
-          <p className="mt-2 text-xs text-brand-muted" role="status">
-            Checking stock…
-          </p>
-        )}
+        <StockCheckNotice loading={stockLoading} failed={stockCheckFailed} onRetry={retryStockCheck} />
         {stockErrors.length > 0 && (
           <p className="mt-2 text-xs text-red-400" role="alert">
             {stockErrors[0]}

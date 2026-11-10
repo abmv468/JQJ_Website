@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useCartStockCheck } from "@/components/cart/useCartStockCheck";
 
 export interface CartItem {
   id: string;
@@ -37,6 +38,10 @@ interface CartContextValue {
   subtotal: number;
   isOpen: boolean;
   setOpen: (open: boolean) => void;
+  stockLoading: boolean;
+  stockErrors: string[];
+  stockCheckFailed: boolean;
+  retryStockCheck: () => void;
 }
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
@@ -136,6 +141,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     () => items.reduce((sum, i) => sum + i.price * i.quantity, 0),
     [items]
   );
+  const { stockLoading, stockErrors, stockCheckFailed, retryStockCheck } = useCartStockCheck(
+    items,
+    hydrated
+  );
 
   const value: CartContextValue = {
     items,
@@ -147,6 +156,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     subtotal,
     isOpen,
     setOpen,
+    stockLoading,
+    stockErrors,
+    stockCheckFailed,
+    retryStockCheck,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

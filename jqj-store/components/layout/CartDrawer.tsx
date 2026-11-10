@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useId, useRef } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
+import CartCheckoutButton from "@/components/cart/CartCheckoutButton";
 import CheckoutTrustStrip from "@/components/cart/CheckoutTrustStrip";
 import LineItemThumbnail from "@/components/cart/LineItemThumbnail";
 import QuantityStepper from "@/components/cart/QuantityStepper";
+import StockCheckNotice from "@/components/cart/StockCheckNotice";
 import { CART_SHIPPING_LINE } from "@/lib/cart-copy";
 
 const FOCUSABLE =
@@ -21,8 +23,21 @@ function focusableIn(container: HTMLElement) {
 }
 
 export default function CartDrawer() {
+  const router = useRouter();
   const { formatFromUsd } = useCurrency();
-  const { items, isOpen, setOpen, removeItem, updateQuantity, subtotal, itemCount } = useCart();
+  const {
+    items,
+    isOpen,
+    setOpen,
+    removeItem,
+    updateQuantity,
+    subtotal,
+    itemCount,
+    stockLoading,
+    stockErrors,
+    stockCheckFailed,
+    retryStockCheck,
+  } = useCart();
   const titleId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLElement>(null);
@@ -84,6 +99,12 @@ export default function CartDrawer() {
 
   function close() {
     setOpen(false);
+  }
+
+  function goToCheckout() {
+    if (stockLoading || stockErrors.length > 0) return;
+    setOpen(false);
+    router.push("/checkout");
   }
 
   return (
@@ -188,9 +209,17 @@ export default function CartDrawer() {
               <span className="font-heading text-lg text-white">{formatFromUsd(subtotal)}</span>
             </div>
             <p className="mb-4 text-sm text-brand-muted">{CART_SHIPPING_LINE}</p>
-            <Link href="/checkout" className="btn-gold min-h-11 w-full" onClick={close}>
-              Checkout
-            </Link>
+            {stockErrors.length > 0 && (
+              <p className="mb-3 text-xs text-red-400" role="alert">
+                {stockErrors[0]}
+              </p>
+            )}
+            <CartCheckoutButton
+              busy={stockLoading}
+              blocked={stockErrors.length > 0}
+              onCheckout={goToCheckout}
+            />
+            <StockCheckNotice loading={stockLoading} failed={stockCheckFailed} onRetry={retryStockCheck} />
             <CheckoutTrustStrip />
             <button
               type="button"
