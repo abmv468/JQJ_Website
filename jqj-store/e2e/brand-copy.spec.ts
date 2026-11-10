@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const BANNED = /worldwide|\bUPS\b/i;
+const BANNED =
+  /atelier|handmade|hand-made|hand made|hand-finished|handcrafted|worldwide|\bUPS\b/i;
 
 const DELIVERY_RANGE =
   "Dispatched in 1–3 business days, then typically 7–12 days in transit. Customs and peak season can add time.";
@@ -49,7 +50,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 for (const path of PAGES) {
-  test(`${path} renders no worldwide or UPS wording`, async ({ page }) => {
+  test(`${path} renders none of the banned craft words, worldwide, or UPS`, async ({ page }) => {
     await page.goto(path);
     let copy = await visibleCopy(page);
     if (path.startsWith("/products/")) {

@@ -9,7 +9,8 @@ import {
 } from "@/lib/brand-copy";
 import { products } from "@/data/products";
 
-const BANNED = /worldwide|\bUPS\b/i;
+const BANNED =
+  /atelier|handmade|hand-made|hand made|hand-finished|handcrafted|worldwide|\bUPS\b/i;
 
 describe("BRAND v4 copy constants", () => {
   it("keeps the standard delivery sentence, including the en dashes", () => {
@@ -34,7 +35,7 @@ describe("BRAND v4 copy constants", () => {
 });
 
 describe("catalog copy", () => {
-  it("sets Origin to Designed in Hong Kong and does not say worldwide or UPS", () => {
+  it("sets Origin to Designed in Hong Kong and drops craft, worldwide, and UPS wording", () => {
     expect(products.length).toBeGreaterThan(0);
     for (const product of products) {
       expect(product.specs.Origin).toBe("Designed in Hong Kong");
@@ -53,11 +54,7 @@ describe("catalog copy", () => {
     for (const product of necklaces) {
       expect(product.description.toLowerCase(), product.slug).not.toContain("clasp");
       expect(product.specs.Clasp, product.slug).toBeUndefined();
-      expect(product.features, product.slug).toEqual([
-        "Designed in Hong Kong",
-        "Sterling silver",
-        "Crafted in our atelier with museum-inspired design values",
-      ]);
+      expect(product.features, product.slug).toEqual(["Designed in Hong Kong", "Sterling silver"]);
       expect(product.features.join(" "), product.slug).not.toMatch(/complimentary/i);
     }
   });

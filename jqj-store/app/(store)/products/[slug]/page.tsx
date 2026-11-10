@@ -20,7 +20,7 @@ export function generateMetadata({ params }: { params: { slug: string } }) {
     title: product?.name ?? "Product",
     description:
       product?.description ??
-      "Explore handcrafted natural stone jewelry from JQD Group.",
+      "Explore natural stone jewelry from JQD Group.",
     alternates: { canonical: productPath },
     openGraph: product
       ? {
