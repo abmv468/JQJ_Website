@@ -168,7 +168,7 @@ export default function ProductDetail({
           <div className="relative aspect-square overflow-hidden bg-brand-card">
             <Image
               src={product.images[activeImage]}
-              alt={product.name}
+              alt={product.imageAlt ?? product.name}
               fill
               priority
               sizes="(max-width: 1024px) 100vw, 50vw"
@@ -188,7 +188,7 @@ export default function ProductDetail({
                 >
                   <Image
                     src={img}
-                    alt={`${product.name} ${i + 1}`}
+                    alt={product.imageAlt ?? `${product.name} ${i + 1}`}
                     fill
                     sizes="120px"
                     className="object-cover"
@@ -213,10 +213,12 @@ export default function ProductDetail({
               )}
               <span className="text-lg text-white">{formatFromUsd(product.price)}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <StarRating rating={product.rating} />
-              <span className="text-xs text-brand-muted">({product.reviewCount})</span>
-            </div>
+            {typeof product.rating === "number" && typeof product.reviewCount === "number" ? (
+              <div className="flex items-center gap-2">
+                <StarRating rating={product.rating} />
+                <span className="text-xs text-brand-muted">({product.reviewCount})</span>
+              </div>
+            ) : null}
           </div>
 
           {product.compareAtPrice && (

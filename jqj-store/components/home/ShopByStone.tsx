@@ -5,7 +5,7 @@ import Link from "next/link";
 const stoneImages: Record<string, string> = {
   Sodalite: "/stones/sodalite-raw.webp",
   "Tiger Eye": "/stones/tiger-eye-raw.webp",
-  Carnelian: "/stones/carnelian-raw.webp",
+  "Red Leopard Skin Jasper": "/products/red-leopard-jasper-bracelet.webp",
   Tourmaline: "/stones/tourmaline-raw.webp",
   Aquamarine: "/stones/aquamarine-raw.webp",
   Amethyst: "/stones/amethyst-raw.webp",

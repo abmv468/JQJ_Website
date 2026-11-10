@@ -26,6 +26,9 @@ export default function ProductCard({
   const { formatFromUsd } = useCurrency();
   const primaryTag = product.tags[0];
   const hoverImage = product.hoverImage;
+  const imageAlt = product.imageAlt ?? product.name;
+  const rating = product.rating;
+  const reviewCount = product.reviewCount;
   const stock = getStockState({
     stockCount: product.stockCount,
     inStock: product.inStock,
@@ -66,7 +69,7 @@ export default function ProductCard({
           ) : null}
           <Image
             src={product.images[0]}
-            alt={product.name}
+            alt={imageAlt}
             fill
             sizes={sizes}
             className={`rounded-[1.2rem] object-cover transition-[transform,opacity] duration-500 ${hoverImage ? "opacity-100 group-hover:scale-[1.04] group-hover:opacity-0" : "group-hover:scale-[1.04]"}`}
@@ -74,7 +77,7 @@ export default function ProductCard({
           {hoverImage ? (
             <Image
               src={hoverImage}
-              alt={`${product.name} hover view`}
+              alt={product.imageAlt ?? `${product.name} hover view`}
               fill
               sizes={sizes}
               className="rounded-[1.2rem] object-cover opacity-0 transition-[transform,opacity] duration-500 group-hover:scale-[1.04] group-hover:opacity-100"
@@ -88,10 +91,14 @@ export default function ProductCard({
 
         <div className="flex flex-1 flex-col px-1 pb-1 pt-4">
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-[11px] text-white/58">
-              <StarRating rating={product.rating} size={11} />
-              <span>{product.reviewCount} reviews</span>
-            </div>
+            {typeof rating === "number" && typeof reviewCount === "number" ? (
+              <div className="flex items-center gap-2 text-[11px] text-white/58">
+                <StarRating rating={rating} size={11} />
+                <span>{reviewCount} reviews</span>
+              </div>
+            ) : (
+              <span />
+            )}
             <ArrowUpRight className="h-4 w-4 text-white/42 transition-colors duration-200 group-hover:text-white" />
           </div>
 

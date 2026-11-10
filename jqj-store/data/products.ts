@@ -13,6 +13,8 @@ export interface Product {
   category: CategorySlug;
   images: string[];
   hoverImage?: string;
+  imageAlt?: string;
+  metaDescription?: string;
   inStock: boolean;
   stockCount: number;
   lowStockThreshold?: number;
@@ -22,8 +24,8 @@ export interface Product {
     sku: string;
     stockCount: number;
   }>;
-  rating: number;
-  reviewCount: number;
+  rating?: number;
+  reviewCount?: number;
   tags: ProductTag[];
   stone: string;
   features: string[];
@@ -34,7 +36,7 @@ export interface Product {
 export const stones = [
   "Sodalite",
   "Tiger Eye",
-  "Carnelian",
+  "Red Leopard Skin Jasper",
   "Tourmaline",
   "Aquamarine",
   "Amethyst",
@@ -58,41 +60,41 @@ const baseFeatures = [
 export const products: Product[] = [
   {
     id: "red-leopard-jasper-iii",
-    name: "Red Leopard Skin Jasper Bracelet III (6mm)",
+    name: "Red Leopard Skin Jasper Cube Bracelet",
     slug: "red-leopard-skin-jasper-bracelet-iii",
     description:
-      "Grounded and expressive, this Red Leopard Skin Jasper bracelet pairs warm, naturally patterned stone with a hand-finished silver clasp. A timeless profile, crafted one piece at a time.",
+      "Cut into clean cubes, Red Leopard Skin Jasper shows its natural spotted pattern in warm reds, rose, cream and earthy browns, so no two beads look quite alike. Small dark spacers sit between the stones, and a single silver-tone cube with an engraved mark adds a quiet point of light to the strand. Designed in Hong Kong with materials sourced from around the world, it is a considered piece for everyday wear, and arrives gift-ready.",
+    metaDescription:
+      "Red Leopard Skin Jasper Cube Bracelet by Jewellery Quintessential · 極氣: patterned jasper cubes with one silver-tone accent, designed in Hong Kong.",
     price: 599.99,
     compareAtPrice: 699.99,
     sku: "JQJ-RLSJ-III",
     category: "bracelets",
-    images: [
-      "/products/red-leopard-skin-jasper-bracelet-iii-2.jpg",
-      "/products/red-leopard-skin-jasper-bracelet-hover.jpg",
-      "/products/pearl-silver-necklace-v-2.jpg",
-      "/products/JQJ-Group-—-Natural-Stone-Jewelry-with-Cultural-Craft_Photoshoot_Vintage-Sunwashed-Film_2026-06-29_1x.png",
-    ],
-    hoverImage: "/products/red-leopard-skin-jasper-bracelet-hover.jpg",
+    images: ["/products/red-leopard-jasper-bracelet.webp"],
+    hoverImage: "/products/red-leopard-jasper-bracelet.webp",
+    imageAlt:
+      "Red Leopard Skin Jasper cube bead bracelet with small dark spacers and one engraved silver-tone cube, on a black background.",
     inStock: true,
     stockCount: 12,
     lowStockThreshold: 5,
     variants: [
-      { size: "Small", material: "Sterling Silver", sku: "JQJ-RLSJ-III-S-SS", stockCount: 4 },
-      { size: "Medium", material: "Sterling Silver", sku: "JQJ-RLSJ-III-M-SS", stockCount: 5 },
-      { size: "Large", material: "Sterling Silver", sku: "JQJ-RLSJ-III-L-SS", stockCount: 3 },
+      { size: "Small", sku: "JQJ-RLSJ-III-S-SS", stockCount: 4 },
+      { size: "Medium", sku: "JQJ-RLSJ-III-M-SS", stockCount: 5 },
+      { size: "Large", sku: "JQJ-RLSJ-III-L-SS", stockCount: 3 },
     ],
-    rating: 4.8,
-    reviewCount: 28,
-    tags: ["top-rated", "sale"],
-    stone: "Carnelian",
-    features: baseFeatures,
+    tags: ["sale"],
+    stone: "Red Leopard Skin Jasper",
+    features: [
+      "Tailored for your preferred fit",
+      "Natural gemstones selected for color and character",
+      "Complimentary first resize for new customers",
+    ],
     specs: {
-      Color: "Red",
-      "Bead Size": "6mm",
-      "Bead Shape": "Round",
       Stone: "Red Leopard Skin Jasper",
-      Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      "Bead Shape": "Cube",
+      Accent: "One silver-tone cube with an engraved mark",
+      Spacers: "Small dark spacers",
+      Care: "Keep dry. Store separately. Wipe with a soft cloth.",
     },
   },
   {
