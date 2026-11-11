@@ -8,10 +8,9 @@ import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
 import { buildCheckoutSummary, formatCheckoutCharge } from "@/lib/checkout-currency";
 import { createClient } from "@/lib/supabase/client";
+import { CARD_CURRENCY_NOTICE, COD_FEE, codPaymentLabel } from "@/lib/checkout-fees";
 import { computeShippingUsd } from "@/lib/shipping";
-import { formatPrice } from "@/lib/utils";
 
-const COD_FEE = 20;
 const AIRWALLEX_SDK_SRC = "https://static.airwallex.com/components/sdk/v1/index.js";
 
 declare global {
@@ -180,8 +179,6 @@ export default function CheckoutPage() {
     codFeeUsd: codFee,
     displayCurrency: currency,
   });
-  const codFeeInCurrency =
-    method === "cod" ? formatCheckoutCharge(COD_FEE) : formatPrice(codFee, { currency: "USD" });
 
   const payloadItems = useMemo(
     () =>
@@ -382,16 +379,12 @@ export default function CheckoutPage() {
                 <input type="radio" name="method" checked={method === "airwallex"} onChange={() => setMethod("airwallex")} className="accent-brand-gold" />
                 <span className="text-sm">Credit / Debit Card (Airwallex Hosted Checkout)</span>
               </label>
+              <p className="text-xs text-brand-muted">{CARD_CURRENCY_NOTICE}</p>
               <label className={`flex cursor-pointer items-center gap-3 border p-4 ${method === "cod" ? "border-brand-gold" : "border-brand-border"}`}>
                 <input type="radio" name="method" checked={method === "cod"} onChange={() => setMethod("cod")} className="accent-brand-gold" />
-                <span className="text-sm">Cash on Delivery (+{codFeeInCurrency} fee)</span>
+                <span className="text-sm">{codPaymentLabel(COD_FEE, formatCheckoutCharge(COD_FEE))}</span>
               </label>
             </div>
-            {method === "airwallex" && (
-              <p className="mt-3 text-xs text-brand-muted">
-                Airwallex sandbox checkout currently charges in USD only.
-              </p>
-            )}
           </section>
 
           {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
