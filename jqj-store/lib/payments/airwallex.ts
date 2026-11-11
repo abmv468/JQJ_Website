@@ -441,6 +441,13 @@ function secureEqual(left: string, right: string) {
   return timingSafeEqual(leftBuffer, rightBuffer);
 }
 
+export function resolveAirwallexWebhookMaxSkewSeconds(raw?: string): number {
+  if (raw === undefined || raw === "") return 300;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) return 300;
+  return Math.min(600, Math.max(1, parsed));
+}
+
 export interface VerifyWebhookSignatureInput {
   rawBody: string;
   signature: string | null;

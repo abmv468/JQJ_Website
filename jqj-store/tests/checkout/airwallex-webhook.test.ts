@@ -1,5 +1,5 @@
 import { createHmac } from "node:crypto";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/webhooks/airwallex/route";
 import { createCheckoutDb, setActiveDb, type MemoryDb } from "../helpers/memory-db";
 
@@ -29,9 +29,14 @@ function signed(body: unknown, timestamp = String(Math.floor(Date.now() / 1000))
 describe("POST /api/webhooks/airwallex", () => {
   let db: MemoryDb;
 
+  afterEach(() => {
+    delete process.env.AIRWALLEX_WEBHOOK_MAX_SKEW_SECONDS;
+  });
+
   beforeEach(() => {
     db = createCheckoutDb();
     setActiveDb(db);
+    delete process.env.AIRWALLEX_WEBHOOK_MAX_SKEW_SECONDS;
     process.env.AIRWALLEX_WEBHOOK_SECRET = SECRET;
     vi.stubGlobal(
       "fetch",
@@ -155,6 +160,26 @@ describe("POST /api/webhooks/airwallex", () => {
     expect(db.rowsOf("payment_webhook_events")).toHaveLength(0);
     expect(db.rowsOf("orders")[0].status).toBe("pending");
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
+  });
+
+  it("rejects a 301s-old timestamp when the skew setting is not numeric", async () => {
+    process.env.AIRWALLEX_WEBHOOK_MAX_SKEW_SECONDS = "abc";
+    const timestamp = String(Math.floor(Date.now() / 1000) - 301);
+    const body = JSON.stringify({
+      id: "evt_skew",
+      name: "payment_intent.succeeded",
+      data: { object: { id: "int_1", status: "SUCCEEDED" } },
+    });
+
+    const response = await POST(
+      webhookRequest(body, {
+        "x-signature": sign(timestamp, body),
+        "x-timestamp": timestamp,
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(db.rowsOf("payment_webhook_events")).toHaveLength(0);
   });
 
   it("does not change the order for a signed event whose payment intent is missing", async () => {
