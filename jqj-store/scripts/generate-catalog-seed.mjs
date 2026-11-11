@@ -55,8 +55,6 @@ const productRows = products.map((product) =>
     product.inStock ? "true" : "false",
     number(product.stockCount),
     number(product.lowStockThreshold ?? 5),
-    number(product.rating),
-    number(product.reviewCount),
     textArray(product.tags),
     text(product.stone),
     textArray(product.features),
@@ -91,7 +89,7 @@ on conflict (slug) do update set name = excluded.name;
 
 insert into public.products (
   name, slug, description, sku, price, compare_at_price, category_id, images,
-  in_stock, stock_count, low_stock_threshold, rating, review_count, tags, stone,
+  in_stock, stock_count, low_stock_threshold, tags, stone,
   features, specs
 ) values
 ${productRows.map((row) => `  (${row})`).join(",\n")}
@@ -104,8 +102,6 @@ on conflict (slug) do update set
   category_id = excluded.category_id,
   images = excluded.images,
   low_stock_threshold = excluded.low_stock_threshold,
-  rating = excluded.rating,
-  review_count = excluded.review_count,
   tags = excluded.tags,
   stone = excluded.stone,
   features = excluded.features,

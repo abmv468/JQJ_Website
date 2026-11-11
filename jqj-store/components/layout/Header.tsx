@@ -45,9 +45,6 @@ type MegaMenuConfig = {
 const queryHref = (category: CategoryRoute, query: string) =>
   `/${category}?q=${encodeURIComponent(query)}`;
 
-const tagHref = (category: CategoryRoute, tag: string) =>
-  `/${category}?tag=${encodeURIComponent(tag)}`;
-
 const megaMenus: Record<MegaMenuKey, MegaMenuConfig> = {
   necklaces: {
     key: "necklaces",
@@ -69,7 +66,6 @@ const megaMenus: Record<MegaMenuKey, MegaMenuConfig> = {
       {
         title: "Collection",
         items: [
-          { label: "Bestsellers", href: tagHref("necklaces", "top-rated") },
           { label: "Birthstones Series", href: queryHref("necklaces", "Birthstones") },
           { label: "Celestial Keepsakes", href: queryHref("necklaces", "Celestial") },
           { label: "Initials Series", href: queryHref("necklaces", "Initials") },
