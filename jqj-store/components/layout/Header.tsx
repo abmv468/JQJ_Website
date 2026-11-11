@@ -316,12 +316,16 @@ export default function Header() {
     <LazyMotion features={domAnimation}>
       <header
         ref={headerRef}
-        className={`sticky top-0 z-40 border-b backdrop-blur-2xl transition-[background-color,border-color,box-shadow] duration-200 ${
+        className={`sticky top-0 z-40 border-b transition-[border-color,box-shadow] duration-200 ${
           isScrolled
-            ? "border-white/10 bg-black/72 shadow-[0_16px_40px_rgba(0,0,0,0.28)] supports-[backdrop-filter]:bg-black/58"
-            : "border-white/6 bg-black/40 supports-[backdrop-filter]:bg-black/28"
+            ? "border-white/10 shadow-[0_16px_40px_rgba(0,0,0,0.28)]"
+            : "border-white/6"
         }`}
       >
+        <div
+          aria-hidden="true"
+          className="store-nav-stone pointer-events-none absolute inset-x-0 top-0 h-[4.75rem]"
+        />
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent"
@@ -392,11 +396,13 @@ export default function Header() {
 
           <Link href="/" aria-label="JQD Group home" className="group shrink-0">
             <Image
-              src="/JQD-logo.png"
-              alt="JQD Group"
-              width={56}
-              height={56}
-              className="h-11 w-11 rounded-full object-cover transition-transform duration-200 group-hover:scale-[1.02] sm:h-14 sm:w-14"
+              src="/header/monogram-jq.png"
+              alt=""
+              width={1401}
+              height={1401}
+              sizes="56px"
+              quality={95}
+              className="h-11 w-11 bg-transparent object-contain transition-transform duration-200 group-hover:scale-[1.02] motion-reduce:transition-none motion-reduce:group-hover:scale-100 lg:h-14 lg:w-14"
               priority
             />
           </Link>

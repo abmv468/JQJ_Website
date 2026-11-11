@@ -251,6 +251,16 @@ input[type="number"]::-webkit-outer-spin-button {
   background: #BB9D7B;
 }
 
+/* 2880×152 plate is a 2× full-width 1440×76 bar. Draw it at that CSS size;
+   repeat-x so wider viewports keep vein scale instead of stretching the plate. */
+.store-nav-stone {
+  background-color: #010904;
+  background-image: url("/header/marble-dark-nav-plate-2x.png");
+  background-repeat: repeat-x;
+  background-position: top center;
+  background-size: 1440px 76px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
