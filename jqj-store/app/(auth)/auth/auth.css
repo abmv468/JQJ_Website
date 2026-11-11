@@ -1,0 +1,433 @@
+/* Auth pages only. Every rule is under .jq-auth so the storefront is unchanged.
+   Tokens follow the locked typeset: page #010101, gold #BB9D7B / #E1C19D,
+   muted #8a8174, body #F3F0EA, borders #3E3E3E, square corners. */
+
+.jq-auth {
+  --bg: #010101;
+  --gold: #BB9D7B;
+  --gold-light: #E1C19D;
+  --border: #3E3E3E;
+  --muted: #8a8174;
+  --text: #F3F0EA;
+  --font-heading: var(--font-auth-heading), "Instrument Sans", sans-serif;
+  --font-body: var(--font-auth-body), "Manrope", sans-serif;
+  --font-zh: var(--font-auth-zh), "Noto Serif CJK TC", serif;
+  --ease: cubic-bezier(0.23, 1, 0.32, 1);
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 1.55;
+  color-scheme: dark;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.jq-auth,
+.jq-auth *,
+.jq-auth *::before,
+.jq-auth *::after {
+  box-sizing: border-box;
+  border-radius: 0;
+}
+
+.jq-auth a {
+  color: inherit;
+}
+
+.jq-auth :where(a, button, input):focus-visible {
+  outline: 2px solid #E1C19D;
+  outline-offset: 3px;
+}
+
+.jq-auth .fade-in {
+  animation: jq-auth-fade 0.65s var(--ease) both;
+}
+
+@keyframes jq-auth-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jq-auth .fade-in { animation: none; }
+  .jq-auth .btn-primary,
+  .jq-auth .tab,
+  .jq-auth .shop-link,
+  .jq-auth .text-link {
+    transition: none;
+  }
+}
+
+.jq-auth .auth-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 28px 48px;
+  border-bottom: 1px solid var(--border);
+  min-height: 84px;
+}
+
+.jq-auth .wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: nowrap;
+  gap: 0;
+  min-width: 0;
+  text-decoration: none;
+  color: var(--text);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.jq-auth .wordmark-en {
+  font-family: var(--font-heading);
+  font-weight: 400;
+  font-size: 15px;
+  letter-spacing: 0.06em;
+}
+
+.jq-auth .wordmark-dot {
+  font-family: var(--font-heading);
+  color: var(--text);
+  padding: 0 0.55em;
+  font-size: 15px;
+}
+
+.jq-auth .wordmark-zh {
+  font-family: var(--font-zh);
+  font-weight: 400;
+  font-size: 15px;
+  letter-spacing: 0.12em;
+  line-height: 1;
+}
+
+.jq-auth .shop-link {
+  flex: none;
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.jq-auth .shop-link:hover {
+  color: var(--text);
+}
+
+.jq-auth .login-frame {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  min-height: calc(100vh - 84px);
+}
+
+.jq-auth .still-life {
+  background: #0a0a0a;
+  border-right: 1px solid var(--border);
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding: 56px 48px;
+  min-height: 100%;
+}
+
+.jq-auth .still-life-copy {
+  max-width: 22rem;
+}
+
+.jq-auth .still-life-kicker {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin: 0 0 14px;
+}
+
+.jq-auth .still-life-rule {
+  width: 40px;
+  height: 1px;
+  background: var(--gold);
+  margin: 0 0 18px;
+  border: 0;
+}
+
+.jq-auth .still-life-text {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--muted);
+  margin: 0;
+}
+
+.jq-auth .form-pane {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 48px 80px;
+}
+
+.jq-auth .form-card {
+  width: 100%;
+  max-width: 400px;
+}
+
+.jq-auth .center-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 84px);
+  padding: 64px 48px 80px;
+}
+
+.jq-auth .page-title {
+  font-family: var(--font-heading);
+  font-weight: 400;
+  font-size: 32px;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--text);
+  margin: 0 0 12px;
+}
+
+.jq-auth .page-lead {
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--muted);
+  margin: 0 0 36px;
+}
+
+.jq-auth .page-lead.is-tight {
+  margin-bottom: 28px;
+}
+
+.jq-auth .page-lead.is-status {
+  margin-bottom: 10px;
+}
+
+.jq-auth .page-lead .addr {
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.jq-auth .status-note {
+  margin: 0 0 28px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--gold-light);
+}
+
+.jq-auth .tabs {
+  display: flex;
+  gap: 28px;
+  margin: 0 0 36px;
+  border-bottom: 1px solid var(--border);
+}
+
+.jq-auth .tab {
+  appearance: none;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  margin-bottom: -1px;
+  padding: 0 0 14px;
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 180ms ease, border-color 180ms ease;
+}
+
+.jq-auth .tab.is-active {
+  color: var(--text);
+  border-bottom-color: var(--gold);
+}
+
+.jq-auth .field {
+  margin: 0 0 22px;
+}
+
+.jq-auth .field label {
+  display: block;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  margin: 0 0 8px;
+}
+
+.jq-auth .field input {
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.4;
+  padding: 14px 16px;
+  caret-color: var(--gold);
+  box-shadow: none;
+}
+
+.jq-auth .field input::placeholder {
+  color: transparent;
+}
+
+.jq-auth .field input:focus,
+.jq-auth .field input:focus-visible {
+  outline: none;
+  border-color: var(--gold);
+}
+
+.jq-auth .field input:-webkit-autofill {
+  -webkit-text-fill-color: var(--text);
+  caret-color: var(--gold);
+  box-shadow: 0 0 0 1000px #010101 inset;
+  transition: background-color 9999s ease-out;
+}
+
+.jq-auth .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-top: 8px;
+  padding: 16px 24px;
+  background: transparent;
+  border: 1px solid var(--gold);
+  color: #ffffff;
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease;
+}
+
+.jq-auth .btn-primary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .jq-auth .btn-primary:hover:not(:disabled) {
+    background: rgba(187, 157, 123, 0.1);
+    border-color: var(--gold-light);
+    color: #fff7ed;
+  }
+}
+
+.jq-auth .form-footer {
+  margin-top: 22px;
+  text-align: left;
+}
+
+.jq-auth .text-link {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--muted);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.jq-auth .text-link:hover {
+  color: var(--text);
+  border-bottom-color: var(--border);
+}
+
+.jq-auth .fine-print {
+  margin: 22px 0 0;
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.jq-auth .fine-print a {
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+}
+
+.jq-auth .nowrap {
+  white-space: nowrap;
+}
+
+.jq-auth .secondary-row {
+  margin-top: 22px;
+}
+
+.jq-auth .note {
+  margin: 28px 0 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--muted);
+}
+
+.jq-auth .form-error {
+  margin: 16px 0 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.55;
+  color: #e7cfc3;
+}
+
+@media (max-width: 720px) {
+  .jq-auth .auth-header {
+    padding: 22px 20px;
+    min-height: 72px;
+  }
+
+  .jq-auth .wordmark-en,
+  .jq-auth .wordmark-dot {
+    font-size: 13px;
+    letter-spacing: 0.04em;
+  }
+
+  .jq-auth .wordmark-zh {
+    font-size: 13px;
+  }
+
+  .jq-auth .shop-link {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+  }
+
+  .jq-auth .login-frame {
+    grid-template-columns: 1fr;
+    min-height: calc(100vh - 72px);
+  }
+
+  .jq-auth .still-life {
+    display: none;
+  }
+
+  .jq-auth .form-pane,
+  .jq-auth .center-frame {
+    align-items: flex-start;
+    padding: 40px 20px 64px;
+    min-height: calc(100vh - 72px);
+  }
+
+  .jq-auth .page-title {
+    font-size: 26px;
+  }
+}
