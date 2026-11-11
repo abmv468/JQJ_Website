@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ChevronLeft, CreditCard, Truck } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
+import { buildCheckoutSummary, formatCheckoutCharge } from "@/lib/checkout-currency";
 import { createClient } from "@/lib/supabase/client";
 import { computeShippingUsd } from "@/lib/shipping";
 import { formatPrice } from "@/lib/utils";
@@ -89,8 +90,8 @@ const countries = [
 ];
 
 export default function CheckoutPage() {
-  const { items, subtotal, clearCart } = useCart();
-  const { currency, formatFromUsd } = useCurrency();
+  const { items, clearCart } = useCart();
+  const { currency } = useCurrency();
   const checkoutAttemptIdRef = useRef<string>(crypto.randomUUID());
   const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
   const [method, setMethod] = useState<"airwallex" | "cod">("airwallex");
@@ -165,16 +166,22 @@ export default function CheckoutPage() {
 
   const codFee = method === "cod" ? COD_FEE : 0;
   const shipping = items.length
-    ? computeShippingUsd(items.map((item) => ({ unitPriceUsd: item.price, quantity: item.quantity })))
+    ? computeShippingUsd(
+        items.map((item) => ({ unitPriceUsd: item.price, quantity: item.quantity }))
+      )
     : 0;
-  const total = subtotal + shipping + codFee;
-  const chargeCurrency = method === "airwallex" ? "USD" : currency;
-  const formatCheckoutAmount = (amountUsd: number) =>
-    chargeCurrency === "USD" ? formatPrice(amountUsd, { currency: "USD" }) : formatFromUsd(amountUsd);
-  const subtotalInCurrency = formatCheckoutAmount(subtotal);
-  const shippingInCurrency = formatCheckoutAmount(shipping);
-  const codFeeInCurrency = formatCheckoutAmount(codFee);
-  const totalInCurrency = formatCheckoutAmount(total);
+  const summary = buildCheckoutSummary({
+    items: items.map((item) => ({
+      name: item.name,
+      unitPriceUsd: item.price,
+      quantity: item.quantity,
+    })),
+    shippingUsd: shipping,
+    codFeeUsd: codFee,
+    displayCurrency: currency,
+  });
+  const codFeeInCurrency =
+    method === "cod" ? formatCheckoutCharge(COD_FEE) : formatPrice(codFee, { currency: "USD" });
 
   const payloadItems = useMemo(
     () =>
@@ -415,7 +422,7 @@ export default function CheckoutPage() {
         {/* Order summary */}
         <aside className="order-1 h-fit border border-brand-border p-6 lg:order-2">
           <ul className="space-y-4">
-            {items.map((item) => (
+            {items.map((item, index) => (
               <li key={`${item.id}-${item.sku ?? ""}-${item.size ?? ""}-${item.material ?? ""}`} className="flex items-center gap-4">
                 <div className="relative h-16 w-16 shrink-0 overflow-hidden bg-brand-card">
                   <Image src={item.image} alt={item.name} fill sizes="64px" className="object-cover" />
@@ -428,7 +435,7 @@ export default function CheckoutPage() {
                   {item.size && <p className="text-[11px] text-brand-muted">Size: {item.size}</p>}
                   {item.material && <p className="text-[11px] text-brand-muted">Material: {item.material}</p>}
                 </div>
-                <span className="text-sm">{formatFromUsd(item.price * item.quantity)}</span>
+                <span className="text-sm">{summary.lines[index]?.formatted}</span>
               </li>
             ))}
           </ul>
@@ -441,23 +448,30 @@ export default function CheckoutPage() {
           <div className="mt-6 space-y-3 border-t border-brand-border pt-6 text-sm">
             <div className="flex justify-between">
               <span className="text-brand-muted">Subtotal</span>
-              <span>{subtotalInCurrency}</span>
+              <span>{summary.subtotal}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-brand-muted">Shipping</span>
-              <span>{shippingInCurrency}</span>
+              <span>{summary.shipping}</span>
             </div>
-            {codFee > 0 && (
+            {summary.codFeeUsd > 0 && (
               <div className="flex justify-between">
                 <span className="text-brand-muted">Cash on Delivery fee</span>
-                <span>{codFeeInCurrency}</span>
+                <span>{summary.codFee}</span>
               </div>
             )}
           </div>
 
           <div className="mt-4 flex items-end justify-between border-t border-brand-border pt-4">
             <span className="font-heading uppercase tracking-wider2">Total</span>
-            <span className="font-heading text-2xl text-brand-gold">{totalInCurrency}</span>
+            <span className="flex items-baseline gap-3">
+              {summary.chargeNote ? (
+                <span className="text-xs font-body normal-case tracking-normal text-brand-muted">
+                  {summary.chargeNote}
+                </span>
+              ) : null}
+              <span className="font-heading text-2xl text-brand-gold">{summary.total}</span>
+            </span>
           </div>
         </aside>
       </div>
