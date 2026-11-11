@@ -12,10 +12,11 @@ import {
   validateCheckoutItems,
   type CheckoutItemInput,
 } from "@/lib/inventory";
+import { COD_FEE } from "@/lib/checkout-fees";
 import { computeShippingUsd } from "@/lib/shipping";
+
 export const dynamic = "force-dynamic";
 
-const COD_FEE = 20;
 const CLAIM_TIMEOUT_MS = 5 * 60 * 1000;
 
 async function getAuthenticatedUserId() {
