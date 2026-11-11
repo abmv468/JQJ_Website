@@ -7,7 +7,7 @@ import { ChevronDown, Minus, Plus } from "lucide-react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import type { Product } from "@/data/products";
 import { useCart } from "@/context/CartContext";
-import StarRating from "@/components/ui/StarRating";
+import { RETURNS_DAYS } from "@/lib/policy";
 import ProductCard from "./ProductCard";
 import { getStockState, getVariantLabel } from "@/lib/product-stock";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -22,8 +22,14 @@ const accordionData = (product: Product) => [
   },
   {
     title: "Shipping & Return",
-    content:
-      "Complimentary UPS shipping and returns. 30-day satisfaction guarantee, plus a complimentary first resize for new customers.",
+    content: [
+      `Returns are accepted within ${RETURNS_DAYS} days of delivery. Customers pay return shipping.`,
+      product.category === "bracelets"
+        ? `Exchange or resize requests for bracelets are accepted within ${RETURNS_DAYS} days of delivery.`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" "),
   },
 ];
 
@@ -213,10 +219,6 @@ export default function ProductDetail({
               )}
               <span className="text-lg text-white">{formatFromUsd(product.price)}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <StarRating rating={product.rating} />
-              <span className="text-xs text-brand-muted">({product.reviewCount})</span>
-            </div>
           </div>
 
           {product.compareAtPrice && (
@@ -380,9 +382,9 @@ export default function ProductDetail({
 
           {/* Trust list */}
           <ul className="mt-8 space-y-3 border-t border-brand-border pt-6">
-            {product.features.map((f) => (
-              <li key={f} className="text-xs text-brand-muted">
-                {f}
+            {product.features.map((feature) => (
+              <li key={feature} className="text-xs text-brand-muted">
+                {feature}
               </li>
             ))}
           </ul>
