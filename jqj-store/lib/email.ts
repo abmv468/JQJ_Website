@@ -31,12 +31,26 @@ export interface OrderEmailData {
 const BRAND = "JQD Group";
 const GOLD = "#BB9D7B";
 
+const HTML_ESCAPES: Record<string, string> = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+  "'": "&#39;",
+};
+
+// Order mail interpolates customer-controlled text. Escape it before it reaches HTML.
+function escapeHtml(value: unknown): string {
+  if (value == null) return "";
+  return String(value).replace(/[&<>"']/g, (character) => HTML_ESCAPES[character]);
+}
+
 function itemsTable(items: OrderEmailItem[], currency: SupportedCurrency): string {
   return items
     .map(
       (i) => `
       <tr>
-        <td style="padding:8px 0;border-bottom:1px solid #eee;">${i.name} × ${i.quantity}</td>
+        <td style="padding:8px 0;border-bottom:1px solid #eee;">${escapeHtml(i.name)} × ${escapeHtml(i.quantity)}</td>
         <td style="padding:8px 0;border-bottom:1px solid #eee;text-align:right;">${formatPrice(i.price * i.quantity, {
           currency,
         })}</td>
@@ -47,22 +61,22 @@ function itemsTable(items: OrderEmailItem[], currency: SupportedCurrency): strin
 
 function buildHtml(data: OrderEmailData, heading: string): string {
   const addr = data.shippingAddress;
+  const paymentLabel =
+    data.paymentMethod === "cod"
+      ? "Cash on Delivery"
+      : data.paymentMethod === "airwallex"
+        ? "Card (Airwallex)"
+        : "Card (Stripe)";
   return `
   <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;background:#ffffff;color:#111;">
     <div style="background:#010101;padding:28px;text-align:center;">
       <span style="color:#fff;font-size:20px;letter-spacing:3px;">${BRAND}</span>
     </div>
     <div style="padding:28px;">
-      <h2 style="font-weight:400;">${heading}</h2>
-      <p>Hi ${data.customerName || "there"},</p>
-      <p>Order reference: <strong>${data.orderId}</strong></p>
-      <p>Payment method: <strong>${
-        data.paymentMethod === "cod"
-          ? "Cash on Delivery"
-          : data.paymentMethod === "airwallex"
-            ? "Card (Airwallex)"
-            : "Card (Stripe)"
-      }</strong></p>
+      <h2 style="font-weight:400;">${escapeHtml(heading)}</h2>
+      <p>Hi ${escapeHtml(data.customerName) || "there"},</p>
+      <p>Order reference: <strong>${escapeHtml(data.orderId)}</strong></p>
+      <p>Payment method: <strong>${escapeHtml(paymentLabel)}</strong></p>
       <table style="width:100%;border-collapse:collapse;margin:16px 0;">
         ${itemsTable(data.items, data.currency)}
         <tr><td style="padding:8px 0;">Subtotal</td><td style="padding:8px 0;text-align:right;">${formatPrice(data.subtotal, {
@@ -84,9 +98,9 @@ function buildHtml(data: OrderEmailData, heading: string): string {
       </table>
       <h3 style="font-weight:500;">Shipping to</h3>
       <p style="color:#444;line-height:1.5;">
-        ${addr.address}${addr.apartment ? ", " + addr.apartment : ""}<br/>
-        ${addr.city}, ${addr.region}<br/>
-        ${addr.country}
+        ${escapeHtml(addr.address)}${addr.apartment ? ", " + escapeHtml(addr.apartment) : ""}<br/>
+        ${escapeHtml(addr.city)}, ${escapeHtml(addr.region)}<br/>
+        ${escapeHtml(addr.country)}
       </p>
       <p style="margin-top:24px;color:#777;font-size:12px;">Thank you for choosing ${BRAND}.</p>
     </div>

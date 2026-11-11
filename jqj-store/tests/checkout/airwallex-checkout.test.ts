@@ -9,6 +9,7 @@ import {
   setActiveDb,
   type MemoryDb,
 } from "../helpers/memory-db";
+import { quoteCheckout } from "../shared/checkout-expectations";
 
 vi.mock("@/lib/payments/airwallex", async () => {
   const actual = await vi.importActual<typeof import("@/lib/payments/airwallex")>(
@@ -97,6 +98,10 @@ describe("POST /api/checkout/airwallex", () => {
 
     expect(response.status).toBe(200);
     const body = await response.json();
+    const quote = quoteCheckout(
+      [{ unitPriceUsd: Number(db.rowsOf("products")[0].price), quantity: 2 }],
+      "airwallex"
+    );
     expect(body).toMatchObject({
       intentId: "int_test",
       clientSecret: "secret_test",
@@ -108,9 +113,9 @@ describe("POST /api/checkout/airwallex", () => {
     expect(db.rowsOf("products")[0].stock_count).toBe(3);
     expect(db.rowsOf("orders")[0]).toMatchObject({
       inventory_reserved: true,
-      total_amount: 215,
-      subtotal_amount: 200,
-      shipping_amount: 15,
+      total_amount: quote.total,
+      subtotal_amount: quote.subtotal,
+      shipping_amount: quote.shipping,
       payment_provider: "airwallex",
       currency: "USD",
     });

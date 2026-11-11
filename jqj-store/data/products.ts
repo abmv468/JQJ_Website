@@ -1,6 +1,6 @@
 export type CategorySlug = "bracelets" | "necklaces" | "rings" | "earrings";
 
-export type ProductTag = "new" | "limited" | "top-rated" | "restocked" | "sale";
+export type ProductTag = "new" | "limited" | "restocked" | "sale";
 
 export interface Product {
   id: string;
@@ -22,8 +22,6 @@ export interface Product {
     sku: string;
     stockCount: number;
   }>;
-  rating: number;
-  reviewCount: number;
   tags: ProductTag[];
   stone: string;
   features: string[];
@@ -48,14 +46,13 @@ export const categories: { slug: CategorySlug; name: string }[] = [
   { slug: "earrings", name: "Earrings" },
 ];
 
-const baseFeatures = [
+const sharedFeatures = [
   "Tailored for your preferred fit",
   "Natural gemstones selected for color and character",
-  "Complimentary first resize for new customers",
-  "Crafted in our atelier with museum-inspired design values",
+  "Designed in Hong Kong",
 ];
 
-export const products: Product[] = [
+const catalog: Product[] = [
   {
     id: "red-leopard-jasper-iii",
     name: "Red Leopard Skin Jasper Bracelet III (6mm)",
@@ -81,18 +78,16 @@ export const products: Product[] = [
       { size: "Medium", material: "Sterling Silver", sku: "JQJ-RLSJ-III-M-SS", stockCount: 5 },
       { size: "Large", material: "Sterling Silver", sku: "JQJ-RLSJ-III-L-SS", stockCount: 3 },
     ],
-    rating: 4.8,
-    reviewCount: 28,
-    tags: ["top-rated", "sale"],
+    tags: ["sale"],
     stone: "Carnelian",
-    features: baseFeatures,
+    features: sharedFeatures,
     specs: {
       Color: "Red",
       "Bead Size": "6mm",
       "Bead Shape": "Round",
       Stone: "Red Leopard Skin Jasper",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -113,18 +108,16 @@ export const products: Product[] = [
     inStock: true,
     stockCount: 8,
     lowStockThreshold: 5,
-    rating: 4.7,
-    reviewCount: 19,
     tags: ["new"],
     stone: "Tourmaline",
-    features: baseFeatures,
+    features: sharedFeatures,
     specs: {
       Color: "Brown",
       "Bead Size": "8-10mm",
       "Bead Shape": "Irregular",
       Stone: "Raw Brown Tourmaline",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -141,18 +134,16 @@ export const products: Product[] = [
     inStock: true,
     stockCount: 15,
     lowStockThreshold: 5,
-    rating: 4.9,
-    reviewCount: 41,
-    tags: ["top-rated"],
+    tags: [] as ProductTag[],
     stone: "Sodalite",
-    features: baseFeatures,
+    features: sharedFeatures,
     specs: {
       Color: "Blue",
       "Bead Size": "4mm",
       "Bead Shape": "Round",
       Stone: "Sodalite",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -169,18 +160,16 @@ export const products: Product[] = [
     inStock: true,
     stockCount: 20,
     lowStockThreshold: 5,
-    rating: 4.6,
-    reviewCount: 33,
     tags: ["new", "limited"],
     stone: "Amethyst",
-    features: baseFeatures,
+    features: sharedFeatures,
     specs: {
       Color: "Purple",
       "Bead Size": "5mm",
       "Bead Shape": "Round",
       Stone: "Amethyst",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -197,18 +186,16 @@ export const products: Product[] = [
     inStock: true,
     stockCount: 9,
     lowStockThreshold: 5,
-    rating: 4.8,
-    reviewCount: 26,
     tags: ["restocked", "sale"],
     stone: "Tiger Eye",
-    features: baseFeatures,
+    features: sharedFeatures,
     specs: {
       Color: "Silver",
       "Bead Size": "4mm",
       "Bead Shape": "Round",
       Stone: "Hematite Silver",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -225,18 +212,16 @@ export const products: Product[] = [
     inStock: true,
     stockCount: 6,
     lowStockThreshold: 5,
-    rating: 4.9,
-    reviewCount: 22,
     tags: ["limited"],
     stone: "Lapis Lazuli",
-    features: baseFeatures,
+    features: sharedFeatures,
     specs: {
       Color: "Gray",
       "Bead Size": "8mm",
       "Bead Shape": "Round",
       Stone: "Labradorite",
       Clasp: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -258,16 +243,14 @@ export const products: Product[] = [
       { size: "55cm", material: "Sterling Silver", sku: "JQJ-BLAPEN-55-SS", stockCount: 8 },
       { size: "55cm", material: "Gold Vermeil", sku: "JQJ-BLAPEN-55-GV", stockCount: 3 },
     ],
-    rating: 4.7,
-    reviewCount: 14,
     tags: ["new"],
     stone: "Aquamarine",
-    features: baseFeatures,
+    features: sharedFeatures,
     specs: {
       "Chain Length": "55cm",
       Stone: "Blue Lace Agate",
       Metal: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -284,16 +267,14 @@ export const products: Product[] = [
     inStock: true,
     stockCount: 11,
     lowStockThreshold: 5,
-    rating: 4.8,
-    reviewCount: 17,
     tags: ["restocked"],
     stone: "Lapis Lazuli",
-    features: baseFeatures,
+    features: sharedFeatures,
     specs: {
       "Chain Length": "55cm",
       Stone: "Labradorite",
       Metal: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
   {
@@ -314,19 +295,19 @@ export const products: Product[] = [
     inStock: true,
     stockCount: 5,
     lowStockThreshold: 5,
-    rating: 4.9,
-    reviewCount: 9,
-    tags: ["limited", "top-rated"],
+    tags: ["limited"],
     stone: "Tiger Eye",
-    features: baseFeatures,
+    features: sharedFeatures,
     specs: {
       "Bead Size": "7mm",
       Stone: "Freshwater Pearl",
       Metal: "Sterling Silver",
-      Origin: "Hand-made",
+      Origin: "Designed in Hong Kong",
     },
   },
 ];
+
+export const products: Product[] = catalog;
 
 export function getProductBySlug(slug: string): Product | undefined {
   return products.find((p) => p.slug === slug);
