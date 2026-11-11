@@ -11,7 +11,7 @@ const PLATE = "public/header/marble-dark-nav-plate-2x.png";
 const MONOGRAM = "public/header/monogram-jq.png";
 
 /** Locked to the Owner-approved implement pack. Do not swap in a generated stone or a different mark. */
-const PLATE_SHA256 = "21cda0750d4090dfb16d1a49c1c5b029df86329ce2295b88cf8ec4a437cb5301";
+const PLATE_SHA256 = "53162e2f7fd48b8264ef078ce9511e40d95007c92b1b9513a5c44cc606216641";
 const MONOGRAM_SHA256 = "bdca2fae5f4e4c65a8f84900d57602fb08c12657118ff0b847a46e6fdfa81ffb";
 
 function source(relative: string): string {
@@ -121,7 +121,7 @@ describe("storefront header nav marble", () => {
   it("ships the approved plate and monogram bytes", () => {
     expect(sha256(PLATE)).toBe(PLATE_SHA256);
     expect(sha256(MONOGRAM)).toBe(MONOGRAM_SHA256);
-    expect(plate).toMatchObject({ width: 2880, height: 304, colorType: 2, channels: 3 });
+    expect(plate).toMatchObject({ width: 2880, height: 152, colorType: 2, channels: 3 });
     expect(monogram).toMatchObject({ width: 1401, height: 1401, colorType: 6, channels: 4 });
   });
 
@@ -157,7 +157,9 @@ describe("storefront header nav marble", () => {
     expect(header).toContain('className="container-site relative flex h-[4.75rem] items-center justify-between gap-4"');
     expect(css).toContain('url("/header/marble-dark-nav-plate-2x.png")');
     expect(css).toContain("background-repeat: repeat-x;");
-    expect(css).toContain("background-size: 1440px 152px;");
+    expect(css).toContain("background-size: 1440px 76px;");
+    expect(css).toContain("background-position: top center;");
+    expect(css).not.toContain("background-size: 1440px 152px;");
     const stoneRule = css.slice(css.indexOf(".store-nav-stone"), css.indexOf(".store-nav-stone") + 400);
     expect(stoneRule).not.toContain("linear-gradient");
 
