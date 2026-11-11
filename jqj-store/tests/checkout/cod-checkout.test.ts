@@ -11,6 +11,7 @@ import {
   setActiveDb,
   type MemoryDb,
 } from "../helpers/memory-db";
+import { quoteCheckout } from "../shared/checkout-expectations";
 
 const KEY = "cod-attempt-1";
 
@@ -49,23 +50,26 @@ describe("POST /api/checkout/cod", () => {
 
     expect(response.status).toBe(200);
     const body = await response.json();
+    const quote = quoteCheckout(
+      [{ unitPriceUsd: Number(db.rowsOf("products")[0].price), quantity: 2 }],
+      "cod"
+    );
     expect(body.orderId).toEqual(expect.any(String));
     expect(db.rowsOf("products")[0].stock_count).toBe(3);
     const order = db.rowsOf("orders")[0];
-    const subtotal = 200;
-    const shipping = computeShippingUsd(subtotal);
+    expect(quote.codFee).toBe(COD_FEE);
     expect(order).toMatchObject({
       payment_provider: "cod",
       payment_status: "pending",
       status: "pending",
       inventory_reserved: true,
-      subtotal_amount: subtotal,
-      shipping_amount: shipping,
-      total_amount: subtotal + shipping + COD_FEE,
+      subtotal_amount: quote.subtotal,
+      shipping_amount: quote.shipping,
+      total_amount: quote.total,
       stripe_session_id: `COD-${KEY}`,
       shipping_address: expect.objectContaining({
         payment_method: "cod",
-        cod_fee: 0,
+        cod_fee: quote.codFee,
       }),
     });
     expect(order.total_amount).toBe(order.subtotal_amount as number + (order.shipping_amount as number));
