@@ -552,7 +552,7 @@ export default function AccountPage() {
                 </div>
                 <div className="flex flex-wrap items-center gap-3 text-sm">
                   <span>
-                    {formatOrderStatusLabel(order.status)}
+                    {formatOrderStatusLabel(order.status, order.payment_status)}
                     {hasPartialRefund(Number(order.total_amount), Number(order.refunded_amount || 0)) && (
                       <span className="ml-2 text-xs text-brand-muted">(partial refund)</span>
                     )}

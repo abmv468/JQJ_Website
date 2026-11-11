@@ -29,7 +29,20 @@ describe("jqd_alert log lines", () => {
       orderId: "order-short",
     });
     expect(String(line)).not.toContain("int_secret");
+    expect(String(line)).not.toContain("paymentIntentId");
     expect(String(line)).not.toContain("buyer@example.com");
+    const unstructured = spy.mock.calls.filter((args) => {
+      if (args.length === 1 && typeof args[0] === "string") {
+        try {
+          const parsed = JSON.parse(args[0]) as { tag?: string };
+          if (parsed?.tag === "jqd_alert") return false;
+        } catch {
+          // Not the structured alert line.
+        }
+      }
+      return JSON.stringify(args).includes("paymentIntentId");
+    });
+    expect(unstructured).toEqual([]);
   });
 
   it("logs paid_claim_lost with the order id only", () => {

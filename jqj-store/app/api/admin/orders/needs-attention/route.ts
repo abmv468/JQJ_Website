@@ -79,7 +79,7 @@ export async function GET(req: Request) {
       .select(`amount, orders!inner(${columns})`)
       .eq("status", "succeeded")
       .or(PROTECTED_ORDER_FILTER, { referencedTable: "orders" })
-      .order("created_at", { ascending: false, referencedTable: "orders" })
+      .order("updated_at", { ascending: false })
       .limit(PAGE_LIMIT + 1);
     const [byInventory, byOrder, byPayment] = await Promise.all([
       inventory,
@@ -91,7 +91,10 @@ export async function GET(req: Request) {
     if (byPayment.error) throw byPayment.error;
 
     const merged = new Map<string, AttentionRow>();
-    for (const row of (byInventory.data ?? []) as AttentionRow[]) merged.set(row.id, row);
+    for (const row of (byInventory.data ?? []) as AttentionRow[]) {
+      if (refundCoversCapturedPayment(row, null)) continue;
+      merged.set(row.id, row);
+    }
     for (const row of (byOrder.data ?? []) as AttentionRow[]) {
       if (!succeededPaymentStatus(row.payment_status) || !isProtectedOrder(row)) continue;
       if (refundCoversCapturedPayment(row, null)) continue;

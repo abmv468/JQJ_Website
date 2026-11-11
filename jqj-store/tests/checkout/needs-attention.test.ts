@@ -339,6 +339,26 @@ describe("GET /api/admin/orders/needs-attention", () => {
     );
   });
 
+  it("limits the payments query to 101 rows", async () => {
+    seedOrder(db, {
+      id: "order-closed",
+      status: "cancelled",
+      payment_status: "requires_payment_method",
+      created_at: "2026-11-10T08:00:00.000Z",
+    });
+    seedPayment(db, "order-closed");
+
+    const response = await GET(request("Bearer admin-token"));
+
+    expect(response.status).toBe(200);
+    expect(db.limits.filter((call) => call.table === "payments")).toEqual([
+      { table: "payments", count: 101 },
+    ]);
+    expect(db.orders.filter((call) => call.table === "payments")).toEqual([
+      { table: "payments", column: "updated_at" },
+    ]);
+  });
+
   it("sets truncated when more than 100 protected payments match", async () => {
     for (let index = 0; index < 101; index += 1) {
       const id = `order-${String(index).padStart(3, "0")}`;
@@ -388,6 +408,84 @@ describe("GET /api/admin/orders/needs-attention", () => {
     expect(response.status).toBe(200);
     expect(body.truncated).toBe(false);
     expect(body.orders.map((order: { id: string }) => order.id)).toEqual(["order-closed"]);
+  });
+
+  it("lists an inventory exception until the refund covers the order total", async () => {
+    seedOrder(db, {
+      id: "order-open",
+      status: "inventory_exception",
+      payment_status: "succeeded",
+      refunded_amount: 0,
+      created_at: "2026-11-10T08:00:00.000Z",
+    });
+    seedOrder(db, {
+      id: "order-partial",
+      status: "inventory_exception",
+      payment_status: "succeeded",
+      refunded_amount: 20,
+      created_at: "2026-11-10T09:00:00.000Z",
+    });
+    seedOrder(db, {
+      id: "order-full",
+      status: "inventory_exception",
+      payment_status: "succeeded",
+      refunded_amount: 115,
+      created_at: "2026-11-10T10:00:00.000Z",
+    });
+    seedOrder(db, {
+      id: "order-over",
+      status: "inventory_exception",
+      payment_status: "succeeded",
+      created_at: "2026-11-10T11:00:00.000Z",
+    });
+    db.rowsOf("orders").find((row) => row.id === "order-over")!.refunded_amount = 200;
+
+    const response = await GET(request("Bearer admin-token"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.truncated).toBe(false);
+    expect(body.orders.map((order: { id: string; reason: string }) => ({
+      id: order.id,
+      reason: order.reason,
+    }))).toEqual([
+      { id: "order-partial", reason: "inventory_exception" },
+      { id: "order-open", reason: "inventory_exception" },
+    ]);
+  });
+
+  it("omits a fully refunded test order from the order row and from the payment row", async () => {
+    seedOrder(db, {
+      id: "order-test-open",
+      status: "pending",
+      sales_channel: "test",
+      payment_status: "succeeded",
+      refunded_amount: 20,
+      created_at: "2026-11-10T08:00:00.000Z",
+    });
+    seedOrder(db, {
+      id: "order-test-order",
+      status: "pending",
+      sales_channel: "test",
+      payment_status: "succeeded",
+      refunded_amount: 115,
+      created_at: "2026-11-10T09:00:00.000Z",
+    });
+    seedOrder(db, {
+      id: "order-test-payment",
+      status: "pending",
+      sales_channel: "test",
+      payment_status: "requires_payment_method",
+      refunded_amount: 115,
+      created_at: "2026-11-10T10:00:00.000Z",
+    });
+    seedPayment(db, "order-test-payment");
+
+    const response = await GET(request("Bearer admin-token"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.orders.map((order: { id: string }) => order.id)).toEqual(["order-test-open"]);
   });
 
   it("returns the 100 newest rows and sets truncated when more match", async () => {

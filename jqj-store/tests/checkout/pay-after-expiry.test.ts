@@ -103,6 +103,20 @@ function reserves(db: MemoryDb) {
   return db.rpcCalls.filter((call) => call.fn === "reserve_order_inventory");
 }
 
+function unstructuredIntentLogs(calls: unknown[][]) {
+  return calls.filter((args) => {
+    if (args.length === 1 && typeof args[0] === "string") {
+      try {
+        const parsed = JSON.parse(args[0]) as { tag?: string };
+        if (parsed?.tag === "jqd_alert") return false;
+      } catch {
+        // Not the structured alert line.
+      }
+    }
+    return JSON.stringify(args).includes("paymentIntentId");
+  });
+}
+
 function alertCalls(spy: { mock: { calls: unknown[][] } }) {
   return spy.mock.calls
     .map((call) => call[0])
@@ -191,6 +205,7 @@ describe("payment succeeds after the reservation expired", () => {
     });
     expect(JSON.stringify(alerts[0])).not.toContain("paymentIntentId");
     expect(JSON.stringify(alerts[0])).not.toContain("int_expired");
+    expect(unstructuredIntentLogs(errorSpy.mock.calls)).toEqual([]);
     expect(JSON.stringify(alerts[0])).not.toContain("buyer@example.com");
     expect(JSON.stringify(alerts[0])).not.toContain("Ada Lovelace");
   });
