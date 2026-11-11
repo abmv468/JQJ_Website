@@ -100,7 +100,19 @@ jobs:
         run: npm run build
 
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        run: |
+          attempt=1
+          while [ "$attempt" -le 3 ]; do
+            if npx playwright install --with-deps chromium; then
+              exit 0
+            fi
+            if [ "$attempt" -ge 3 ]; then
+              exit 1
+            fi
+            sleep $((attempt * 15))
+            attempt=$((attempt + 1))
+          done
+          exit 1
 
       - name: Browser checkout smoke
         run: npm run test:e2e
