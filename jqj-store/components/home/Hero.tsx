@@ -6,7 +6,7 @@ import { RETURNS_DAYS } from "@/lib/policy";
 const guarantees = [
   "Tailored to your preferred fit",
   `${RETURNS_DAYS}-day returns`,
-  "Museum-inspired craftsmanship since 2015",
+  "Museum-inspired since 2015",
 ];
 
 export default function Hero() {
@@ -15,7 +15,7 @@ export default function Hero() {
       <div className="relative min-h-[540px] overflow-hidden border border-white/10 bg-black shadow-[0_36px_100px_rgba(0,0,0,0.34)] sm:min-h-[620px]">
         <Image
           src="/products/hero-image.jpg"
-          alt="JQD Group craftsmanship"
+          alt="Model wearing a red bead bracelet by Jewellery Quintessential"
           fill
           priority
           sizes="100vw"
@@ -25,14 +25,16 @@ export default function Hero() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_20%,rgba(187,157,123,0.16),transparent_28%),radial-gradient(circle_at_80%_18%,rgba(24,76,82,0.24),transparent_30%)]" />
         <div className="container-site relative z-10 flex min-h-[540px] items-center justify-center py-12 sm:min-h-[620px] sm:py-20">
           <div className="max-w-[58rem] text-center">
-            <h1 className="font-heading text-[2rem] font-light leading-[1.02] text-white sm:text-5xl lg:text-[5.6rem]">
-              Natural Stones. Cultured Design.
-            </h1>
-            <p className="mt-5 px-2 font-heading text-[11px] uppercase tracking-[0.18em] text-brand-gold-light sm:mt-6 sm:px-0 sm:text-sm sm:tracking-[0.22em]">
-              Inspired by Eastern heritage and modern craftsmanship
-            </p>
+            <div className="flex flex-col">
+              <h1 className="order-1 font-heading text-[2rem] font-light leading-[1.02] text-white sm:order-2 sm:mt-6 sm:text-5xl lg:text-[5.6rem]">
+                Natural Stones. Cultured Design.
+              </h1>
+              <p className="order-2 mt-5 px-2 font-heading text-[11px] uppercase tracking-[0.18em] text-brand-gold-light sm:order-1 sm:mt-0 sm:px-0 sm:text-sm sm:tracking-[0.22em]">
+                Designed in Hong Kong · Natural stones
+              </p>
+            </div>
             <p className="mx-auto mt-6 max-w-3xl text-[15px] leading-7 text-white/74 sm:mt-7 sm:text-lg">
-              Hand-finished bracelets and necklaces shaped by Eastern heritage,
+              Bracelets and necklaces shaped by Eastern heritage,
               museum-inspired restraint, and the quiet character of natural
               gemstones.
             </p>
