@@ -133,7 +133,10 @@ function closedOrderAlerts(spy: { mock: { calls: unknown[][] } }) {
   return spy.mock.calls
     .map((call) => call[0])
     .filter((value): value is string => typeof value === "string" && value.includes("jqd_alert"))
-    .map((value) => JSON.parse(value) as { tag: string; event: string; orderId: string });
+    .map(
+      (value) =>
+        JSON.parse(value) as { tag: string; event: string; orderId: string; kind: "succeeded" | "failed" }
+    );
 }
 
 describe("protected cancelled and test orders", () => {
@@ -180,12 +183,14 @@ describe("protected cancelled and test orders", () => {
         tag: "jqd_alert",
         event: PROTECTED_ORDER_ALERT_EVENT,
         orderId: "order-cancelled",
+        kind: "succeeded",
       },
     ]);
     expect(hookCalls(errorSpy)[0][1]).toEqual({
       tag: "jqd_alert",
       event: PAYMENT_ON_PROTECTED_ORDER_EVENT,
       orderId: "order-cancelled",
+      kind: "succeeded",
     });
     expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("paymentIntentId");
     expect(JSON.stringify(hookCalls(errorSpy))).not.toContain("buyer@example.com");
@@ -202,6 +207,15 @@ describe("protected cancelled and test orders", () => {
     const logged = JSON.stringify(errorSpy.mock.calls);
     expect(logged).not.toContain("paymentIntentId");
     expect(logged).not.toContain("int_order-cancelled");
+    expect(closedOrderAlerts(errorSpy)).toEqual([
+      {
+        tag: "jqd_alert",
+        event: PROTECTED_ORDER_ALERT_EVENT,
+        orderId: "order-cancelled",
+        kind: "succeeded",
+      },
+    ]);
+    expect(["succeeded", "failed"]).toContain(closedOrderAlerts(errorSpy)[0].kind);
     expect(hookCalls(errorSpy)).toEqual([
       [
         HOOK,
@@ -209,6 +223,7 @@ describe("protected cancelled and test orders", () => {
           tag: "jqd_alert",
           event: PAYMENT_ON_PROTECTED_ORDER_EVENT,
           orderId: "order-cancelled",
+          kind: "succeeded",
         },
       ],
     ]);
@@ -237,9 +252,31 @@ describe("protected cancelled and test orders", () => {
       tag: "jqd_alert",
       event: PAYMENT_ON_PROTECTED_ORDER_EVENT,
       orderId: "order-cancelled",
+      kind: "failed",
     });
     expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("paymentIntentId");
   });
+
+  it.each(["", true, "-1", "abc"] as const)(
+    "does not record a protected success when the amount is %j",
+    async (amount) => {
+      seedOrder(db, { id: "order-cancelled", status: "cancelled" });
+      const event = paymentEvent("evt_bad_amount", "order-cancelled", "int_order-cancelled", "SUCCEEDED");
+      event.data.object.amount = amount as unknown as number;
+
+      const response = await webhook(signedWebhook(event));
+      const body = await response.json();
+
+      expect(response.status).toBe(500);
+      expect(body).toEqual({ error: "Internal error" });
+      expect(db.rowsOf("payments")[0]).toMatchObject({
+        status: "requires_payment_method",
+        amount: 115,
+      });
+      expect(db.rowsOf("orders")[0].status).toBe("cancelled");
+      expect(closedOrderAlerts(errorSpy)).toHaveLength(0);
+    }
+  );
 
   it.each([
     ["NaN", Number.NaN],
@@ -318,6 +355,7 @@ describe("protected cancelled and test orders", () => {
         tag: "jqd_alert",
         event: PROTECTED_ORDER_ALERT_EVENT,
         orderId: "order-test",
+        kind: "succeeded",
       },
     ]);
     expect(hookCalls(errorSpy)).toHaveLength(2);
@@ -326,11 +364,13 @@ describe("protected cancelled and test orders", () => {
         tag: "jqd_alert",
         event: PAYMENT_ON_PROTECTED_ORDER_EVENT,
         orderId: "order-test",
+        kind: "succeeded",
       },
       {
         tag: "jqd_alert",
         event: PAYMENT_ON_PROTECTED_ORDER_EVENT,
         orderId: "order-test",
+        kind: "failed",
       },
     ]);
     expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("paymentIntentId");
@@ -380,6 +420,7 @@ describe("protected cancelled and test orders", () => {
         tag: "jqd_alert",
         event: PROTECTED_ORDER_ALERT_EVENT,
         orderId: "order-cancelled",
+        kind: "succeeded",
       },
     ]);
     expect(sendOrderEmails).not.toHaveBeenCalled();

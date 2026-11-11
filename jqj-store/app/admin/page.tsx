@@ -17,6 +17,8 @@ import {
   getOrderStatusOptions,
   hasPartialRefund,
   isFullyRefunded,
+  isInventoryExceptionStatus,
+  isSucceededPaymentStatus,
 } from "@/lib/order-lifecycle";
 
 type Tab = "dashboard" | "products" | "orders" | "customers" | "settings";
@@ -594,7 +596,16 @@ export default function AdminPage() {
                         "unknown"
                       ).toLowerCase();
                       const fulfillmentStatusSource = o.fulfillment_status || o.status;
-                      const statusOptions = getOrderStatusOptions(fulfillmentStatusSource);
+                      const paymentSucceeded =
+                        isSucceededPaymentStatus(o.payment_status) ||
+                        (o.payments ?? []).some((payment) => isSucceededPaymentStatus(payment.status));
+                      const optionSource = isInventoryExceptionStatus(o.status)
+                        ? o.status
+                        : fulfillmentStatusSource;
+                      const statusOptions = getOrderStatusOptions(
+                        optionSource,
+                        paymentSucceeded ? "succeeded" : paymentStatus
+                      );
                       const currentSelectValue =
                         statusOptions.find((statusOption) => statusOption === fulfillmentStatusSource) ??
                         statusOptions[0];
