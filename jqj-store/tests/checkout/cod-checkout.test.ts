@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/checkout/cod/route";
+import { COD_FEE } from "@/lib/checkout-fees";
 import { convertUsdToCurrency } from "@/lib/currency";
 import { computeShippingUsd } from "@/lib/shipping";
 import {
@@ -37,7 +38,7 @@ describe("POST /api/checkout/cod", () => {
     );
   });
 
-  it("reserves stock, adds shipping and the COD fee, and does not email without a Resend key", async () => {
+  it("reserves stock, adds shipping, charges no COD fee, and does not email without a Resend key", async () => {
     const response = await POST(
       request({
         items: [checkoutItem({ price: 1, quantity: 2 })],
@@ -55,7 +56,9 @@ describe("POST /api/checkout/cod", () => {
     );
     expect(body.orderId).toEqual(expect.any(String));
     expect(db.rowsOf("products")[0].stock_count).toBe(3);
-    expect(db.rowsOf("orders")[0]).toMatchObject({
+    const order = db.rowsOf("orders")[0];
+    expect(quote.codFee).toBe(COD_FEE);
+    expect(order).toMatchObject({
       payment_provider: "cod",
       payment_status: "pending",
       status: "pending",
@@ -69,6 +72,10 @@ describe("POST /api/checkout/cod", () => {
         cod_fee: quote.codFee,
       }),
     });
+    expect(order.total_amount).toBe(order.subtotal_amount as number + (order.shipping_amount as number));
+    expect(
+      db.rowsOf("order_items").some((item) => /fee/i.test(String(item.product_name)))
+    ).toBe(false);
     expect(db.rpcCalls.filter((call) => call.fn === "reserve_order_inventory")).toHaveLength(1);
     expect(fetch).not.toHaveBeenCalled();
   });
@@ -125,11 +132,10 @@ describe("POST /api/checkout/cod", () => {
     { usd: 250 },
     { usd: 499.98 },
   ])(
-    "COD total for USD $usd is the USD subtotal + helper shipping + the unchanged COD fee, even in EUR",
+    "COD total for USD $usd is the subtotal plus computeShippingUsd plus COD_FEE, even in EUR",
     async ({ usd }) => {
       db.rowsOf("products")[0].price = usd;
       const shipping = computeShippingUsd(usd);
-      const codFee = 20;
       const eurDisplay = convertUsdToCurrency(usd, "EUR");
 
       const response = await POST(
@@ -148,11 +154,11 @@ describe("POST /api/checkout/cod", () => {
       expect(db.rowsOf("orders")[0]).toMatchObject({
         subtotal_amount: usd,
         shipping_amount: shipping,
-        total_amount: usd + shipping + codFee,
+        total_amount: usd + shipping + COD_FEE,
         currency: "EUR",
         shipping_address: expect.objectContaining({
           payment_method: "cod",
-          cod_fee: codFee,
+          cod_fee: COD_FEE,
           currency: "EUR",
         }),
       });

@@ -1,5 +1,6 @@
 import PolicyPage from "@/components/trust/PolicyPage";
 import type { Metadata } from "next";
+import { RETURNS_DAYS } from "@/lib/policy";
 import { jsonLd } from "@/lib/seo";
 
 export const metadata = {
@@ -52,12 +53,11 @@ const faqSections = [
     questions: [
       {
         question: "Can I return my item?",
-        answer: "Eligible returns are accepted within 14 days of delivery.",
+        answer: `Eligible returns are accepted within ${RETURNS_DAYS} days of delivery. Customers pay return shipping.`,
       },
       {
         question: "Can I exchange for a different size?",
-        answer:
-          "Yes, eligible exchange and resize requests are accepted within 30 days.",
+        answer: `Yes. Eligible bracelet exchange and resize requests are accepted within ${RETURNS_DAYS} days of delivery.`,
       },
       {
         question: "Are all items returnable?",

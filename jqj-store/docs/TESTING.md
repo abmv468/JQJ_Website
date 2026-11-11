@@ -67,7 +67,7 @@ Cases on main today:
 - Card, catalog subtotal at or above that threshold. `computeShippingUsd` returns 0.
 - Cash on delivery on the at-or-above cart, including the configured fee and no shipping charge.
 
-`codFeeUsd` is the harness's only copy of the fee, and it must stay equal to the COD fee on main (the checkout page and the COD route). A non-zero fee must show as USD on the Cash on Delivery option and on the "Cash on Delivery fee" row. Zero must show as "Free" on the option and must omit that row. Do not hardcode the fee anywhere else in the e2e harness. Once PR #14 lands, delete that local copy and import `COD_FEE` from `lib/checkout-fees.ts`. The display rules above stay; they read whatever that import returns.
+The COD fee is `COD_FEE` from `lib/checkout-fees.ts`. There is no local copy. A non-zero fee shows as USD on the option and on the "Cash on Delivery fee" row. Zero uses the label "Cash on delivery", omits that row, and never shows `+$0.00`.
 
 Shipping is not copied into the harness. `quoteCheckout` calls `computeShippingUsd` from `lib/shipping.ts`. A cart under the threshold must show a shipping charge. A cart at or above it must show no shipping charge. No shipping literal belongs in the specs.
 

@@ -1,8 +1,9 @@
 import { expect, type Page, type TestInfo } from "@playwright/test";
 import { products } from "../../data/products";
 import {
-  checkoutExpectations,
+  COD_FEE,
   codFeeDisplay,
+  formatUsd,
   quoteCheckout,
   toCents,
   type CheckoutMethod,
@@ -131,15 +132,15 @@ async function readRowAmount(page: Page, label: string): Promise<number> {
 }
 
 export async function assertCodFeePresented(page: Page) {
-  const option = page.locator("label").filter({ hasText: "Cash on Delivery" });
-  await expect(option).toContainText(codFeeDisplay());
+  await expect(page.getByText(codFeeDisplay(), { exact: true })).toBeVisible();
   const feeRow = summaryRow(page, "Cash on Delivery fee");
-  if (toCents(checkoutExpectations.codFeeUsd) === 0) {
+  if (toCents(COD_FEE) === 0) {
     await expect(feeRow).toHaveCount(0);
+    await expect(page.getByText("+$0.00")).toHaveCount(0);
     return;
   }
   await expect(feeRow).toHaveCount(1);
-  await expect(feeRow).toContainText(codFeeDisplay());
+  await expect(feeRow).toContainText(formatUsd(COD_FEE));
 }
 
 export async function readCheckoutTotals(page: Page, method: CheckoutMethod) {
@@ -148,7 +149,7 @@ export async function readCheckoutTotals(page: Page, method: CheckoutMethod) {
   let codFee = 0;
   if (method === "cod") {
     await assertCodFeePresented(page);
-    if (toCents(checkoutExpectations.codFeeUsd) !== 0) {
+    if (toCents(COD_FEE) !== 0) {
       codFee = await readRowAmount(page, "Cash on Delivery fee");
     }
   } else {
@@ -294,7 +295,7 @@ export async function submitAndAssertParity(
   if (method === "airwallex") await stubAirwallexVerify(page, orderId);
 
   if (method === "cod") {
-    await page.locator("label").filter({ hasText: "Cash on Delivery" }).click();
+    await page.getByText(codFeeDisplay(), { exact: true }).click();
   }
 
   const ui = await readCheckoutTotals(page, method);

@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
 import {
+  COD_FEE,
   FREE_SHIPPING_THRESHOLD_USD,
-  checkoutExpectations,
+  codFeeDisplay,
   quoteCheckout,
   toCents,
 } from "./helpers/checkout-expectations";
@@ -137,20 +138,26 @@ test("a failed Airwallex return keeps the cart and shows support copy", async ({
     .toContain("amethyst-bracelet-xv");
 });
 
-test("cash on delivery shows the configured fee and matches the server total", async ({
+test("cash on delivery matches the server total without a fee row", async ({
   page,
 }, testInfo) => {
   const quote = quoteCheckout(
     [{ unitPriceUsd: catalogUnitPrice(OVER_THRESHOLD_SLUG), quantity: 1 }],
     "cod"
   );
-  expect(quote.codFee).toBe(checkoutExpectations.codFeeUsd);
+  expect(quote.codFee).toBe(COD_FEE);
   expect(toCents(quote.subtotal)).toBeGreaterThanOrEqual(toCents(FREE_SHIPPING_THRESHOLD_USD));
   expect(toCents(quote.shipping)).toBe(0);
 
   await addProductToCart(page, OVER_THRESHOLD_SLUG);
   await page.goto("/checkout");
   await fillCheckout(page);
+  await page.getByText(codFeeDisplay(), { exact: true }).click();
+  if (toCents(COD_FEE) === 0) {
+    await expect(page.getByText("Cash on delivery", { exact: true })).toBeVisible();
+    await expect(page.getByText("Cash on Delivery fee")).toHaveCount(0);
+    await expect(page.getByText("+$0.00")).toHaveCount(0);
+  }
   const result = await submitAndAssertParity(page, testInfo, "cod", "order-cod-1");
 
   expect(toCents(result.ui.codFee)).toBe(toCents(quote.codFee));

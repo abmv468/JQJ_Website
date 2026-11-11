@@ -6,30 +6,24 @@
  * Airwallex/COD route tests both import it. Do not copy a shipping amount
  * into a spec.
  *
- * `codFeeUsd` is still a local copy of main's COD fee. Once PR #14 is on
- * main, import `COD_FEE` from `lib/checkout-fees.ts` and delete it.
+ * The COD fee is `COD_FEE` from `lib/checkout-fees.ts`. A zero fee uses the
+ * checkout label "Cash on delivery" and is not a summary row.
  *
  * Gift wrap is intentionally unused: nothing on main charges it, and no test
  * asserts it. BE-013/WEB-013 set `giftWrapUsd` and opt a case in.
  */
 
+import { COD_FEE, codPaymentLabel } from "../../lib/checkout-fees";
 import { computeShippingUsd, FREE_SHIPPING_THRESHOLD_USD } from "../../lib/shipping";
 
-export { computeShippingUsd, FREE_SHIPPING_THRESHOLD_USD };
+export { COD_FEE, codPaymentLabel, computeShippingUsd, FREE_SHIPPING_THRESHOLD_USD };
 
 export type CheckoutMethod = "airwallex" | "cod";
 
 export const checkoutExpectations: {
-  /**
-   * Main's COD fee. The only test copy. PR #14 replaces this with
-   * `COD_FEE` imported from `lib/checkout-fees.ts`.
-   * A non-zero fee is shown as USD. Zero is shown as "Free" and is not a summary row.
-   */
-  codFeeUsd: number;
   /** Null until the Owner sets a gift-wrap price. Not added into totals and not asserted. */
   giftWrapUsd: number | null;
 } = {
-  codFeeUsd: 20,
   giftWrapUsd: null,
 };
 
@@ -50,10 +44,9 @@ export function formatUsd(amount: number): string {
   }).format(amount);
 }
 
-/** Visible COD fee copy. PR #14 only changes `codFeeUsd`; zero becomes "Free". */
-export function codFeeDisplay(feeUsd: number = checkoutExpectations.codFeeUsd): string {
-  if (toCents(feeUsd) === 0) return "Free";
-  return formatUsd(feeUsd);
+/** Visible COD option copy. A zero fee is "Cash on delivery", with no fee row. */
+export function codFeeDisplay(feeUsd: number = COD_FEE): string {
+  return codPaymentLabel(feeUsd, formatUsd(feeUsd));
 }
 
 /** Shipping for a merchandise subtotal, in USD. Delegates to `computeShippingUsd`. */
@@ -80,7 +73,7 @@ export function quoteCheckout(
     lines.map((line) => ({ unitPriceUsd: line.unitPriceUsd, quantity: line.quantity }))
   );
   const shippingCents = toCents(shipping);
-  const codFeeCents = method === "cod" ? toCents(checkoutExpectations.codFeeUsd) : 0;
+  const codFeeCents = method === "cod" ? toCents(COD_FEE) : 0;
   const totalCents = subtotalCents + shippingCents + codFeeCents;
 
   return {
