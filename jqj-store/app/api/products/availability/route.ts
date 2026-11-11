@@ -1,51 +1,46 @@
+import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { products } from "@/data/products";
 import {
   fetchInventoryBySlugs,
   type CheckoutItemInput,
-  type InventoryProduct,
   validateCheckoutItems,
 } from "@/lib/inventory";
 import { getStockState } from "@/lib/product-stock";
 
 export const dynamic = "force-dynamic";
 
-function buildFallbackProduct(slug: string) {
-  const product = products.find((entry) => entry.slug === slug);
-  if (!product) return null;
-  return {
-    id: product.id,
-    slug: product.slug,
-    name: product.name,
-    price: product.price,
-    stock_count: product.stockCount,
-    in_stock: product.inStock,
-    low_stock_threshold: product.lowStockThreshold ?? 5,
-    sku: product.sku ?? null,
-    product_variants:
-      product.variants?.map((variant, index) => ({
-        id: `${product.id}-${index}`,
-        product_id: product.id,
-        size: variant.size ?? null,
-        material: variant.material ?? null,
-        sku: variant.sku,
-        stock_count: variant.stockCount,
-      })) ?? [],
-  };
+function availabilityReference() {
+  return randomBytes(4).toString("hex");
 }
 
-async function getInventory(slugs: string[]): Promise<Map<string, InventoryProduct>> {
+function databaseErrorCode(error: unknown) {
+  const code =
+    error && typeof error === "object" && "code" in error
+      ? (error as { code?: unknown }).code
+      : undefined;
+  if (typeof code !== "string" || !/^[A-Za-z0-9_]{1,32}$/.test(code)) return "unknown";
+  return code;
+}
+
+function availabilityUnavailable(error: unknown) {
+  const reference = availabilityReference();
+  console.error("[availability] read failed", {
+    reference,
+    code: databaseErrorCode(error),
+  });
+  return NextResponse.json(
+    { error: "Availability temporarily unavailable", reference },
+    { status: 503, headers: { "Cache-Control": "no-store" } }
+  );
+}
+
+async function loadInventory(slugs: string[]) {
   try {
     const supabase = createAdminClient();
-    return await fetchInventoryBySlugs(supabase, slugs);
-  } catch {
-    return new Map<string, InventoryProduct>(
-      slugs
-        .map((slug) => buildFallbackProduct(slug))
-        .filter(Boolean)
-        .map((product) => [product!.slug, product! as InventoryProduct])
-    );
+    return { ok: true as const, inventory: await fetchInventoryBySlugs(supabase, slugs) };
+  } catch (error) {
+    return { ok: false as const, response: availabilityUnavailable(error) };
   }
 }
 
@@ -56,8 +51,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Missing slug" }, { status: 400 });
   }
 
-  const inventory = await getInventory([slug]);
-  const product = inventory.get(slug);
+  const loaded = await loadInventory([slug]);
+  if (!loaded.ok) return loaded.response;
+
+  const product = loaded.inventory.get(slug);
   if (!product) {
     return NextResponse.json({ error: "Product not found" }, { status: 404 });
   }
@@ -106,8 +103,10 @@ export async function POST(req: Request) {
   }
 
   const slugs = Array.from(new Set(items.map((item) => item.slug).filter(Boolean) as string[]));
-  const inventory = await getInventory(slugs);
-  const validated = validateCheckoutItems(items, inventory);
+  const loaded = await loadInventory(slugs);
+  if (!loaded.ok) return loaded.response;
+
+  const validated = validateCheckoutItems(items, loaded.inventory);
 
   return NextResponse.json({
     ok: validated.ok,
