@@ -107,12 +107,13 @@ export function reportPaymentAfterExpiryUnfulfilled(input: {
   paymentIntentId: string;
   shortfall: PaymentAfterExpiryShortfall[];
 }) {
-  console.error("[airwallex-orders] payment_after_expiry_unfulfilled", {
-    event: PAYMENT_AFTER_EXPIRY_UNFULFILLED_EVENT,
-    orderId: input.orderId,
-    paymentIntentId: input.paymentIntentId,
-    shortfall: input.shortfall,
-  });
+  console.error(
+    JSON.stringify({
+      tag: "jqd_alert",
+      event: PAYMENT_AFTER_EXPIRY_UNFULFILLED_EVENT,
+      orderId: input.orderId,
+    })
+  );
 }
 
 export function reportPaidClaimLost(orderId: string) {
@@ -120,6 +121,13 @@ export function reportPaidClaimLost(orderId: string) {
     event: PAID_CLAIM_LOST_EVENT,
     orderId,
   });
+  console.error(
+    JSON.stringify({
+      tag: "jqd_alert",
+      event: PAID_CLAIM_LOST_EVENT,
+      orderId,
+    })
+  );
 }
 
 /** Stable event for a terminal payment on a cancelled or test order. Ids only. */
