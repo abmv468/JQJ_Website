@@ -41,7 +41,7 @@ describe("known checkout bugs", () => {
     delete process.env.RESEND_API_KEY;
   });
 
-  it.fails(
+  it(
     "known bug #1: a late success after the reservation sweep must not leave a paid order with no stock held",
     async () => {
       db.rowsOf("products")[0].stock_count = 5;

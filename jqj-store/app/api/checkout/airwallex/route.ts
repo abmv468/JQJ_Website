@@ -506,8 +506,8 @@ export async function POST(req: Request) {
       }
     }
 
-    if (supabase && orderId && reservedStock && !reservationStillHeld) {
-      const { error: markFailedError } = await supabase
+    if (supabase && orderId && (reservedStock || createdThisRequest)) {
+      let markFailed = supabase
         .from("orders")
         .update({
           payment_provider: "airwallex",
@@ -517,8 +517,11 @@ export async function POST(req: Request) {
           updated_at: new Date().toISOString(),
         })
         .eq("id", orderId)
-        .eq("inventory_reserved", false)
         .or("payment_status.is.null,payment_status.neq.succeeded");
+      if (!reservationStillHeld) {
+        markFailed = markFailed.eq("inventory_reserved", false);
+      }
+      const { error: markFailedError } = await markFailed;
       if (markFailedError) {
         console.error("[airwallex-checkout] failed to mark order as failed", markFailedError);
       }

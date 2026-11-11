@@ -98,7 +98,7 @@ describe("combined reservation reaper", () => {
     const original = db.rpc.bind(db);
     db.rpc = async (fn, args) => {
       if (fn === "restore_order_inventory") {
-        return { data: null, error: dbError("driver-restore-secret", "XX000") };
+        return { data: null, error: { message: "driver-restore-secret", code: "XX000" } };
       }
       return original(fn, args ?? {});
     };
@@ -117,7 +117,8 @@ describe("combined reservation reaper", () => {
     expect(JSON.stringify(body)).not.toContain("driver-restore-secret");
     const orderId = String(db.rowsOf("orders")[0].id);
     expect(db.rowsOf("orders")[0]).toMatchObject({
-      status: "pending",
+      status: "failed",
+      payment_status: "failed",
       inventory_reserved: true,
     });
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
@@ -129,7 +130,6 @@ describe("combined reservation reaper", () => {
       )
     ).toBe(true);
 
-    db.rowsOf("orders")[0].created_at = hoursAgo(2);
     await releaseExpiredAirwallexReservations(db as never);
 
     expect(db.rowsOf("orders")[0]).toMatchObject({
@@ -209,6 +209,114 @@ describe("combined reservation reaper", () => {
     });
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
     expect(restores(db)).toHaveLength(0);
+  });
+
+  it("releases the oldest pending and failed holds without letting one bucket take the whole run", async () => {
+    const orders = [];
+    const items = [];
+    for (const kind of ["pending", "failed"] as const) {
+      for (let i = 29; i >= 0; i -= 1) {
+        const id = `${kind}-${i}`;
+        orders.push({
+          id,
+          status: kind === "pending" ? "pending" : "failed",
+          payment_provider: "airwallex",
+          payment_status: kind === "pending" ? "requires_payment_method" : "failed",
+          fulfillment_status: kind === "pending" ? "pending_payment" : "payment_failed",
+          inventory_reserved: true,
+          total_amount: 115,
+          created_at: hoursAgo(40 - i),
+        });
+        items.push({
+          id: `item-${id}`,
+          order_id: id,
+          product_id: "prod-amethyst",
+          variant_id: null,
+          quantity: 1,
+        });
+      }
+    }
+    db.seed("orders", orders);
+    db.seed("order_items", items);
+    db.rowsOf("products")[0].stock_count = 0;
+
+    await releaseExpiredAirwallexReservations(db as never);
+
+    const reserved = (id: string) =>
+      db.rowsOf("orders").find((row) => row.id === id)?.inventory_reserved === true;
+    expect(reserved("pending-0")).toBe(false);
+    expect(reserved("pending-24")).toBe(false);
+    expect(reserved("pending-25")).toBe(true);
+    expect(reserved("failed-0")).toBe(false);
+    expect(reserved("failed-24")).toBe(false);
+    expect(reserved("failed-25")).toBe(true);
+    expect(db.rowsOf("orders").filter((row) => row.inventory_reserved === false)).toHaveLength(50);
+  });
+
+  it("continues the batch when one order throws and logs only that order id", async () => {
+    const old = hoursAgo(3);
+    db.seed("orders", [
+      {
+        id: "order-bad",
+        status: "pending",
+        payment_provider: "airwallex",
+        payment_status: "requires_payment_method",
+        fulfillment_status: "pending_payment",
+        inventory_reserved: true,
+        total_amount: 115,
+        customer_email: "buyer@example.com",
+        created_at: old,
+      },
+      {
+        id: "order-ok",
+        status: "pending",
+        payment_provider: "airwallex",
+        payment_status: "requires_payment_method",
+        fulfillment_status: "pending_payment",
+        inventory_reserved: true,
+        total_amount: 115,
+        created_at: hoursAgo(4),
+      },
+    ]);
+    db.seed("order_items", [
+      {
+        id: "item-bad",
+        order_id: "order-bad",
+        product_id: "prod-amethyst",
+        variant_id: null,
+        quantity: 1,
+      },
+      {
+        id: "item-ok",
+        order_id: "order-ok",
+        product_id: "prod-amethyst",
+        variant_id: null,
+        quantity: 1,
+      },
+    ]);
+    db.rowsOf("products")[0].stock_count = 0;
+    const original = db.rpc.bind(db);
+    db.rpc = async (fn, args) => {
+      if (fn === "restore_order_inventory" && args?.p_order_id === "order-bad") {
+        return { data: null, error: { message: "driver-secret-xyz", code: "XX000" } };
+      }
+      return original(fn, args ?? {});
+    };
+    const errors: unknown[][] = [];
+    const spy = vi.spyOn(console, "error").mockImplementation((...args) => {
+      errors.push(args);
+    });
+
+    await releaseExpiredAirwallexReservations(db as never);
+    spy.mockRestore();
+
+    expect(db.rowsOf("orders").find((row) => row.id === "order-ok")?.inventory_reserved).toBe(false);
+    expect(db.rowsOf("orders").find((row) => row.id === "order-bad")?.inventory_reserved).toBe(true);
+    expect(db.rowsOf("products")[0].stock_count).toBe(1);
+    const logged = errors.filter((call) => call[0] === "[reservation-release]");
+    expect(logged).toEqual([["[reservation-release]", "order-bad"]]);
+    expect(JSON.stringify(logged)).not.toContain("driver-secret-xyz");
+    expect(JSON.stringify(logged)).not.toContain("buyer@example.com");
   });
 
   it("processes at most 50 orders when 60 pending and 60 failed holds are waiting", async () => {
