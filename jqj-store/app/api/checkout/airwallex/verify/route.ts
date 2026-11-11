@@ -9,6 +9,7 @@ import {
 } from "@/lib/payments/airwallex";
 import {
   applyAirwallexPaymentIntentStatus,
+  findAirwallexPaymentByIntent,
   upsertAirwallexPaymentIntent,
 } from "@/lib/payments/airwallex-orders";
 
@@ -39,16 +40,30 @@ function getTerminalResponseStatus(paymentStatus: string) {
 
 export async function POST(req: Request) {
   try {
-    const { orderId, refresh = true } = (await req.json()) as {
+    const { orderId, paymentIntentId, refresh = true } = (await req.json()) as {
       orderId?: string;
+      paymentIntentId?: string;
       refresh?: boolean;
     };
+
+    const supabase = createAdminClient();
+    const requestedIntentId = typeof paymentIntentId === "string" ? paymentIntentId.trim() : "";
+    if (requestedIntentId && !orderId) {
+      return NextResponse.json({ error: "Missing order id" }, { status: 400 });
+    }
+    if (requestedIntentId && orderId) {
+      const paymentForIntent = await findAirwallexPaymentByIntent(supabase, requestedIntentId);
+      if (!paymentForIntent || paymentForIntent.order_id !== orderId) {
+        return NextResponse.json(
+          { error: "No Airwallex payment found for this order" },
+          { status: 404 }
+        );
+      }
+    }
 
     if (!orderId) {
       return NextResponse.json({ error: "Missing order id" }, { status: 400 });
     }
-
-    const supabase = createAdminClient();
 
     const { data: orderData, error: orderError } = await supabase
       .from("orders")
@@ -61,6 +76,24 @@ export async function POST(req: Request) {
 
     const order = orderData as unknown as OrderPaymentSnapshot;
     const payment = (order.payments ?? []).find((entry) => entry.provider === "airwallex");
+    if (payment?.provider_payment_intent_id) {
+      const canonical = await findAirwallexPaymentByIntent(
+        supabase,
+        payment.provider_payment_intent_id
+      );
+      if (!canonical || canonical.order_id !== order.id) {
+        return NextResponse.json(
+          { error: "No Airwallex payment found for this order" },
+          { status: 404 }
+        );
+      }
+    }
+    if (requestedIntentId && payment?.provider_payment_intent_id !== requestedIntentId) {
+      return NextResponse.json(
+        { error: "No Airwallex payment found for this order" },
+        { status: 404 }
+      );
+    }
     if (!payment) {
       return NextResponse.json(
         { error: "No Airwallex payment found for this order" },

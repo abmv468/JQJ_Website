@@ -171,4 +171,53 @@ describe("inventory reserve and restore", () => {
     await releaseExpiredAirwallexReservations(db as never);
     expect(db.rowsOf("products")[0].stock_count).toBe(5);
   });
+
+  it("does not release stock when the order is paid before the sweep update", async () => {
+    const db = createCheckoutDb();
+    db.rowsOf("products")[0].stock_count = 4;
+    const old = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    db.seed("orders", [
+      {
+        id: "racing",
+        status: "pending",
+        payment_provider: "airwallex",
+        payment_status: "requires_payment_method",
+        fulfillment_status: "pending_payment",
+        inventory_reserved: true,
+        total_amount: 115,
+        created_at: old,
+      },
+    ]);
+    db.seed("order_items", [
+      {
+        id: "item-racing",
+        order_id: "racing",
+        product_id: "prod-amethyst",
+        variant_id: null,
+        quantity: 1,
+      },
+    ]);
+    db.failWhen = (table, op) => {
+      if (table === "orders" && op === "update") {
+        const order = db.rowsOf("orders").find((row) => row.id === "racing");
+        if (order) {
+          order.payment_status = "succeeded";
+          order.status = "paid";
+          order.fulfillment_status = "paid";
+        }
+      }
+      return null;
+    };
+
+    await releaseExpiredAirwallexReservations(db as never);
+
+    expect(db.rowsOf("orders").find((row) => row.id === "racing")).toMatchObject({
+      payment_status: "succeeded",
+      status: "paid",
+      fulfillment_status: "paid",
+      inventory_reserved: true,
+    });
+    expect(db.rowsOf("products")[0].stock_count).toBe(4);
+    expect(db.rpcCalls.filter((call) => call.fn === "restore_order_inventory")).toHaveLength(0);
+  });
 });

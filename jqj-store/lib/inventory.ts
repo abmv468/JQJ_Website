@@ -228,12 +228,15 @@ function buildReservations(resolvedItems: ResolvedCheckoutItem[]) {
   return Array.from(aggregate.values());
 }
 
-export async function reserveStockForOrder(
+export async function reserveOrderInventory(
   supabase: SupabaseClient,
   orderId: string,
-  resolvedItems: ResolvedCheckoutItem[]
+  reservations: ReadonlyArray<{
+    product_id: string;
+    variant_id: string | null;
+    quantity: number;
+  }>
 ) {
-  const reservations = buildReservations(resolvedItems);
   const { data, error } = await supabase.rpc("reserve_order_inventory", {
     p_order_id: orderId,
     order_items: reservations as unknown as Json,
@@ -245,6 +248,14 @@ export async function reserveStockForOrder(
   if (failed) {
     throw new Error(failed.message || "Inventory reservation failed");
   }
+}
+
+export async function reserveStockForOrder(
+  supabase: SupabaseClient,
+  orderId: string,
+  resolvedItems: ResolvedCheckoutItem[]
+) {
+  await reserveOrderInventory(supabase, orderId, buildReservations(resolvedItems));
 }
 
 export async function restoreStockForOrder(

@@ -20,7 +20,9 @@ import {
 } from "@/lib/payments/airwallex";
 import {
   applyAirwallexPaymentIntentStatus,
+  findAirwallexPaymentByIntent,
   releaseExpiredAirwallexReservations,
+  releaseOrderReservation,
   upsertAirwallexPaymentIntent,
 } from "@/lib/payments/airwallex-orders";
 
@@ -46,6 +48,54 @@ const COUNTRY_CODE_MAP: Record<string, string> = {
 function toCountryCode(country: string | undefined) {
   if (!country) return undefined;
   return COUNTRY_CODE_MAP[country.trim().toUpperCase()];
+}
+
+function lineKey(productId: string, size: unknown, material: unknown, quantity: unknown) {
+  return [
+    productId,
+    size ?? "",
+    material ?? "",
+    String(Math.max(0, Math.floor(Number(quantity) || 0))),
+  ].join("|");
+}
+
+function cartMatches(
+  lines: Array<{
+    product_id: string | null;
+    quantity: number | null;
+    variant_size: string | null;
+    variant_material: string | null;
+  }>,
+  items: CheckoutItemInput[],
+  inventoryBySlug: Map<string, { id: string }>
+) {
+  const right = items
+    .map((item) => {
+      const product = item.slug ? inventoryBySlug.get(item.slug) : undefined;
+      if (!product) return null;
+      return lineKey(product.id, item.size, item.material, item.quantity);
+    })
+    .filter((value): value is string => Boolean(value))
+    .sort();
+  const left = lines
+    .filter((line) => line.product_id)
+    .map((line) =>
+      lineKey(line.product_id as string, line.variant_size, line.variant_material, line.quantity)
+    )
+    .sort();
+  if (left.length !== right.length || right.length !== items.length) return false;
+  return left.every((value, index) => value === right[index]);
+}
+
+function sameCustomer(
+  order: { customer_email?: string | null; user_id?: string | null },
+  email: string,
+  userId: string | null
+) {
+  if (userId && order.user_id && order.user_id === userId) return true;
+  const left = (order.customer_email ?? "").trim().toLowerCase();
+  const right = email.trim().toLowerCase();
+  return left.length > 0 && left === right;
 }
 
 function asUuid(value: string | undefined | null) {
@@ -89,13 +139,15 @@ export async function POST(req: Request) {
   let supabase: ReturnType<typeof createAdminClient> | null = null;
   let orderId: string | null = null;
   let reservedStock = false;
+  let createdThisRequest = false;
   let resolvedItems: ResolvedCheckoutItem[] = [];
 
   try {
-    const { items, customer, idempotencyKey, currency } = (await req.json()) as {
+    const { items, customer, idempotencyKey, paymentIntentId, currency } = (await req.json()) as {
       items: CheckoutItemInput[];
       customer: Record<string, string>;
       idempotencyKey?: string;
+      paymentIntentId?: string;
       currency?: string;
     };
 
@@ -122,7 +174,8 @@ export async function POST(req: Request) {
 
     const userId = await getAuthenticatedUserId();
     const customerName = `${customer.firstName} ${customer.lastName ?? ""}`.trim();
-    const requestId = asUuid(idempotencyKey) ?? randomUUID();
+    const clientRequestId = asUuid(idempotencyKey);
+    let requestId = clientRequestId ?? randomUUID();
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
     const returnUrl = `${siteUrl}/order-confirmation?provider=airwallex`;
 
@@ -132,25 +185,24 @@ export async function POST(req: Request) {
     const slugs = Array.from(new Set(items.map((item) => item.slug).filter(Boolean) as string[]));
     const inventoryBySlug = await fetchInventoryBySlugs(supabase, slugs);
     const validation = validateCheckoutItems(items, inventoryBySlug);
-    if (!validation.ok) {
-      return NextResponse.json(
-        { error: validation.errors[0] || "Insufficient stock" },
-        { status: 409 }
+
+    let subtotal = 0;
+    let shippingAmount = 0;
+    if (validation.ok) {
+      resolvedItems = validation.resolved;
+      subtotal = resolvedItems.reduce(
+        (sum, line) => sum + line.product.price * line.requestedQuantity,
+        0
+      );
+      shippingAmount = computeShippingUsd(
+        resolvedItems.map((line) => ({
+          unitPriceUsd: line.product.price,
+          quantity: line.requestedQuantity,
+        }))
       );
     }
-
-    resolvedItems = validation.resolved;
-    const subtotal = resolvedItems.reduce(
-      (sum, line) => sum + line.product.price * line.requestedQuantity,
-      0
-    );
-    const shippingAmount = computeShippingUsd(
-      resolvedItems.map((line) => ({
-        unitPriceUsd: line.product.price,
-        quantity: line.requestedQuantity,
-      }))
-    );
     const total = subtotal + shippingAmount;
+    let chargeAmount = total;
 
     const shippingAddress = {
       address: customer.address,
@@ -163,16 +215,96 @@ export async function POST(req: Request) {
       currency: selectedCurrency,
     };
 
-    const { data: existingPaymentByRequest, error: existingPaymentError } = await supabase
-      .from("payments")
-      .select("order_id")
-      .eq("provider", "airwallex")
-      .eq("provider_request_id", requestId)
-      .maybeSingle();
-    if (existingPaymentError) throw existingPaymentError;
+    const intentKey = typeof paymentIntentId === "string" ? paymentIntentId.trim() : "";
+    let existingPayment: {
+      order_id: string;
+      provider_request_id: string | null;
+      provider_payment_intent_id: string;
+    } | null = intentKey ? await findAirwallexPaymentByIntent(supabase, intentKey) : null;
+    if (!existingPayment && clientRequestId) {
+      const { data: existingPaymentByRequest, error: existingPaymentError } = await supabase
+        .from("payments")
+        .select("id, order_id, provider_request_id, provider_payment_intent_id, status")
+        .eq("provider", "airwallex")
+        .eq("provider_request_id", clientRequestId)
+        .maybeSingle();
+      if (existingPaymentError) throw existingPaymentError;
+      existingPayment = existingPaymentByRequest;
+    }
 
-    orderId = existingPaymentByRequest?.order_id ?? null;
+    let reusedOrder = false;
+    orderId = existingPayment?.order_id ?? null;
+    if (existingPayment?.provider_request_id && orderId) {
+      requestId = existingPayment.provider_request_id;
+    }
+
+    if (orderId) {
+      const { data: owner, error: ownerError } = await supabase
+        .from("orders")
+        .select("id, customer_email, user_id")
+        .eq("id", orderId)
+        .maybeSingle();
+      if (ownerError) throw ownerError;
+      const { data: existingLines, error: existingLinesError } = await supabase
+        .from("order_items")
+        .select("product_id, quantity, variant_size, variant_material")
+        .eq("order_id", orderId);
+      if (existingLinesError) throw existingLinesError;
+      const lines = existingLines ?? [];
+      if (!owner || !sameCustomer(owner, customer.email, userId)) {
+        orderId = null;
+        existingPayment = null;
+        requestId = randomUUID();
+      } else if (lines.length > 0 && !cartMatches(lines, items, inventoryBySlug)) {
+        orderId = null;
+        existingPayment = null;
+        requestId = randomUUID();
+      } else if (lines.length > 0) {
+        reusedOrder = true;
+      }
+    }
+
+    if (!validation.ok && !reusedOrder) {
+      return NextResponse.json(
+        { error: validation.errors[0] || "Insufficient stock" },
+        { status: 409 }
+      );
+    }
+
+    if (reusedOrder && orderId) {
+      const { data: existingOrder, error: existingOrderError } = await supabase
+        .from("orders")
+        .select("id, payment_status, status, total_amount")
+        .eq("id", orderId)
+        .maybeSingle();
+      if (existingOrderError) throw existingOrderError;
+      if (!existingOrder) {
+        reusedOrder = false;
+        orderId = null;
+      } else if (existingOrder.payment_status === "succeeded" || existingOrder.status === "paid") {
+        return NextResponse.json(
+          {
+            orderId: existingOrder.id,
+            intentId: existingPayment?.provider_payment_intent_id ?? intentKey,
+            alreadyPaid: true,
+            currency: selectedCurrency,
+            sdkEnv: getAirwallexSdkEnvironment(),
+            countryCode: toCountryCode(customer.country),
+          },
+          { headers: { "Cache-Control": "no-store" } }
+        );
+      } else if (existingOrder.total_amount != null) {
+        chargeAmount = Number(existingOrder.total_amount);
+      }
+    }
+
     if (!orderId) {
+      if (!validation.ok) {
+        return NextResponse.json(
+          { error: validation.errors[0] || "Insufficient stock" },
+          { status: 409 }
+        );
+      }
       const { data: order, error: orderError } = await supabase
         .from("orders")
         .insert({
@@ -198,6 +330,7 @@ export async function POST(req: Request) {
         .single();
       if (orderError) throw orderError;
       orderId = order.id;
+      createdThisRequest = true;
     }
     if (!orderId) {
       throw new Error("Unable to initialize order for checkout");
@@ -237,7 +370,7 @@ export async function POST(req: Request) {
 
     const intent = await createAirwallexPaymentIntent({
       requestId,
-      amount: total,
+      amount: chargeAmount,
       currency: selectedCurrency,
       merchantOrderId: orderId,
       returnUrl: `${returnUrl}&order_id=${encodeURIComponent(orderId)}`,
@@ -257,11 +390,51 @@ export async function POST(req: Request) {
       throw new Error("Airwallex did not return a client secret");
     }
 
-    await upsertAirwallexPaymentIntent(supabase, {
+    const savedPayment = await upsertAirwallexPaymentIntent(supabase, {
       orderId,
       requestId,
       intent,
     });
+    if (savedPayment.order_id !== orderId && createdThisRequest) {
+      const duplicateOrderId = orderId;
+      const { data: targetOwner, error: targetOwnerError } = await supabase
+        .from("orders")
+        .select("id, customer_email, user_id")
+        .eq("id", savedPayment.order_id)
+        .maybeSingle();
+      if (targetOwnerError) throw targetOwnerError;
+      const { data: targetLines, error: targetLinesError } = await supabase
+        .from("order_items")
+        .select("product_id, quantity, variant_size, variant_material")
+        .eq("order_id", savedPayment.order_id);
+      if (targetLinesError) throw targetLinesError;
+      const targetMatches =
+        Boolean(targetOwner && sameCustomer(targetOwner, customer.email, userId)) &&
+        cartMatches(targetLines ?? [], items, inventoryBySlug);
+      if (reservedStock && resolvedItems.length) {
+        await restoreStockForOrder(supabase, duplicateOrderId, resolvedItems);
+        reservedStock = false;
+      }
+      const { error: deleteItemsError } = await supabase
+        .from("order_items")
+        .delete()
+        .eq("order_id", duplicateOrderId);
+      if (deleteItemsError) throw deleteItemsError;
+      const { error: deleteOrderError } = await supabase
+        .from("orders")
+        .delete()
+        .eq("id", duplicateOrderId);
+      if (deleteOrderError) throw deleteOrderError;
+      if (!targetMatches) {
+        return NextResponse.json(
+          { error: "Unable to initialize order for checkout" },
+          { status: 409 }
+        );
+      }
+      orderId = savedPayment.order_id;
+      reusedOrder = true;
+      createdThisRequest = false;
+    }
     await applyAirwallexPaymentIntentStatus(supabase, {
       paymentIntentId: intent.id,
       nextStatus: normalizeAirwallexPaymentStatus(intent.status),
@@ -269,24 +442,37 @@ export async function POST(req: Request) {
       force: true,
     });
 
-    const { error: orderUpdateError } = await supabase
-      .from("orders")
-      .update({
-        payment_reference: intent.id,
-        payment_provider: "airwallex",
-        payment_status: normalizeAirwallexPaymentStatus(intent.status),
-        fulfillment_status: "pending_payment",
-        currency: selectedCurrency,
-        subtotal_amount: subtotal,
-        shipping_amount: shippingAmount,
-        total_amount: total,
-        customer_email: customer.email,
-        customer_name: customerName,
-        shipping_address: shippingAddress,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", orderId);
-    if (orderUpdateError) throw orderUpdateError;
+    if (reusedOrder) {
+      const { error: orderUpdateError } = await supabase
+        .from("orders")
+        .update({
+          payment_reference: intent.id,
+          payment_provider: "airwallex",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", orderId)
+        .or("payment_status.is.null,payment_status.neq.succeeded");
+      if (orderUpdateError) throw orderUpdateError;
+    } else {
+      const { error: orderUpdateError } = await supabase
+        .from("orders")
+        .update({
+          payment_reference: intent.id,
+          payment_provider: "airwallex",
+          payment_status: normalizeAirwallexPaymentStatus(intent.status),
+          fulfillment_status: "pending_payment",
+          currency: selectedCurrency,
+          subtotal_amount: subtotal,
+          shipping_amount: shippingAmount,
+          total_amount: total,
+          customer_email: customer.email,
+          customer_name: customerName,
+          shipping_address: shippingAddress,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", orderId);
+      if (orderUpdateError) throw orderUpdateError;
+    }
 
     return NextResponse.json(
       {
@@ -302,25 +488,26 @@ export async function POST(req: Request) {
       }
     );
   } catch (error) {
-    if (supabase && orderId && reservedStock && resolvedItems.length) {
+    let reservationStillHeld = false;
+    if (supabase && orderId && reservedStock) {
       try {
-        await restoreStockForOrder(supabase, orderId, resolvedItems);
-      } catch (restoreError) {
-        console.error("[airwallex-checkout] failed to restore stock after error", restoreError);
-        return NextResponse.json(
-          {
-            error:
-              restoreError instanceof Error
-                ? restoreError.message
-                : "Checkout failed and inventory restore could not complete",
-          },
-          { status: 500 }
+        await releaseOrderReservation(
+          supabase,
+          orderId,
+          resolvedItems.map((line) => ({
+            product_id: line.product.id,
+            variant_id: line.variant?.id ?? null,
+            quantity: line.requestedQuantity,
+          }))
         );
+      } catch {
+        reservationStillHeld = true;
+        console.error("[airwallex-checkout] reservation release failed", { orderId });
       }
     }
 
-    if (supabase && orderId) {
-      const { error: markFailedError } = await supabase
+    if (supabase && orderId && (reservedStock || createdThisRequest)) {
+      let markFailed = supabase
         .from("orders")
         .update({
           payment_provider: "airwallex",
@@ -329,7 +516,12 @@ export async function POST(req: Request) {
           fulfillment_status: "payment_failed",
           updated_at: new Date().toISOString(),
         })
-        .eq("id", orderId);
+        .eq("id", orderId)
+        .or("payment_status.is.null,payment_status.neq.succeeded");
+      if (!reservationStillHeld) {
+        markFailed = markFailed.eq("inventory_reserved", false);
+      }
+      const { error: markFailedError } = await markFailed;
       if (markFailedError) {
         console.error("[airwallex-checkout] failed to mark order as failed", markFailedError);
       }
