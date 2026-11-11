@@ -163,7 +163,7 @@ test("a failed Airwallex return keeps the cart and shows support copy", async ({
     .toContain("amethyst-bracelet-xv");
 });
 
-test("cash on delivery shows the fee and confirms the order", async ({ page }) => {
+test("cash on delivery confirms the order without a fee row", async ({ page }) => {
   await page.route(/\/api\/checkout\/cod$/, (route) =>
     route.fulfill({
       status: 200,
@@ -180,9 +180,9 @@ test("cash on delivery shows the fee and confirms the order", async ({ page }) =
   }, CART_KEY);
   await page.goto("/checkout");
   await fillCheckout(page);
-  await page.getByText("Cash on Delivery", { exact: false }).first().click();
-  await expect(page.getByText("Cash on Delivery fee")).toBeVisible();
-  await expect(page.getByText("$20.00").first()).toBeVisible();
+  await page.getByText("Cash on delivery", { exact: true }).click();
+  await expect(page.getByText("Cash on Delivery fee")).toHaveCount(0);
+  await expect(page.getByText("+$0.00")).toHaveCount(0);
   await page.getByRole("button", { name: "Place Order" }).click();
   await expect(page).toHaveURL(/method=cod/);
   await expect(page.getByText("Your Cash on Delivery order has been placed.")).toBeVisible();

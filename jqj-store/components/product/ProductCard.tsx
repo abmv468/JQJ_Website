@@ -5,13 +5,11 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import type { Product } from "@/data/products";
 import { getStockState } from "@/lib/product-stock";
-import StarRating from "@/components/ui/StarRating";
 import { useCurrency } from "@/context/CurrencyContext";
 
 const tagLabels: Record<string, string> = {
   new: "New",
   limited: "Limited",
-  "top-rated": "Top Rated",
   restocked: "Restocked",
   sale: "Sale",
 };
@@ -87,11 +85,7 @@ export default function ProductCard({
         </div>
 
         <div className="flex flex-1 flex-col px-1 pb-1 pt-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-[11px] text-white/58">
-              <StarRating rating={product.rating} size={11} />
-              <span>{product.reviewCount} reviews</span>
-            </div>
+          <div className="flex items-center justify-end">
             <ArrowUpRight className="h-4 w-4 text-white/42 transition-colors duration-200 group-hover:text-white" />
           </div>
 

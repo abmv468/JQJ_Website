@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
+import { RETURNS_DAYS } from "@/lib/policy";
 
 export const metadata: Metadata = {
   title: "Shipping Policy",
@@ -46,6 +47,12 @@ export default function ShippingPage() {
             "Customers are responsible for entering complete and accurate shipping details.",
             "If a package is returned due to an incorrect address, re-shipping fees may apply.",
             "If a package is marked delivered but not received, contact us within 5 days so we can assist with a carrier claim.",
+          ],
+        },
+        {
+          title: "Returns",
+          bullets: [
+            `Returns are accepted within ${RETURNS_DAYS} days of delivery. Customers pay return shipping.`,
           ],
         },
         {
