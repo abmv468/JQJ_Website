@@ -17,6 +17,7 @@ import {
 import {
   applyAirwallexPaymentIntentStatus,
   applyAirwallexRefundEvent,
+  isProtectedOrder,
   upsertAirwallexPaymentIntent,
 } from "@/lib/payments/airwallex-orders";
 
@@ -146,7 +147,9 @@ export async function POST(req: Request) {
 
       const { data: orderSnapshot, error: orderSnapshotError } = await supabase
         .from("orders")
-        .select("id, payments(id, provider, provider_payment_intent_id, provider_request_id)")
+        .select(
+          "id, status, sales_channel, payments(id, provider, provider_payment_intent_id, provider_request_id)"
+        )
         .eq("id", id)
         .single();
       if (orderSnapshotError) throw orderSnapshotError;
@@ -170,17 +173,20 @@ export async function POST(req: Request) {
         airwallexPayment.provider_payment_intent_id
       );
 
-      await upsertAirwallexPaymentIntent(supabase, {
-        orderId: id,
-        requestId:
-          intent.request_id ?? airwallexPayment.provider_request_id ?? `refresh-${id}-${Date.now()}`,
-        intent,
-      });
+      if (!isProtectedOrder(orderSnapshot)) {
+        await upsertAirwallexPaymentIntent(supabase, {
+          orderId: id,
+          requestId:
+            intent.request_id ?? airwallexPayment.provider_request_id ?? `refresh-${id}-${Date.now()}`,
+          intent,
+        });
+      }
       await applyAirwallexPaymentIntentStatus(supabase, {
         paymentIntentId: intent.id,
         nextStatus: normalizeAirwallexPaymentStatus(intent.status ?? ""),
         providerEventCreatedAt: intent.updated_at ?? null,
         force: true,
+        amount: intent.amount,
       });
 
       const updatedOrder = await loadOrderWithRelations(supabase, id);

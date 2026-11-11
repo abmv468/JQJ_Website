@@ -169,6 +169,7 @@ export async function POST(req: Request) {
         ),
         providerEventId: event.id,
         providerEventCreatedAt: event.created_at ?? null,
+        amount: object.amount as number | string | null | undefined,
       });
 
       if (!linkedOrderId && "orderId" in applyResult) {

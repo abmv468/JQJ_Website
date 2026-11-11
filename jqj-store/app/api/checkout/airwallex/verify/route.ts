@@ -10,6 +10,7 @@ import {
 import {
   applyAirwallexPaymentIntentStatus,
   findAirwallexPaymentByIntent,
+  isProtectedOrder,
   upsertAirwallexPaymentIntent,
 } from "@/lib/payments/airwallex-orders";
 
@@ -18,6 +19,7 @@ export const dynamic = "force-dynamic";
 interface OrderPaymentSnapshot {
   id: string;
   status: string | null;
+  sales_channel: string | null;
   payment_status: string | null;
   fulfillment_status: string | null;
   inventory_reserved: boolean | null;
@@ -68,7 +70,7 @@ export async function POST(req: Request) {
     const { data: orderData, error: orderError } = await supabase
       .from("orders")
       .select(
-        "id, status, payment_status, fulfillment_status, inventory_reserved, payments(id, provider, provider_payment_intent_id, status, provider_request_id)"
+        "id, status, sales_channel, payment_status, fulfillment_status, inventory_reserved, payments(id, provider, provider_payment_intent_id, status, provider_request_id)"
       )
       .eq("id", orderId)
       .single();
@@ -110,16 +112,19 @@ export async function POST(req: Request) {
     ) {
       const intent = await retrieveAirwallexPaymentIntent(payment.provider_payment_intent_id);
 
-      await upsertAirwallexPaymentIntent(supabase, {
-        orderId: order.id,
-        requestId: intent.request_id ?? payment.provider_request_id ?? `verify-${order.id}`,
-        intent,
-      });
+      if (!isProtectedOrder(order)) {
+        await upsertAirwallexPaymentIntent(supabase, {
+          orderId: order.id,
+          requestId: intent.request_id ?? payment.provider_request_id ?? `verify-${order.id}`,
+          intent,
+        });
+      }
       await applyAirwallexPaymentIntentStatus(supabase, {
         paymentIntentId: intent.id,
         nextStatus: normalizeAirwallexPaymentStatus(intent.status),
         providerEventCreatedAt: intent.updated_at ?? null,
         force: true,
+        amount: intent.amount,
       });
 
       effectiveStatus = normalizeAirwallexPaymentStatus(intent.status);

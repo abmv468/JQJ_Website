@@ -1,11 +1,14 @@
 import { loadStoreSchema, type StoreSchema } from "./schema";
 
-export interface DbError extends Error {
+export interface DbError {
+  message: string;
   code?: string;
+  details: string | null;
+  hint: string | null;
 }
 
 export interface QueryFilter {
-  op: "eq" | "neq" | "in" | "lt" | "is" | "or";
+  op: "eq" | "neq" | "in" | "lt" | "is" | "or" | "ilike";
   column: string;
   value: unknown;
 }
@@ -48,9 +51,32 @@ export function getActiveDb() {
 }
 
 export function dbError(message: string, code?: string): DbError {
-  const error = new Error(message) as DbError;
-  error.code = code;
-  return error;
+  return { message, code, details: null, hint: null };
+}
+
+function asDbError(error: unknown): DbError {
+  if (
+    error &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof (error as { message?: unknown }).message === "string"
+  ) {
+    const record = error as { message: string; code?: unknown; details?: unknown; hint?: unknown };
+    return {
+      message: record.message,
+      code: typeof record.code === "string" ? record.code : undefined,
+      details: record.details === null || typeof record.details === "string" ? record.details : null,
+      hint: record.hint === null || typeof record.hint === "string" ? record.hint : null,
+    };
+  }
+  if (error instanceof Error) {
+    const code =
+      "code" in error && typeof (error as { code?: unknown }).code === "string"
+        ? (error as { code: string }).code
+        : undefined;
+    return { message: error.message, code, details: null, hint: null };
+  }
+  return dbError(String(error));
 }
 
 export class MemoryDb {
@@ -119,7 +145,15 @@ export class MemoryDb {
     } catch (error) {
       // PostgREST returns RAISE EXCEPTION as a plain { message, code } object.
       // Postgres uses P0001 when the function does not set an error code.
-      const message = error instanceof Error ? error.message : String(error);
+      const message =
+        error &&
+        typeof error === "object" &&
+        "message" in error &&
+        typeof (error as { message?: unknown }).message === "string"
+          ? (error as { message: string }).message
+          : error instanceof Error
+            ? error.message
+            : String(error);
       const code =
         error && typeof error === "object" && "code" in error && typeof error.code === "string"
           ? error.code
@@ -247,6 +281,7 @@ function asItems(value: unknown): StockItem[] {
 interface SelectField {
   name: string;
   nested: string | null;
+  inner: boolean;
 }
 
 class Query implements PromiseLike<QueryResult> {
@@ -255,8 +290,9 @@ class Query implements PromiseLike<QueryResult> {
   private payload: Row | Row[] | null = null;
   private onConflict: string[] = [];
   private filters: QueryFilter[] = [];
+  private foreignOrs: { table: string; filters: QueryFilter[] }[] = [];
   private limitN: number | null = null;
-  private orderBy: { column: string; ascending: boolean } | null = null;
+  private orderBy: { column: string; ascending: boolean; referencedTable?: string } | null = null;
   private mode: "many" | "single" | "maybe" = "many";
   private head = false;
   private counted = false;
@@ -310,8 +346,19 @@ class Query implements PromiseLike<QueryResult> {
     return this;
   }
 
-  or(filters: string) {
-    this.filters.push({ op: "or", column: "", value: parseOrFilters(filters) });
+  or(filters: string, options?: { referencedTable?: string; foreignTable?: string }) {
+    const referencedTable = options?.referencedTable ?? options?.foreignTable;
+    const parsed = parseOrFilters(filters);
+    if (referencedTable) {
+      this.foreignOrs.push({ table: referencedTable, filters: parsed });
+    } else {
+      this.filters.push({ op: "or", column: "", value: parsed });
+    }
+    return this;
+  }
+
+  ilike(column: string, value: string) {
+    this.filters.push({ op: "ilike", column, value });
     return this;
   }
 
@@ -335,8 +382,15 @@ class Query implements PromiseLike<QueryResult> {
     return this;
   }
 
-  order(column: string, options?: { ascending?: boolean }) {
-    this.orderBy = { column, ascending: options?.ascending !== false };
+  order(
+    column: string,
+    options?: { ascending?: boolean; referencedTable?: string; foreignTable?: string }
+  ) {
+    this.orderBy = {
+      column,
+      ascending: options?.ascending !== false,
+      referencedTable: options?.referencedTable ?? options?.foreignTable,
+    };
     return this;
   }
 
@@ -369,7 +423,7 @@ class Query implements PromiseLike<QueryResult> {
     } catch (error) {
       return {
         data: null,
-        error: error instanceof Error ? (error as DbError) : dbError(String(error)),
+        error: asDbError(error),
         count: null,
       };
     }
@@ -379,7 +433,19 @@ class Query implements PromiseLike<QueryResult> {
     const fields = parseSelect(this.selectList);
     this.assertFields(fields);
     let rows = this.db.requireTable(this.table).filter((row) => matches(row, this.filters));
-    if (this.orderBy) {
+    const innerFields = fields.filter((field) => field.inner);
+    if (innerFields.length > 0) {
+      rows = rows.filter((row) => innerFields.every((field) => this.innerMatch(row, field)));
+    }
+    if (this.orderBy?.referencedTable) {
+      const { column, ascending, referencedTable } = this.orderBy;
+      rows = [...rows].sort((left, right) => {
+        const compared = String(this.referencedValue(left, referencedTable, column) ?? "").localeCompare(
+          String(this.referencedValue(right, referencedTable, column) ?? "")
+        );
+        return ascending ? compared : -compared;
+      });
+    } else if (this.orderBy) {
       const { column, ascending } = this.orderBy;
       rows = [...rows].sort((left, right) => {
         const compared = String(left[column] ?? "").localeCompare(String(right[column] ?? ""));
@@ -500,6 +566,7 @@ class Query implements PromiseLike<QueryResult> {
           throw dbError(`relation "${field.name}" does not exist`, "42P01");
         }
         for (const child of parseSelect(field.nested)) {
+          if (child.nested || child.name === "*") continue;
           if (!childColumns.includes(child.name)) {
             throw dbError(`column ${field.name}.${child.name} does not exist`, "42703");
           }
@@ -525,19 +592,48 @@ class Query implements PromiseLike<QueryResult> {
     return projected;
   }
 
-  private embed(row: Row, field: SelectField) {
+  private innerMatch(row: Row, field: SelectField) {
+    if (this.table === "payments" && field.name === "orders") {
+      const parent = this.db.rowsOf("orders").find((order) => order.id === row.order_id);
+      if (!parent) return false;
+      return this.foreignOrs
+        .filter((group) => group.table === "orders")
+        .every((group) => matches(parent, [{ op: "or", column: "", value: group.filters }]));
+    }
+    const embedded = this.embed(row, field);
+    return Array.isArray(embedded) ? embedded.length > 0 : embedded != null;
+  }
+
+  private referencedValue(row: Row, table: string | undefined, column: string) {
+    if (this.table === "payments" && table === "orders") {
+      const parent = this.db.rowsOf("orders").find((order) => order.id === row.order_id);
+      return parent?.[column];
+    }
+    return row[column];
+  }
+
+  private embed(row: Row, field: SelectField): Row | Row[] | null {
+    if (this.table === "payments" && field.name === "orders") {
+      const parent = this.db.rowsOf("orders").find((order) => order.id === row.order_id);
+      if (!parent) return null;
+      return this.projectColumns(parent, field.nested ?? "*");
+    }
     const fk =
       this.table === "products" && field.name === "product_variants"
         ? "product_id"
         : ORDER_FK[field.name];
     const children = (this.db.rowsOf(field.name) ?? []).filter((child) => child[fk] === row.id);
-    const nestedFields = parseSelect(field.nested ?? "*");
-    return children.map((child) => {
-      if (nestedFields.length === 1 && nestedFields[0].name === "*") return { ...child };
-      const projected: Row = {};
-      for (const nested of nestedFields) projected[nested.name] = child[nested.name];
-      return projected;
-    });
+    return children.map((child) => this.projectColumns(child, field.nested ?? "*"));
+  }
+
+  private projectColumns(row: Row, nested: string) {
+    const nestedFields = parseSelect(nested);
+    if (nestedFields.length === 1 && nestedFields[0].name === "*" && !nestedFields[0].nested) {
+      return { ...row };
+    }
+    const projected: Row = {};
+    for (const nestedField of nestedFields) projected[nestedField.name] = row[nestedField.name];
+    return projected;
   }
 
   private assertStatus(status: unknown) {
@@ -598,7 +694,7 @@ class Query implements PromiseLike<QueryResult> {
 }
 
 function parseSelect(input: string): SelectField[] {
-  if (!input || input.trim() === "*") return [{ name: "*", nested: null }];
+  if (!input || input.trim() === "*") return [{ name: "*", nested: null, inner: false }];
   const parts: string[] = [];
   let current = "";
   let depth = 0;
@@ -614,9 +710,11 @@ function parseSelect(input: string): SelectField[] {
   }
   if (current.trim()) parts.push(current.trim());
   return parts.map((part) => {
-    const nested = part.match(/^([a-z_][a-z0-9_]*)\((.*)\)$/i);
-    if (nested) return { name: nested[1], nested: nested[2] };
-    return { name: part, nested: null };
+    const nested = part.match(/^([a-z_][a-z0-9_]*)(?:!(inner|left))?\((.*)\)$/i);
+    if (nested) {
+      return { name: nested[1], nested: nested[3], inner: nested[2]?.toLowerCase() === "inner" };
+    }
+    return { name: part, nested: null, inner: false };
   });
 }
 
@@ -626,7 +724,7 @@ function parseOrFilters(filters: string): QueryFilter[] {
     .map((part) => part.trim())
     .filter(Boolean)
     .map((part) => {
-      const match = part.match(/^([a-z_][a-z0-9_]*)\.(eq|neq|is|lt)\.(.*)$/i);
+      const match = part.match(/^([a-z_][a-z0-9_]*)\.(eq|neq|is|lt|ilike)\.(.*)$/i);
       if (!match) {
         throw dbError(`unsupported or filter "${part}"`);
       }
@@ -638,6 +736,13 @@ function parseOrFilters(filters: string): QueryFilter[] {
       if (op === "is" && raw === "false") value = false;
       return { op, column: match[1], value };
     });
+}
+
+function ilikeMatch(value: unknown, pattern: unknown) {
+  const source = String(value ?? "");
+  const raw = String(pattern ?? "");
+  const escaped = raw.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/%/g, ".*");
+  return new RegExp(`^${escaped}$`, "i").test(source);
 }
 
 function matches(row: Row, filters: QueryFilter[]): boolean {
@@ -652,6 +757,7 @@ function matches(row: Row, filters: QueryFilter[]): boolean {
     if (filter.op === "in") return Array.isArray(filter.value) && filter.value.includes(value);
     if (filter.op === "is") return value === filter.value || (filter.value === null && value == null);
     if (filter.op === "lt") return String(value ?? "") < String(filter.value ?? "");
+    if (filter.op === "ilike") return ilikeMatch(value, filter.value);
     return false;
   });
 }
