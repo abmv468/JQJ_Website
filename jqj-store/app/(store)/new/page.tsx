@@ -2,12 +2,19 @@ import type { Metadata } from "next";
 import CollectionView from "@/components/product/CollectionView";
 import { products } from "@/data/products";
 
-export function generateMetadata({
+type CollectionSearchParams = Promise<{
+  stone?: string;
+  tag?: string;
+  q?: string;
+}>;
+
+export async function generateMetadata({
   searchParams,
 }: {
-  searchParams: { stone?: string; tag?: string; q?: string };
-}): Metadata {
-  const isFiltered = Boolean(searchParams.stone || searchParams.tag || searchParams.q);
+  searchParams: CollectionSearchParams;
+}): Promise<Metadata> {
+  const { stone, tag, q } = await searchParams;
+  const isFiltered = Boolean(stone || tag || q);
 
   return {
     title: "New Natural Stone Jewelry",
@@ -24,11 +31,12 @@ export function generateMetadata({
   };
 }
 
-export default function NewPage({
+export default async function NewPage({
   searchParams,
 }: {
-  searchParams: { stone?: string; tag?: string; q?: string };
+  searchParams: CollectionSearchParams;
 }) {
+  const { stone, tag, q } = await searchParams;
   // Surface newest + limited pieces first, then everything else.
   const featured = products.filter(
     (p) => p.tags.includes("new") || p.tags.includes("limited")
@@ -41,9 +49,9 @@ export default function NewPage({
       title="New Arrivals"
       subtitle="Our latest releases and restocks, shaped by gemstone energy, cultural motifs, and contemporary design."
       products={ordered}
-      initialStone={searchParams.stone}
-      initialTag={searchParams.tag}
-      initialQuery={searchParams.q}
+      initialStone={stone}
+      initialTag={tag}
+      initialQuery={q}
     />
   );
 }

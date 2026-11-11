@@ -12,9 +12,16 @@ export function generateStaticParams() {
   return products.map((p) => ({ slug: p.slug }));
 }
 
-export function generateMetadata({ params }: { params: { slug: string } }) {
-  const product = getProductBySlug(params.slug);
-  const productPath = `/products/${params.slug}`;
+type ProductParams = Promise<{ slug: string }>;
+
+export async function generateMetadata({
+  params,
+}: {
+  params: ProductParams;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const product = getProductBySlug(slug);
+  const productPath = `/products/${slug}`;
 
   return {
     title: product?.name ?? "Product",
@@ -47,8 +54,9 @@ export function generateMetadata({ params }: { params: { slug: string } }) {
   };
 }
 
-export default function ProductPage({ params }: { params: { slug: string } }) {
-  const product = getProductBySlug(params.slug);
+export default async function ProductPage({ params }: { params: ProductParams }) {
+  const { slug } = await params;
+  const product = getProductBySlug(slug);
   if (!product) notFound();
 
   const related = getRelatedProducts(product);

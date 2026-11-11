@@ -2,12 +2,19 @@ import type { Metadata } from "next";
 import CollectionView from "@/components/product/CollectionView";
 import { getProductsByCategory } from "@/data/products";
 
-export function generateMetadata({
+type CollectionSearchParams = Promise<{
+  stone?: string;
+  tag?: string;
+  q?: string;
+}>;
+
+export async function generateMetadata({
   searchParams,
 }: {
-  searchParams: { stone?: string; tag?: string; q?: string };
-}): Metadata {
-  const isFiltered = Boolean(searchParams.stone || searchParams.tag || searchParams.q);
+  searchParams: CollectionSearchParams;
+}): Promise<Metadata> {
+  const { stone, tag, q } = await searchParams;
+  const isFiltered = Boolean(stone || tag || q);
 
   return {
     title: "Natural Stone Bracelets",
@@ -24,11 +31,12 @@ export function generateMetadata({
   };
 }
 
-export default function BraceletsPage({
+export default async function BraceletsPage({
   searchParams,
 }: {
-  searchParams: { stone?: string; tag?: string; q?: string };
+  searchParams: CollectionSearchParams;
 }) {
+  const { stone, tag, q } = await searchParams;
   const items = getProductsByCategory("bracelets");
 
   return (
@@ -61,9 +69,9 @@ export default function BraceletsPage({
           ],
         },
       ]}
-      initialStone={searchParams.stone}
-      initialTag={searchParams.tag}
-      initialQuery={searchParams.q}
+      initialStone={stone}
+      initialTag={tag}
+      initialQuery={q}
     />
   );
 }
