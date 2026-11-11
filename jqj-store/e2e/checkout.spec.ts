@@ -1,121 +1,96 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import {
+  COD_FEE,
+  FREE_SHIPPING_THRESHOLD_USD,
+  codFeeDisplay,
+  quoteCheckout,
+  toCents,
+} from "./helpers/checkout-expectations";
+import {
+  CART_KEY,
+  addProductToCart,
+  assertCurrentConfirmation,
+  catalogUnitPrice,
+  expectCartCleared,
+  fillCheckout,
+  installCheckoutIsolation,
+  submitAndAssertParity,
+} from "./helpers/checkout-parity";
 
-const CART_KEY = "JQD-cart";
+const UNDER_THRESHOLD_SLUG = "blue-lace-agate-silver-pendant";
+const OVER_THRESHOLD_SLUG = "amethyst-bracelet-xv";
 
-async function fillCheckout(page: Page) {
-  await page.getByPlaceholder("Email", { exact: true }).fill("buyer@example.com");
-  await page.getByPlaceholder("First name", { exact: true }).fill("Ada");
-  await page.getByPlaceholder("Address", { exact: true }).fill("1 Atelier Lane");
-  await page.getByPlaceholder("City", { exact: true }).fill("Austin");
-}
-
-async function stubExternalHosts(page: Page) {
-  await page.route("**/*", (route) => {
-    const url = route.request().url();
-    if (
-      url.includes("supabase.co") ||
-      url.includes("127.0.0.1:54399") ||
-      url.includes("airwallex.com")
-    ) {
-      return route.abort();
-    }
-    return route.continue();
-  });
-}
-
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    const store: { type: string; env?: string; intent_id?: string }[] = JSON.parse(
-      sessionStorage.getItem("aw-calls") ?? "[]"
-    );
-    window.AirwallexComponentsSDK = {
-      init: async (config) => {
-        store.push({ type: "init", env: config.env });
-        sessionStorage.setItem("aw-calls", JSON.stringify(store));
-        return {
-          payments: {
-            redirectToCheckout: async (props) => {
-              store.push({ type: "redirect", intent_id: props.intent_id });
-              sessionStorage.setItem("aw-calls", JSON.stringify(store));
-              window.location.assign(props.successUrl);
-            },
-          },
-        };
-      },
-    };
-  });
-  await stubExternalHosts(page);
-  await page.route(/\/api\/products\/availability$/, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ errors: [] }),
-    })
-  );
+test.beforeEach(async ({ page, baseURL }) => {
+  await installCheckoutIsolation(page, baseURL);
 });
 
-test("card checkout redirects through the stubbed Airwallex SDK and clears the cart", async ({
+test("aborts a browser request to an external host", async ({ page }) => {
+  await page.goto("/");
+  const [failed, result] = await Promise.all([
+    page.waitForEvent("requestfailed", {
+      predicate: (request) => request.url() === "https://example.com/",
+    }),
+    page.evaluate(async () => {
+      try {
+        await fetch("https://example.com/");
+        return "fulfilled";
+      } catch {
+        return "rejected";
+      }
+    }),
+  ]);
+  expect(result).toBe("rejected");
+  expect(failed.failure()?.errorText ?? "").toContain("ERR_BLOCKED_BY_CLIENT");
+});
+
+test("card checkout under the free-shipping announcement matches the server total", async ({
   page,
-}) => {
-  const captured: {
-    body: {
-      currency?: string;
-      idempotencyKey?: string;
-      items?: { slug?: string }[];
-    } | null;
-  } = { body: null };
-
-  await page.route(/\/api\/checkout\/airwallex$/, async (route) => {
-    captured.body = route.request().postDataJSON();
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        orderId: "order-e2e-1",
-        intentId: "int_e2e",
-        clientSecret: "secret_e2e",
-        currency: "USD",
-        sdkEnv: "demo",
-        countryCode: "US",
-      }),
-    });
-  });
-  await page.route(/\/api\/checkout\/airwallex\/verify$/, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        orderId: "order-e2e-1",
-        paymentStatus: "succeeded",
-        succeeded: true,
-        failed: false,
-        pending: false,
-        inventoryReserved: true,
-      }),
-    })
+}, testInfo) => {
+  const quote = quoteCheckout(
+    [{ unitPriceUsd: catalogUnitPrice(UNDER_THRESHOLD_SLUG), quantity: 1 }],
+    "airwallex"
   );
+  expect(toCents(quote.subtotal)).toBeLessThan(toCents(FREE_SHIPPING_THRESHOLD_USD));
+  expect(toCents(quote.shipping)).toBeGreaterThan(0);
 
-  await page.goto("/products/amethyst-bracelet-xv");
-  await page.getByRole("button", { name: "Add to Cart" }).click();
-  await page.waitForFunction((key) => {
-    const raw = localStorage.getItem(key);
-    return Boolean(raw && JSON.parse(raw).length > 0);
-  }, CART_KEY);
-
+  await addProductToCart(page, UNDER_THRESHOLD_SLUG);
   await page.goto("/checkout");
   await fillCheckout(page);
-  await page.getByRole("button", { name: "Continue to Secure Payment" }).click();
+  const result = await submitAndAssertParity(page, testInfo, "airwallex", "order-e2e-under");
 
-  await expect(page.getByRole("heading", { name: "Thank you for your order" })).toBeVisible();
-  await expect(page.getByText("Your Airwallex payment was successful.")).toBeVisible();
-  await page.waitForFunction((key) => {
-    const raw = localStorage.getItem(key);
-    return !raw || JSON.parse(raw).length === 0;
-  }, CART_KEY);
+  expect(toCents(result.ui.shipping)).toBe(toCents(quote.shipping));
+  expect(toCents(result.ui.total)).toBe(toCents(quote.total));
+  expect(result.request.currency).toBe("USD");
+  expect(result.request.items?.[0]?.slug).toBe(UNDER_THRESHOLD_SLUG);
 
-  expect(captured.body?.currency).toBe("USD");
-  expect(captured.body?.idempotencyKey).toEqual(expect.any(String));
-  expect(captured.body?.items?.[0]?.slug).toBe("amethyst-bracelet-xv");
+  await assertCurrentConfirmation(page, "order-e2e-under", "airwallex");
+  await expectCartCleared(page);
+});
+
+test("card checkout at or over the free-shipping announcement redirects through the stubbed SDK and matches the server total", async ({
+  page,
+}, testInfo) => {
+  const quote = quoteCheckout(
+    [{ unitPriceUsd: catalogUnitPrice(OVER_THRESHOLD_SLUG), quantity: 1 }],
+    "airwallex"
+  );
+  expect(toCents(quote.subtotal)).toBeGreaterThanOrEqual(toCents(FREE_SHIPPING_THRESHOLD_USD));
+  expect(toCents(quote.shipping)).toBe(0);
+
+  await addProductToCart(page, OVER_THRESHOLD_SLUG);
+  await page.goto("/checkout");
+  await fillCheckout(page);
+  const result = await submitAndAssertParity(page, testInfo, "airwallex", "order-e2e-1");
+
+  expect(toCents(result.ui.shipping)).toBe(toCents(quote.shipping));
+  expect(toCents(result.ui.codFee)).toBe(0);
+  expect(result.request.currency).toBe("USD");
+  expect(result.request.idempotencyKey).toEqual(expect.any(String));
+  expect(result.request.items?.[0]?.slug).toBe(OVER_THRESHOLD_SLUG);
+
+  await assertCurrentConfirmation(page, "order-e2e-1", "airwallex");
+  await expectCartCleared(page);
+
   const calls = await page.evaluate(() => JSON.parse(sessionStorage.getItem("aw-calls") ?? "[]"));
   expect(calls).toEqual(
     expect.arrayContaining([
@@ -163,27 +138,33 @@ test("a failed Airwallex return keeps the cart and shows support copy", async ({
     .toContain("amethyst-bracelet-xv");
 });
 
-test("cash on delivery confirms the order without a fee row", async ({ page }) => {
-  await page.route(/\/api\/checkout\/cod$/, (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ orderId: "order-cod-1" }),
-    })
+test("cash on delivery matches the server total without a fee row", async ({
+  page,
+}, testInfo) => {
+  const quote = quoteCheckout(
+    [{ unitPriceUsd: catalogUnitPrice(OVER_THRESHOLD_SLUG), quantity: 1 }],
+    "cod"
   );
+  expect(quote.codFee).toBe(COD_FEE);
+  expect(toCents(quote.subtotal)).toBeGreaterThanOrEqual(toCents(FREE_SHIPPING_THRESHOLD_USD));
+  expect(toCents(quote.shipping)).toBe(0);
 
-  await page.goto("/products/amethyst-bracelet-xv");
-  await page.getByRole("button", { name: "Add to Cart" }).click();
-  await page.waitForFunction((key) => {
-    const raw = localStorage.getItem(key);
-    return Boolean(raw && JSON.parse(raw).length > 0);
-  }, CART_KEY);
+  await addProductToCart(page, OVER_THRESHOLD_SLUG);
   await page.goto("/checkout");
   await fillCheckout(page);
-  await page.getByText("Cash on delivery", { exact: true }).click();
-  await expect(page.getByText("Cash on Delivery fee")).toHaveCount(0);
-  await expect(page.getByText("+$0.00")).toHaveCount(0);
-  await page.getByRole("button", { name: "Place Order" }).click();
+  await page.getByText(codFeeDisplay(), { exact: true }).click();
+  if (toCents(COD_FEE) === 0) {
+    await expect(page.getByText("Cash on delivery", { exact: true })).toBeVisible();
+    await expect(page.getByText("Cash on Delivery fee")).toHaveCount(0);
+    await expect(page.getByText("+$0.00")).toHaveCount(0);
+  }
+  const result = await submitAndAssertParity(page, testInfo, "cod", "order-cod-1");
+
+  expect(toCents(result.ui.codFee)).toBe(toCents(quote.codFee));
+  expect(toCents(result.ui.total)).toBe(toCents(quote.total));
+  expect(result.request.items?.[0]?.slug).toBe(OVER_THRESHOLD_SLUG);
+
   await expect(page).toHaveURL(/method=cod/);
-  await expect(page.getByText("Your Cash on Delivery order has been placed.")).toBeVisible();
+  await assertCurrentConfirmation(page, "order-cod-1", "cod");
+  await expectCartCleared(page);
 });
