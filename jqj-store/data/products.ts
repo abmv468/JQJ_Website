@@ -28,17 +28,6 @@ export interface Product {
   specs: Record<string, string>;
 }
 
-// Stone filters used on listing pages and the home "Shop by Stone" section.
-export const stones = [
-  "Sodalite",
-  "Tiger Eye",
-  "Carnelian",
-  "Tourmaline",
-  "Aquamarine",
-  "Amethyst",
-  "Lapis Lazuli",
-] as const;
-
 export const categories: { slug: CategorySlug; name: string }[] = [
   { slug: "bracelets", name: "Bracelets" },
   { slug: "necklaces", name: "Necklaces" },
@@ -46,13 +35,15 @@ export const categories: { slug: CategorySlug; name: string }[] = [
   { slug: "earrings", name: "Earrings" },
 ];
 
-const sharedFeatures = [
+const braceletFeatures = [
   "Tailored for your preferred fit",
   "Natural gemstones selected for color and character",
   "Designed in Hong Kong",
 ];
 
-const catalog: Product[] = [
+const necklaceFeatures = ["Designed in Hong Kong", "Sterling silver"];
+
+export const products: Product[] = [
   {
     id: "red-leopard-jasper-iii",
     name: "Red Leopard Skin Jasper Bracelet III (6mm)",
@@ -79,8 +70,8 @@ const catalog: Product[] = [
       { size: "Large", material: "Sterling Silver", sku: "JQJ-RLSJ-III-L-SS", stockCount: 3 },
     ],
     tags: ["sale"],
-    stone: "Carnelian",
-    features: sharedFeatures,
+    stone: "Red Leopard Skin Jasper",
+    features: braceletFeatures,
     specs: {
       Color: "Red",
       "Bead Size": "6mm",
@@ -109,8 +100,8 @@ const catalog: Product[] = [
     stockCount: 8,
     lowStockThreshold: 5,
     tags: ["new"],
-    stone: "Tourmaline",
-    features: sharedFeatures,
+    stone: "Raw Brown Tourmaline",
+    features: braceletFeatures,
     specs: {
       Color: "Brown",
       "Bead Size": "8-10mm",
@@ -136,7 +127,7 @@ const catalog: Product[] = [
     lowStockThreshold: 5,
     tags: [] as ProductTag[],
     stone: "Sodalite",
-    features: sharedFeatures,
+    features: braceletFeatures,
     specs: {
       Color: "Blue",
       "Bead Size": "4mm",
@@ -162,7 +153,7 @@ const catalog: Product[] = [
     lowStockThreshold: 5,
     tags: ["new", "limited"],
     stone: "Amethyst",
-    features: sharedFeatures,
+    features: braceletFeatures,
     specs: {
       Color: "Purple",
       "Bead Size": "5mm",
@@ -187,8 +178,8 @@ const catalog: Product[] = [
     stockCount: 9,
     lowStockThreshold: 5,
     tags: ["restocked", "sale"],
-    stone: "Tiger Eye",
-    features: sharedFeatures,
+    stone: "Hematite Silver",
+    features: braceletFeatures,
     specs: {
       Color: "Silver",
       "Bead Size": "4mm",
@@ -213,8 +204,8 @@ const catalog: Product[] = [
     stockCount: 6,
     lowStockThreshold: 5,
     tags: ["limited"],
-    stone: "Lapis Lazuli",
-    features: sharedFeatures,
+    stone: "Labradorite",
+    features: braceletFeatures,
     specs: {
       Color: "Gray",
       "Bead Size": "8mm",
@@ -229,12 +220,12 @@ const catalog: Product[] = [
     name: "Blue Lace Agate Silver Pendant",
     slug: "blue-lace-agate-silver-pendant",
     description:
-      "A polished blue lace agate point set in silver and suspended on a fine box chain. Calm, elegant, and designed for effortless daily styling.",
+      "A slender flat bar of blue lace agate, capped at each end in sterling silver, hangs from a diamond-shaped bail on a sterling silver curb chain. Available in 45 cm or 55 cm.",
     price: 249.99,
     compareAtPrice: null,
     sku: "JQJ-BLAPEN",
     category: "necklaces",
-    images: ["/products/blue-lace-agate-silver-pendant-1.jpg", "/products/blue-lace-agate-pendant.webp"],
+    images: ["/products/blue-lace-agate-pendant.webp"],
     inStock: true,
     stockCount: 18,
     lowStockThreshold: 5,
@@ -244,12 +235,12 @@ const catalog: Product[] = [
       { size: "55cm", material: "Gold Vermeil", sku: "JQJ-BLAPEN-55-GV", stockCount: 3 },
     ],
     tags: ["new"],
-    stone: "Aquamarine",
-    features: sharedFeatures,
+    stone: "Blue Lace Agate",
+    features: necklaceFeatures,
     specs: {
-      "Chain Length": "55cm",
+      "Chain Length": "45 cm or 55 cm",
       Stone: "Blue Lace Agate",
-      Metal: "Sterling Silver",
+      Metal: "Sterling silver",
       Origin: "Designed in Hong Kong",
     },
   },
@@ -258,22 +249,22 @@ const catalog: Product[] = [
     name: "Labradorite Silver Pendant",
     slug: "labradorite-silver-pendant",
     description:
-      "A faceted labradorite baton framed in silver with a shifting inner glow. Each angle reveals a different tone for a subtle statement.",
+      "A slender bar of labradorite with angled ends and a soft blue sheen, capped top and bottom in sterling silver, on a diamond-shaped bail and sterling silver curb chain. 55 cm.",
     price: 279.99,
     compareAtPrice: null,
     sku: "JQJ-LABPEN",
     category: "necklaces",
-    images: ["/products/labradorite-silver-pendant-1.jpg", "/products/labradorite-pendant.webp"],
+    images: ["/products/labradorite-pendant.webp"],
     inStock: true,
     stockCount: 11,
     lowStockThreshold: 5,
     tags: ["restocked"],
-    stone: "Lapis Lazuli",
-    features: sharedFeatures,
+    stone: "Labradorite",
+    features: necklaceFeatures,
     specs: {
-      "Chain Length": "55cm",
+      "Chain Length": "55 cm",
       Stone: "Labradorite",
-      Metal: "Sterling Silver",
+      Metal: "Sterling silver",
       Origin: "Designed in Hong Kong",
     },
   },
@@ -282,32 +273,31 @@ const catalog: Product[] = [
     name: "Pearl - Silver Necklace V (7mm)",
     slug: "pearl-silver-necklace-v",
     description:
-      "Freshwater pearls are paired with silver-tone hematite for a contemporary interpretation of a classic strand, balancing softness with modern structure.",
+      "7 mm freshwater pearls with silver-tone hematite spacers. 45 cm.",
     price: 980.0,
     compareAtPrice: null,
     sku: "JQJ-PEARL-V",
     category: "necklaces",
-    images: [
-      "/products/pearl-silver-necklace-v-1.jpg",
-      "/products/pearl-silver-necklace-v-2.jpg",
-      "/products/pearl-silver-necklace.webp",
-    ],
+    images: ["/products/pearl-silver-necklace.webp"],
     inStock: true,
     stockCount: 5,
     lowStockThreshold: 5,
     tags: ["limited"],
-    stone: "Tiger Eye",
-    features: sharedFeatures,
+    stone: "Freshwater Pearl",
+    features: necklaceFeatures,
     specs: {
-      "Bead Size": "7mm",
+      "Bead Size": "7 mm",
+      "Chain Length": "45 cm",
       Stone: "Freshwater Pearl",
-      Metal: "Sterling Silver",
+      Spacers: "Hematite",
       Origin: "Designed in Hong Kong",
     },
   },
 ];
 
-export const products: Product[] = catalog;
+export const stones: string[] = Array.from(new Set(products.map((product) => product.stone))).sort((a, b) =>
+  a.localeCompare(b)
+);
 
 export function getProductBySlug(slug: string): Product | undefined {
   return products.find((p) => p.slug === slug);

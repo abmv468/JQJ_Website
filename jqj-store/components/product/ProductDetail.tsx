@@ -23,6 +23,7 @@ const accordionData = (product: Product) => [
   {
     title: "Shipping & Return",
     content: [
+      "Free shipping on orders over $250.",
       `Returns are accepted within ${RETURNS_DAYS} days of delivery. Customers pay return shipping.`,
       product.category === "bracelets"
         ? `Exchange or resize requests for bracelets are accepted within ${RETURNS_DAYS} days of delivery.`
@@ -250,6 +251,13 @@ export default function ProductDetail({
                 ))}
               </select>
             </div>
+          ) : product.category === "necklaces" ? (
+            product.specs["Chain Length"] ? (
+              <div className="mt-8">
+                <p className="text-xs uppercase tracking-wider2 text-white/80">Chain length</p>
+                <p className="mt-2 text-sm text-white">{product.specs["Chain Length"]}</p>
+              </div>
+            ) : null
           ) : (
             <div className="mt-8">
               <div className="mb-2 flex items-center justify-between">
