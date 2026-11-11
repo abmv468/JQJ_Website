@@ -36,6 +36,7 @@ interface PaymentRow {
 interface OrderRow {
   id: string;
   status: string | null;
+  sales_channel: string | null;
   fulfillment_status: string | null;
   payment_status: string | null;
   inventory_reserved: boolean | null;
@@ -118,6 +119,41 @@ export function reportPaidClaimLost(orderId: string) {
   console.error("[airwallex-orders] paid_claim_lost", {
     event: PAID_CLAIM_LOST_EVENT,
     orderId,
+  });
+}
+
+/** Stable event for a terminal payment on a cancelled or test order. Ids only. */
+export const PAYMENT_ON_PROTECTED_ORDER_EVENT = "airwallex.payment_on_protected_order";
+export const PROTECTED_ORDER_ALERT_EVENT = "payment_on_protected_order";
+
+export type ProtectedOrderReason = "cancelled" | "test";
+
+export function isProtectedOrder(order: {
+  status?: string | null;
+  sales_channel?: string | null;
+}) {
+  const status = (order.status ?? "").trim().toLowerCase();
+  const channel = (order.sales_channel ?? "").trim().toLowerCase();
+  return status === "cancelled" || channel === "test";
+}
+
+export function protectedOrderReason(order: {
+  status?: string | null;
+  sales_channel?: string | null;
+}): ProtectedOrderReason {
+  return (order.status ?? "").trim().toLowerCase() === "cancelled" ? "cancelled" : "test";
+}
+
+export function reportPaymentOnProtectedOrder(input: {
+  orderId: string;
+  paymentIntentId: string;
+  status: string;
+  reason: ProtectedOrderReason;
+}) {
+  console.error("[airwallex-orders] payment_on_protected_order", {
+    tag: "jqd_alert",
+    event: PAYMENT_ON_PROTECTED_ORDER_EVENT,
+    orderId: input.orderId,
   });
 }
 
@@ -572,6 +608,7 @@ export async function applyAirwallexPaymentIntentStatus(
     providerEventId?: string | null;
     providerEventCreatedAt?: string | null;
     force?: boolean;
+    amount?: number | string | null;
   }
 ) {
   const { data: paymentData, error: paymentError } = await supabase
@@ -590,6 +627,53 @@ export async function applyAirwallexPaymentIntentStatus(
 
   const payment = paymentData as unknown as PaymentRow;
   const currentStatus = normalizeAirwallexPaymentStatus(payment.status);
+
+  const { data: protectedRow, error: protectedError } = await supabase
+    .from("orders")
+    .select("id, status, sales_channel")
+    .eq("id", payment.order_id)
+    .maybeSingle();
+  if (protectedError) throw protectedError;
+  if (protectedRow && isProtectedOrder(protectedRow)) {
+    if (isSuccessfulPaymentStatus(input.nextStatus)) {
+      const amountSource = input.amount == null ? payment.amount : input.amount;
+      const parsedAmount = Number(amountSource);
+      if (!Number.isFinite(parsedAmount)) {
+        throw new Error("Payment amount is not a finite number");
+      }
+      const amount = parsedAmount;
+      const { data: recorded, error: recordError } = await supabase
+        .from("payments")
+        .update({
+          status: "succeeded",
+          amount,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", payment.id)
+        .neq("status", "succeeded")
+        .select("id")
+        .maybeSingle();
+      if (recordError) throw recordError;
+      if (recorded) {
+        console.error(
+          JSON.stringify({
+            tag: "jqd_alert",
+            event: PROTECTED_ORDER_ALERT_EVENT,
+            orderId: protectedRow.id,
+          })
+        );
+      }
+    }
+    if (isSuccessfulPaymentStatus(input.nextStatus) || isTerminalFailedPaymentStatus(input.nextStatus)) {
+      reportPaymentOnProtectedOrder({
+        orderId: protectedRow.id,
+        paymentIntentId: input.paymentIntentId,
+        status: input.nextStatus,
+        reason: protectedOrderReason(protectedRow),
+      });
+    }
+    return { applied: false, reason: "protected_order" as const, orderId: protectedRow.id };
+  }
 
   if (isSuccessfulPaymentStatus(currentStatus)) {
     if (!isSuccessfulPaymentStatus(input.nextStatus)) {
@@ -625,7 +709,7 @@ export async function applyAirwallexPaymentIntentStatus(
   const { data: orderData, error: orderError } = await supabase
     .from("orders")
     .select(
-      "id, status, fulfillment_status, payment_status, inventory_reserved, paid_at, updated_at, total_amount, refunded_amount"
+      "id, status, sales_channel, fulfillment_status, payment_status, inventory_reserved, paid_at, updated_at, total_amount, refunded_amount"
     )
     .eq("id", payment.order_id)
     .single();
@@ -912,6 +996,8 @@ export async function applyAirwallexRefundEvent(
     providerEventCreatedAt?: string | null;
   }
 ) {
+  // Refunds are intentionally allowed on cancelled or test orders,
+  // because a refund after a cancel is the normal path.
   const refundId = typeof input.refundObject.id === "string" ? input.refundObject.id : null;
   const paymentIntentId =
     typeof input.refundObject.payment_intent_id === "string"
@@ -982,7 +1068,7 @@ export async function applyAirwallexRefundEvent(
   if (transitionedToSettled) {
     const { data: orderData, error: orderError } = await supabase
       .from("orders")
-      .select("id, total_amount, refunded_amount")
+      .select("id, status, sales_channel, total_amount, refunded_amount")
       .eq("id", paymentData.order_id)
       .single();
     if (orderError) throw orderError;
@@ -991,15 +1077,23 @@ export async function applyAirwallexRefundEvent(
     const currentRefundedAmount = toNumber(orderData.refunded_amount);
     const nextRefundedAmount = Math.min(totalAmount, currentRefundedAmount + refundAmount);
     const fullyRefunded = totalAmount > 0 && nextRefundedAmount >= totalAmount;
+    const orderPatch: {
+      refunded_amount: number;
+      updated_at: string;
+      status?: string;
+      fulfillment_status?: string;
+    } = {
+      refunded_amount: nextRefundedAmount,
+      updated_at: now,
+    };
+    if (!isProtectedOrder(orderData)) {
+      orderPatch.status = fullyRefunded ? "refunded" : "paid";
+      orderPatch.fulfillment_status = fullyRefunded ? "refunded" : "paid";
+    }
 
     const { error: updateOrderError } = await supabase
       .from("orders")
-      .update({
-        refunded_amount: nextRefundedAmount,
-        status: fullyRefunded ? "refunded" : "paid",
-        fulfillment_status: fullyRefunded ? "refunded" : "paid",
-        updated_at: now,
-      })
+      .update(orderPatch)
       .eq("id", paymentData.order_id);
     if (updateOrderError) throw updateOrderError;
 
