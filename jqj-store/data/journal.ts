@@ -23,6 +23,11 @@ export type JournalRelatedLink = {
   href: string;
 };
 
+export type JournalStill = {
+  src: string;
+  alt: string;
+};
+
 export type JournalPost = {
   slug: string;
   title: string;
@@ -30,6 +35,7 @@ export type JournalPost = {
   dateTime: string;
   category: JournalCategory;
   dek: string;
+  still: JournalStill;
   metaTitle: string;
   metaDescription: string;
   related: readonly JournalRelatedLink[];
@@ -50,6 +56,10 @@ export const JOURNAL_POSTS: readonly JournalPost[] = [
     dateTime: "2026-11-12",
     category: "care",
     dek: "A gentle approach begins with knowing what the stone can tolerate. Not every crystal belongs in water.",
+    still: {
+      src: "/journal/how-to-clean-a-crystal.webp",
+      alt: "A polished natural-stone beaded bracelet on a folded soft cloth, with a dry brush at the edge, on a warm cream surface.",
+    },
     metaTitle: "How to clean a crystal without damage | Jewellery Quintessential",
     metaDescription:
       "A gentle approach begins with knowing what the stone can tolerate. Not every crystal belongs in water, and a soft, dry cloth is often enough.",
@@ -149,6 +159,10 @@ export const JOURNAL_POSTS: readonly JournalPost[] = [
     dateTime: "2026-11-12",
     category: "stones",
     dek: "Two stones can share an atmospheric flash of colour, yet their optical effects and mineral structures are different.",
+    still: {
+      src: "/journal/moonstones-blue-sheen-and-labradorite.webp",
+      alt: "A milky moonstone cabochon with a soft blue under-surface glow beside a darker labradorite cabochon with a sharp electric-blue flash, on a warm cream surface.",
+    },
     metaTitle: "Moonstone's blue sheen and labradorite | Jewellery Quintessential",
     metaDescription:
       "Moonstone and labradorite can share an atmospheric flash of colour, yet the way each stone holds light, and their mineral structures, are different.",
@@ -272,6 +286,10 @@ export const JOURNAL_POSTS: readonly JournalPost[] = [
     dateTime: "2026-11-12",
     category: "dressing",
     dek: "When jewellery accompanies hours of sitting, typing and moving, comfort is found in weight, proportion and quiet details.",
+    still: {
+      src: "/journal/jewellery-for-a-long-day-at-your-desk.webp",
+      alt: "A lightweight gemstone beaded bracelet on a nearly empty desk, with a closed book at the edge.",
+    },
     metaTitle: "Jewellery for a long day at your desk | Jewellery Quintessential",
     metaDescription:
       "When jewellery accompanies hours of sitting, typing and moving, comfort is found in weight, proportion and quiet details, not in pieces that demand attention.",
@@ -407,6 +425,10 @@ export const JOURNAL_POSTS: readonly JournalPost[] = [
     dateTime: "2026-11-12",
     category: "history",
     dek: "Changing fashions, new technologies and an interest in symbolism helped make crystal and gemstone jewellery part of a wider culture of personal expression.",
+    still: {
+      src: "/journal/victorian-fascination-with-crystal-jewellery.webp",
+      alt: "A natural rock-crystal point with one loose amethyst, on a warm cream surface.",
+    },
     metaTitle: "Victorian fascination with crystals | Jewellery Quintessential",
     metaDescription:
       "Changing fashions, new technologies and an interest in symbolism helped make crystal and gemstone jewellery part of a wider culture of personal expression.",

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { JournalBlock, JournalPost, JournalRelatedLink } from "@/data/journal";
 
@@ -55,6 +56,16 @@ export default function JournalArticle({ post }: { post: JournalPost }) {
         </p>
         <h1 className="journal-article-title">{post.title}</h1>
         <p className="journal-article-dek">{post.dek}</p>
+        <Image
+          className="journal-still"
+          src={post.still.src}
+          alt={post.still.alt}
+          width={2048}
+          height={1360}
+          sizes="(min-width: 768px) 42rem, 100vw"
+          priority
+          unoptimized
+        />
         {post.body && post.body.length > 0 ? (
           <div className="journal-article-body">
             {post.body.map((block, index) => (

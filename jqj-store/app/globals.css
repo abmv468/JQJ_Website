@@ -545,6 +545,16 @@ input[type="number"]::-webkit-outer-spin-button {
   color: rgba(255, 255, 255, 0.72);
 }
 
+.journal-still {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 2.25rem 0 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
 .journal-article-body {
   margin-top: 2.5rem;
 }

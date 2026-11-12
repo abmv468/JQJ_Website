@@ -32,6 +32,28 @@ function blockText(block: JournalBlock): string {
   return block.type === "list" ? block.items.join("\n") : block.text;
 }
 
+function webpSize(file: Buffer): { width: number; height: number } {
+  const chunk = file.subarray(12, 16).toString("ascii");
+  if (chunk === "VP8X") {
+    return {
+      width: 1 + file.readUIntLE(24, 3),
+      height: 1 + file.readUIntLE(27, 3),
+    };
+  }
+  if (chunk === "VP8 ") {
+    const marker = file.indexOf(Buffer.from([0x9d, 0x01, 0x2a]));
+    return {
+      width: file.readUInt16LE(marker + 3) & 0x3fff,
+      height: file.readUInt16LE(marker + 5) & 0x3fff,
+    };
+  }
+  const bits = file.readUInt32LE(21);
+  return {
+    width: (bits & 0x3fff) + 1,
+    height: ((bits >> 14) & 0x3fff) + 1,
+  };
+}
+
 const JOURNAL_SOURCES = [
   "data/journal.ts",
   "components/journal/JournalIndex.tsx",
@@ -320,6 +342,55 @@ describe("journal catalogue", () => {
       )
     ).toHaveLength(1);
     expect(history?.body?.at(-1)?.type).toBe("paragraph");
+  });
+
+  it("places one lead still after the dek and keeps the index typographic", () => {
+    const stills = [
+      {
+        slug: "how-to-clean-a-crystal",
+        src: "/journal/how-to-clean-a-crystal.webp",
+        alt: "A polished natural-stone beaded bracelet on a folded soft cloth, with a dry brush at the edge, on a warm cream surface.",
+      },
+      {
+        slug: "moonstones-blue-sheen-and-labradorite",
+        src: "/journal/moonstones-blue-sheen-and-labradorite.webp",
+        alt: "A milky moonstone cabochon with a soft blue under-surface glow beside a darker labradorite cabochon with a sharp electric-blue flash, on a warm cream surface.",
+      },
+      {
+        slug: "jewellery-for-a-long-day-at-your-desk",
+        src: "/journal/jewellery-for-a-long-day-at-your-desk.webp",
+        alt: "A lightweight gemstone beaded bracelet on a nearly empty desk, with a closed book at the edge.",
+      },
+      {
+        slug: "victorian-fascination-with-crystal-jewellery",
+        src: "/journal/victorian-fascination-with-crystal-jewellery.webp",
+        alt: "A natural rock-crystal point with one loose amethyst, on a warm cream surface.",
+      },
+    ] as const;
+
+    for (const still of stills) {
+      expect(getJournalPost(still.slug)?.still).toEqual({ src: still.src, alt: still.alt });
+      const file = readFileSync(path.join(root, "public", still.src));
+      expect(file.subarray(0, 4).toString("ascii")).toBe("RIFF");
+      expect(file.subarray(8, 12).toString("ascii")).toBe("WEBP");
+      expect(webpSize(file)).toEqual({ width: 2048, height: 1360 });
+    }
+
+    const dekAt = article.indexOf('className="journal-article-dek"');
+    const stillAt = article.indexOf('className="journal-still"');
+    const bodyAt = article.indexOf('className="journal-article-body"');
+    expect(dekAt).toBeGreaterThan(-1);
+    expect(stillAt).toBeGreaterThan(dekAt);
+    expect(bodyAt).toBeGreaterThan(stillAt);
+    expect(article).toContain("unoptimized");
+    expect(article).not.toContain("<figcaption");
+    expect(article).not.toContain("journal-still-caption");
+    expect(css).toMatch(/\.journal-still\s*\{[^}]*border-radius:\s*0/);
+    expect(css).toMatch(/\.journal-still\s*\{[^}]*box-shadow:\s*none/);
+    expect(index).not.toContain("journal-still");
+    expect(index).not.toContain("<img");
+    expect(index).not.toContain("<Image");
+    expect(index).not.toContain("thumbnail");
   });
 
   it("keeps banned words out of Journal content", () => {
