@@ -276,7 +276,8 @@ input[type="number"]::-webkit-outer-spin-button {
   .journal-category,
   .journal-category::after,
   .journal-read,
-  .journal-back {
+  .journal-back,
+  .journal-related a {
     transition-duration: 0ms;
     animation: none;
   }
@@ -327,13 +328,6 @@ input[type="number"]::-webkit-outer-spin-button {
   font-size: 0.9375rem;
   line-height: 1.75;
   color: rgba(255, 255, 255, 0.66);
-}
-
-.journal-fictional {
-  margin: 0.85rem 0 0;
-  font-size: 0.8125rem;
-  line-height: 1.6;
-  color: #8a8174;
 }
 
 .journal-tools {
@@ -574,6 +568,65 @@ input[type="number"]::-webkit-outer-spin-button {
   color: #e1c19d;
 }
 
+.journal-subhead {
+  margin: 2.25rem 0 0.85rem;
+  font-family: var(--font-heading);
+  font-weight: 400;
+  font-size: 1.2rem;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+  color: #fff;
+}
+
+.journal-article-list {
+  margin: 0 0 1.35rem;
+  padding: 0;
+  list-style: none;
+}
+
+.journal-article-body p + .journal-article-list {
+  margin-top: -0.55rem;
+}
+
+.journal-article-list li {
+  position: relative;
+  margin: 0;
+  padding: 0.15rem 0 0.15rem 1rem;
+  font-size: 1rem;
+  line-height: 1.8;
+  color: rgba(243, 240, 234, 0.88);
+}
+
+.journal-article-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.95em;
+  width: 0.55rem;
+  height: 1px;
+  background: #bb9d7b;
+}
+
+.journal-related {
+  margin: 1.75rem 0 0;
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.journal-related a {
+  color: #bb9d7b;
+  border-bottom: 1px solid rgba(187, 157, 123, 0.35);
+  padding-bottom: 0.05rem;
+  transition:
+    color 180ms ease,
+    border-color 180ms ease;
+}
+
+.journal-related-sep {
+  color: rgba(255, 255, 255, 0.28);
+}
+
 .journal-back {
   margin-top: 2rem;
 }
@@ -600,7 +653,8 @@ input[type="number"]::-webkit-outer-spin-button {
 
   .journal-read:hover,
   .journal-back:hover,
-  .journal-breadcrumb a:hover {
+  .journal-breadcrumb a:hover,
+  .journal-related a:hover {
     color: #e1c19d;
     border-bottom-color: #e1c19d;
   }
