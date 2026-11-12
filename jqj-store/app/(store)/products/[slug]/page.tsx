@@ -3,6 +3,7 @@ import {
   getProductBySlug,
   getRelatedProducts,
   products,
+  unlistedProducts,
 } from "@/data/products";
 import ProductDetail from "@/components/product/ProductDetail";
 import type { Metadata } from "next";
@@ -12,9 +13,25 @@ export function generateStaticParams() {
   return products.map((p) => ({ slug: p.slug }));
 }
 
-export function generateMetadata({ params }: { params: { slug: string } }) {
+// Unlisted PDPs stay reachable by URL. Override robots and googleBot together
+// so neither meta is left at the root layout's index, follow.
+const unlistedProductRobots: Metadata["robots"] = {
+  index: false,
+  follow: false,
+  googleBot: {
+    index: false,
+    follow: false,
+  },
+};
+
+export function generateMetadata({
+  params,
+}: {
+  params: { slug: string };
+}): Metadata {
   const product = getProductBySlug(params.slug);
   const productPath = `/products/${params.slug}`;
+  const unlisted = unlistedProducts.some((item) => item.slug === params.slug);
 
   return {
     title: product?.name ?? "Product",
@@ -22,6 +39,9 @@ export function generateMetadata({ params }: { params: { slug: string } }) {
       product?.description ??
       "Explore handcrafted natural stone jewelry from JQD Group.",
     alternates: { canonical: productPath },
+    // Omit the key for catalog products. An explicit `undefined` replaces the
+    // root layout robots and drops their index, follow tags.
+    ...(unlisted ? { robots: unlistedProductRobots } : {}),
     openGraph: product
       ? {
           type: "website",
