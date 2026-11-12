@@ -98,7 +98,8 @@ describe("trust copy", () => {
     }
     expect(source("components/home/Hero.tsx")).not.toContain("TRUST_LINE");
     expect(source("lib/policy.ts")).not.toContain("TRUST_LINE");
-    expect(source("components/home/Hero.tsx")).toContain("Museum-inspired craftsmanship since 2015");
+    expect(source("components/home/Hero.tsx")).toContain("Museum-inspired since 2015");
+    expect(source("components/home/Hero.tsx")).not.toContain("craftsmanship");
   });
 
   it("uses the v4 loyalty line and does not promise collector benefits", () => {

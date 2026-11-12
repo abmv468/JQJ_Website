@@ -18,7 +18,7 @@ test("home has no fabricated reviews and no withdrawn trust line", async ({ page
   await openPage(page, "/");
   await expect(page.getByText(WITHDRAWN_TRUST_LINE)).toHaveCount(0);
   await expect(page.getByText(`${RETURNS_DAYS}-day returns`)).toBeVisible();
-  await expect(page.getByText("Museum-inspired craftsmanship since 2015")).toBeVisible();
+  await expect(page.getByText("Museum-inspired since 2015")).toBeVisible();
   await expect(page.getByText("4.8/5.0")).toHaveCount(0);
 });
 
