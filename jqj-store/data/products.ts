@@ -309,8 +309,43 @@ const catalog: Product[] = [
 
 export const products: Product[] = catalog;
 
+// Reachable by direct URL only. Kept out of `products` so home, collections,
+// related products, static params, and catalog seed generation omit it.
+export const unlistedProducts: Product[] = [
+  {
+    id: "payment-test-do-not-ship",
+    name: "Payment test — do not ship",
+    slug: "payment-test-do-not-ship",
+    description:
+      "Temporary card-payment test. This is not a real jewellery item, and it will not be shipped.",
+    price: 1,
+    compareAtPrice: null,
+    sku: "JQJ-PAYTEST-001",
+    category: "necklaces",
+    images: ["/products/payment-test-do-not-ship.webp"],
+    inStock: true,
+    stockCount: 1,
+    lowStockThreshold: 1,
+    tags: [],
+    stone: "None",
+    features: [
+      "Temporary card-payment test",
+      "Not a real jewellery item",
+      "Will not be shipped",
+    ],
+    specs: {
+      Purpose: "Card payment test",
+      Item: "Not a real jewellery item",
+      Shipping: "Will not be shipped",
+    },
+  },
+];
+
 export function getProductBySlug(slug: string): Product | undefined {
-  return products.find((p) => p.slug === slug);
+  return (
+    products.find((p) => p.slug === slug) ??
+    unlistedProducts.find((p) => p.slug === slug)
+  );
 }
 
 export function getProductsByCategory(category: CategorySlug): Product[] {
