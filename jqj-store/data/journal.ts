@@ -29,7 +29,7 @@ export type JournalPost = {
 export const JOURNAL_INTRO = {
   eyebrow: "Journal",
   title: "Journal",
-  dek: "Notes on natural stone, care, and dressing pieces designed in Hong Kong.",
+  dek: "Notes on natural stone, care, and dressing pieces for everyday ritual.",
   fictional: "Example posts below are fictional, for layout only.",
 } as const;
 
@@ -67,12 +67,12 @@ export const JOURNAL_POSTS: readonly JournalPost[] = [
     ],
   },
   {
-    slug: "designed-in-hong-kong",
-    title: "Designed in Hong Kong",
+    slug: "a-short-history-of-jewellery-as-everyday-ritual",
+    title: "A short history of jewellery as everyday ritual.",
     displayDate: "5 November 2026",
     dateTime: "2026-11-05",
     category: "history",
-    dek: "A house note on designing in Hong Kong, and on materials sourced from around the world.",
+    dek: "A brief look at jewellery worn as part of ordinary days, not only for ceremony.",
   },
   {
     slug: "materials-sourced-from-around-the-world",

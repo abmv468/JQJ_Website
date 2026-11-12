@@ -102,7 +102,7 @@ describe("journal catalogue", () => {
 
   it("lists the four fictional notes and filters Care without hiding search", () => {
     expect(JOURNAL_INTRO.dek).toBe(
-      "Notes on natural stone, care, and dressing pieces designed in Hong Kong."
+      "Notes on natural stone, care, and dressing pieces for everyday ritual."
     );
     expect(JOURNAL_INTRO.fictional).toBe("Example posts below are fictional, for layout only.");
     expect(JOURNAL_ARTICLE_FICTIONAL).toBe("Example post — fictional");
@@ -111,7 +111,7 @@ describe("journal catalogue", () => {
 
     expect(JOURNAL_POSTS.map((post) => [post.title, post.displayDate, post.category])).toEqual([
       ["Caring for natural stone", "12 November 2026", "care"],
-      ["Designed in Hong Kong", "5 November 2026", "history"],
+      ["A short history of jewellery as everyday ritual.", "5 November 2026", "history"],
       ["Materials sourced from around the world", "29 October 2026", "stones"],
       ["Dressing stone for everyday ritual", "22 October 2026", "dressing"],
     ]);
@@ -126,6 +126,18 @@ describe("journal catalogue", () => {
     expect(filterJournalPosts(JOURNAL_POSTS, { category: "meaning", query: "" })).toEqual([]);
     expect(parseJournalCategory("care")).toBe("care");
     expect(parseJournalCategory(undefined)).toBe("all");
+
+    const history = getJournalPost("a-short-history-of-jewellery-as-everyday-ritual");
+    expect(history).toMatchObject({
+      title: "A short history of jewellery as everyday ritual.",
+      slug: "a-short-history-of-jewellery-as-everyday-ritual",
+      displayDate: "5 November 2026",
+      dateTime: "2026-11-05",
+      category: "history",
+      dek: "A brief look at jewellery worn as part of ordinary days, not only for ceremony.",
+    });
+    expect(history?.body).toBeUndefined();
+    expect(getJournalPost("designed-in-hong-kong")).toBeUndefined();
   });
 
   it("filters notes by title and dek and keeps the approved care article", () => {
@@ -158,7 +170,6 @@ describe("journal catalogue", () => {
     expect(journalSource).not.toMatch(/Quintessence/);
     expect(journalSource).not.toContain("楷");
     expect(journalSource).not.toMatch(/\bChina\b/);
-    expect(journalSource).toContain("Designed in Hong Kong");
-    expect(journalSource).toContain("materials sourced from around the world");
+    expect(journalSource.toLowerCase()).toContain("materials sourced from around the world");
   });
 });
