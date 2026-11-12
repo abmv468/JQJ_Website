@@ -141,7 +141,7 @@ export default function Footer() {
             © {new Date().getFullYear()} — JQD Group
           </p>
           <p className="text-center text-xs text-white/56">
-            Hand-finished natural stone pieces designed for everyday ritual.
+            Natural stone pieces designed for everyday ritual.
           </p>
         </div>
       </div>
