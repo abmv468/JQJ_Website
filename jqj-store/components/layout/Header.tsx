@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ArrowUpRight, ChevronDown, Menu, Search, ShoppingBag, User, X } from "lucide-react";
 import { AnimatePresence, LazyMotion, domAnimation, m, useReducedMotion } from "framer-motion";
 import { useCart } from "@/context/CartContext";
@@ -16,7 +16,13 @@ const navLinks = [
   { label: "Limited Edition", href: "/bracelets?tag=limited" },
   { label: "Bracelets", href: "/bracelets" },
   { label: "Necklaces", href: "/necklaces" },
+  { label: "Journal", href: "/journal" },
 ];
+
+function isJournalNavCurrent(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return pathname === "/journal" || pathname.startsWith("/journal/");
+}
 
 type MegaMenuKey = "bracelets" | "necklaces";
 
@@ -137,6 +143,8 @@ export default function Header() {
   const { itemCount, setOpen } = useCart();
   const { currency, setCurrency, supportedCurrencies } = useCurrency();
   const router = useRouter();
+  const pathname = usePathname();
+  const journalCurrent = isJournalNavCurrent(pathname);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
@@ -357,11 +365,13 @@ export default function Header() {
                 const hasMegaMenu = Boolean(megaKey);
 
                 if (!hasMegaMenu) {
+                  const current = journalCurrent && l.href === "/journal";
                   return (
                     <Link
                       key={l.href}
                       href={l.href}
-                      className="nav-link"
+                      className={`nav-link${current ? " is-current" : ""}`}
+                      aria-current={current ? "page" : undefined}
                       onClick={() => {
                         setPinnedMegaMenu(null);
                         setHoveredMegaMenu(null);
@@ -651,15 +661,17 @@ export default function Header() {
                         const megaKey = getMegaMenuKeyByHref(l.href);
 
                         if (!megaKey) {
+                          const current = journalCurrent && l.href === "/journal";
                           return (
                             <Link
                               key={l.href}
                               href={l.href}
                               className="flex items-center justify-between border-b border-white/8 py-4 font-heading text-sm uppercase text-white/84"
                               style={{ letterSpacing: "0.18em" }}
+                              aria-current={current ? "page" : undefined}
                               onClick={() => setMobileOpen(false)}
                             >
-                              <span>{l.label}</span>
+                              <span className={current ? "mobile-nav-current" : undefined}>{l.label}</span>
                               <span className="text-white/28">/</span>
                             </Link>
                           );
