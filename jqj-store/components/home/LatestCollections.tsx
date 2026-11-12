@@ -11,7 +11,7 @@ const collections = [
   { name: "Labradorite Light", image: products[5].images[0], href: "/bracelets", alt: "Labradorite natural stone bracelet" },
   { name: "Amethyst Studio", image: products[3].images[0], href: "/bracelets", alt: "Amethyst natural stone bracelet" },
   { name: "Silver Minimal", image: products[4].images[0], href: "/bracelets", alt: "Silver accent natural stone bracelet" },
-  { name: "Pearl Atelier", image: products[8].images[0], href: "/necklaces", alt: "Pearl and silver necklace" },
+  { name: "Pearl Collection", image: products[8].images[0], href: "/necklaces", alt: "Pearl and silver necklace" },
 ];
 
 export default function LatestCollections() {
