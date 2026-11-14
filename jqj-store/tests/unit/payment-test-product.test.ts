@@ -4,7 +4,9 @@ import {
   getProductBySlug,
   getProductsByCategory,
   getRelatedProducts,
+  paymentTestListingHidden,
   products,
+  unlistedProducts,
   type CategorySlug,
 } from "@/data/products";
 
@@ -23,14 +25,34 @@ function isPaymentTest(product: { id: string; slug: string; sku?: string }): boo
 }
 
 describe("payment test listing", () => {
-  it("resolves the unlisted payment-test product by slug", () => {
-    const product = getProductBySlug(SLUG);
+  it("keeps the unlisted payment-test product in the catalog while it is hidden", () => {
+    expect(paymentTestListingHidden).toBe(true);
 
+    const product = unlistedProducts.find((item) => item.slug === SLUG);
     expect(product).toMatchObject({
       id: SLUG,
+      name: "Payment test — do not ship",
       slug: SLUG,
       sku: SKU,
       price: 1,
+      inStock: true,
+      stockCount: 1,
+    });
+    expect(product?.price.toFixed(2)).toBe("1.00");
+    expect(getProductBySlug(SLUG)).toBeUndefined();
+  });
+
+  it("resolves the slug again when paymentTestListingHidden is false", () => {
+    const product = getProductBySlug(SLUG, { paymentTestListingHidden: false });
+
+    expect(product).toMatchObject({
+      id: SLUG,
+      name: "Payment test — do not ship",
+      slug: SLUG,
+      sku: SKU,
+      price: 1,
+      inStock: true,
+      stockCount: 1,
     });
     expect(product?.price.toFixed(2)).toBe("1.00");
   });
@@ -49,7 +71,7 @@ describe("payment test listing", () => {
   });
 
   it("does not offer the payment-test SKU as a related product", () => {
-    const paymentTest = getProductBySlug(SLUG);
+    const paymentTest = unlistedProducts.find((item) => item.slug === SLUG);
     expect(paymentTest).toBeDefined();
 
     expect(getRelatedProducts(paymentTest!).some(isPaymentTest)).toBe(false);

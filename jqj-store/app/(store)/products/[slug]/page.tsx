@@ -1,70 +1,20 @@
 import { notFound } from "next/navigation";
-import {
-  getProductBySlug,
-  getRelatedProducts,
-  products,
-  unlistedProducts,
-} from "@/data/products";
+import { getProductBySlug, getRelatedProducts, products } from "@/data/products";
 import ProductDetail from "@/components/product/ProductDetail";
 import type { Metadata } from "next";
+import { productPageMetadata } from "@/lib/product-page-metadata";
 import { absoluteUrl, jsonLd } from "@/lib/seo";
 
 export function generateStaticParams() {
   return products.map((p) => ({ slug: p.slug }));
 }
 
-// Unlisted PDPs stay reachable by URL. Override robots and googleBot together
-// so neither meta is left at the root layout's index, follow.
-const unlistedProductRobots: Metadata["robots"] = {
-  index: false,
-  follow: false,
-  googleBot: {
-    index: false,
-    follow: false,
-  },
-};
-
 export function generateMetadata({
   params,
 }: {
   params: { slug: string };
 }): Metadata {
-  const product = getProductBySlug(params.slug);
-  const productPath = `/products/${params.slug}`;
-  const unlisted = unlistedProducts.some((item) => item.slug === params.slug);
-
-  return {
-    title: product?.name ?? "Product",
-    description:
-      product?.description ??
-      "Explore handcrafted natural stone jewelry from JQD Group.",
-    alternates: { canonical: productPath },
-    // Omit the key for catalog products. An explicit `undefined` replaces the
-    // root layout robots and drops their index, follow tags.
-    ...(unlisted ? { robots: unlistedProductRobots } : {}),
-    openGraph: product
-      ? {
-          type: "website",
-          url: productPath,
-          title: product.name,
-          description: product.description,
-          images: [
-            {
-              url: product.images[0],
-              alt: product.name,
-            },
-          ],
-        }
-      : undefined,
-    twitter: product
-      ? {
-          card: "summary_large_image",
-          title: product.name,
-          description: product.description,
-          images: [product.images[0]],
-        }
-      : undefined,
-  };
+  return productPageMetadata(params.slug);
 }
 
 export default function ProductPage({ params }: { params: { slug: string } }) {
