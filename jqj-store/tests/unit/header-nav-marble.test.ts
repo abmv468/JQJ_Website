@@ -177,8 +177,9 @@ describe("storefront header nav marble", () => {
     expect(header).not.toContain("rounded-full object-cover");
     expect(header).toContain("motion-reduce:group-hover:scale-100");
     expect(header).toContain("useReducedMotion");
-    expect(layout).toContain('icons: { icon: "/JQD-logo.png" }');
-    expect(layout).toContain('logo: absoluteUrl("/JQD-logo.png")');
+    expect(layout).not.toContain("/JQD-logo.png");
+    expect(layout).toContain('url: "/favicon.ico"');
+    expect(layout).toContain('logo: absoluteUrl("/icon-512.png")');
   });
 
   it("leaves announcement copy, routes, and hairlines in place", () => {
