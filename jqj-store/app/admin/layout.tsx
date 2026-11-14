@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { typesetFontVariables } from "@/components/auth/typeset-fonts";
+import "./admin.css";
 
 export const metadata: Metadata = {
-  title: "Admin — JQD Group",
+  title: { absolute: "Admin — Jewellery Quintessential" },
   robots: { index: false, follow: false },
 };
 
@@ -12,5 +14,5 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <div className="min-h-screen bg-brand-bg text-white">{children}</div>;
+  return <div className={`jq-admin ${typesetFontVariables}`}>{children}</div>;
 }
