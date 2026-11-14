@@ -24,7 +24,14 @@ export const metadata: Metadata = {
   },
   description:
     "Handcrafted bracelets and necklaces inspired by Eastern cultural heritage, museum collaborations, and natural gemstone artistry.",
-  icons: { icon: "/JQD-logo.png" },
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "16x16 32x32 48x48", type: "image/x-icon" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
@@ -73,7 +80,7 @@ export default function RootLayout({
     "@type": "Organization",
     name: "JQD Group",
     url: absoluteUrl(),
-    logo: absoluteUrl("/JQD-logo.png"),
+    logo: absoluteUrl("/icon-512.png"),
   };
 
   const websiteSchema = {
