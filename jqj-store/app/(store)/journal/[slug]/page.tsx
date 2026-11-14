@@ -14,8 +14,8 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
   }
 
   return {
-    title: { absolute: `${post.title} — Journal — Jewellery Quintessential` },
-    description: post.dek,
+    title: { absolute: post.metaTitle },
+    description: post.metaDescription,
     alternates: { canonical: `/journal/${post.slug}` },
   };
 }
