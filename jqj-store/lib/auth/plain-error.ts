@@ -1,5 +1,7 @@
 export const PASSWORDS_DO_NOT_MATCH = "Passwords do not match.";
 export const PASSWORD_TOO_SHORT = "Password must be at least 6 characters.";
+export const PASSWORD_TOO_EASY = "This password is too easy to guess. Choose a stronger one.";
+export const PASSWORD_BREACHED = "This password has appeared in a data breach. Choose a different one.";
 
 const RULES: { test: RegExp; message: string }[] = [
   {
@@ -17,6 +19,14 @@ const RULES: { test: RegExp; message: string }[] = [
   {
     test: /password should be at least|at least 6 characters/i,
     message: PASSWORD_TOO_SHORT,
+  },
+  {
+    test: /data breach|pwned|have i been pwned|hibp|leaked password/i,
+    message: PASSWORD_BREACHED,
+  },
+  {
+    test: /weak and easy to guess|too easy to guess|commonly used|weak password/i,
+    message: PASSWORD_TOO_EASY,
   },
   {
     test: /invalid email|unable to validate email|email address.*invalid/i,

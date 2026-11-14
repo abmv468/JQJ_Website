@@ -390,6 +390,83 @@
   color: #e7cfc3;
 }
 
+.jq-auth .field-error {
+  margin: 8px 0 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--gold-light);
+}
+
+.jq-auth .field.is-invalid input {
+  border-color: var(--gold-light);
+}
+
+.jq-auth .req-block {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: -6px 0 22px;
+}
+
+.jq-auth .req-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.jq-auth .req-mark {
+  display: inline-flex;
+  flex: none;
+  color: var(--gold);
+}
+
+.jq-auth .req-check {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.jq-auth .req-check path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: jq-auth-check 0.45s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+@keyframes jq-auth-check {
+  to { stroke-dashoffset: 0; }
+}
+
+.jq-auth .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jq-auth .req-check path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}
+
 @media (max-width: 720px) {
   .jq-auth .auth-header {
     padding: 22px 20px;
