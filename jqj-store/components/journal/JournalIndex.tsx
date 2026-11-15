@@ -42,7 +42,6 @@ export default function JournalIndex({ category, initialQuery }: JournalIndexPro
           <p className="eyebrow">{JOURNAL_INTRO.eyebrow}</p>
           <h1 className="section-title">{JOURNAL_INTRO.title}</h1>
           <p className="journal-intro-line">{JOURNAL_INTRO.dek}</p>
-          <p className="journal-fictional">{JOURNAL_INTRO.fictional}</p>
         </header>
 
         <div className="journal-tools">

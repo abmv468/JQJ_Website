@@ -4,12 +4,12 @@ import { JOURNAL_INTRO, parseJournalCategory } from "@/data/journal";
 
 export const metadata: Metadata = {
   title: { absolute: "Journal — Jewellery Quintessential" },
-  description: `${JOURNAL_INTRO.dek} ${JOURNAL_INTRO.fictional}`,
+  description: JOURNAL_INTRO.dek,
   alternates: { canonical: "/journal" },
   robots: {
-    index: false,
-    follow: false,
-    googleBot: { index: false, follow: false },
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
   },
 };
 
