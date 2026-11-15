@@ -25,9 +25,9 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
     description: post.metaDescription,
     alternates: { canonical: `/journal/${post.slug}` },
     robots: {
-      index: false,
-      follow: false,
-      googleBot: { index: false, follow: false },
+      index: true,
+      follow: true,
+      googleBot: { index: true, follow: true },
     },
   };
 }

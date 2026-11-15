@@ -302,11 +302,21 @@ describe("journal catalogue", () => {
         title: { absolute: note.metaTitle },
         description: note.metaDescription,
         alternates: { canonical: `/journal/${note.slug}` },
+        robots: {
+          index: true,
+          follow: true,
+          googleBot: { index: true, follow: true },
+        },
       });
     }
 
     expect(generateMetadata({ params: { slug: "caring-for-natural-stone" } })).toEqual({
       title: { absolute: "Journal — Jewellery Quintessential" },
+      robots: {
+        index: false,
+        follow: false,
+        googleBot: { index: false, follow: false },
+      },
     });
     expect(articlePage).toContain("post.metaTitle");
     expect(articlePage).toContain("post.metaDescription");

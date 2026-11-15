@@ -5,6 +5,8 @@
  * were not edited here and keep the commit date of their current source.
  */
 const PREVIEW_REVISION = "2026-11-15T07:09:00.000Z";
+/** Journal index and the four published notes. */
+const JOURNAL_REVISION = "2026-11-15T12:03:00.000Z";
 
 const LAST_MODIFIED: Record<string, string> = {
   "/": PREVIEW_REVISION,
@@ -21,6 +23,11 @@ const LAST_MODIFIED: Record<string, string> = {
   "/shipping": "2026-11-10T06:35:58.000Z",
   "/returns": "2026-11-10T06:35:58.000Z",
   "/privacy": "2026-07-29T00:16:07.000Z",
+  "/journal": JOURNAL_REVISION,
+  "/journal/how-to-clean-a-crystal": JOURNAL_REVISION,
+  "/journal/moonstones-blue-sheen-and-labradorite": JOURNAL_REVISION,
+  "/journal/jewellery-for-a-long-day-at-your-desk": JOURNAL_REVISION,
+  "/journal/victorian-fascination-with-crystal-jewellery": JOURNAL_REVISION,
 };
 
 export function routeLastModified(path: string): Date {

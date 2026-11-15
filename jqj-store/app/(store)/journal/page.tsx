@@ -7,9 +7,9 @@ export const metadata: Metadata = {
   description: JOURNAL_INTRO.dek,
   alternates: { canonical: "/journal" },
   robots: {
-    index: false,
-    follow: false,
-    googleBot: { index: false, follow: false },
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
   },
 };
 
