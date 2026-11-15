@@ -2,25 +2,25 @@ import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
 
 export const metadata: Metadata = {
-  title: "Natural Stone Jewelry Care",
+  title: "Natural Stone Jewellery Care",
   description:
-    "Learn how to clean, store, and care for natural stone jewelry and hand-finished pieces from JQD Group.",
+    "Learn how to clean, store, and care for natural stone jewellery from Jewellery Quintessential.",
   alternates: { canonical: "/care" },
 };
 
 export default function CarePage() {
   return (
     <PolicyPage
-      title="Jewelry Care"
-      intro="Natural stones and hand-finished pieces deserve a little care. These simple habits help preserve their finish and character."
+      title="Jewellery Care"
+      intro="Natural stone pieces deserve a little care. These simple habits help preserve their finish and character."
       effectiveDate="July 28, 2026"
       sections={[
         {
           title: "Everyday Care",
           bullets: [
-            "Remove jewelry before swimming, showering, exercising, or sleeping.",
+            "Remove jewellery before swimming, showering, exercising, or sleeping.",
             "Avoid perfume, lotion, hairspray, and household chemicals while wearing your piece.",
-            "Put jewelry on after applying cosmetics and fragrance.",
+            "Put jewellery on after applying cosmetics and fragrance.",
           ],
         },
         {

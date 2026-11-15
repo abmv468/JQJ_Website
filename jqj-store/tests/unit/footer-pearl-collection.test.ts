@@ -10,7 +10,7 @@ const FOOTER_LINE = "Natural stone pieces designed for everyday ritual.";
 const OLD_FOOTER_LINE = "Hand-finished natural stone pieces designed for everyday ritual.";
 const ANNOUNCEMENT_LINES = [
   "Free worldwide shipping on orders over",
-  "Handcrafted with premium natural gemstones",
+  "Premium natural gemstones, selected for character",
   "Free resizing for new customers",
 ] as const;
 const HERO_SINCE = "Museum-inspired since 2015";
@@ -42,21 +42,24 @@ describe("WEB-026 footer and Pearl Collection wording", () => {
 
   it("names the collection card Pearl Collection", () => {
     const collections = source("components/home/LatestCollections.tsx");
-    expect(collections).toContain('{ name: "Pearl Collection", image: products[8].images[0], href: "/necklaces", alt: "Pearl and silver necklace" }');
+    expect(collections).toContain('{ name: "Pearl Collection", image: products[8].images[0], href: "/necklaces?stone=Pearl", alt: "Pearl and silver necklace" }');
     expect(collections).not.toContain("Pearl Atelier");
     expect(collections).not.toContain("Pearl Collective");
   });
 
-  it("leaves the announcement bar copy unchanged", () => {
+  it("keeps the locked announcement lines, including the gemstone replacement", () => {
     const announcement = source("components/layout/AnnouncementBar.tsx");
     for (const line of ANNOUNCEMENT_LINES) {
       expect(announcement).toContain(line);
     }
   });
 
-  it("keeps the hand-finished silver clasp product description", () => {
+  it("uses the locked Jasper clasp line", () => {
     const products = source("data/products.ts");
-    expect(products).toContain("hand-finished silver clasp");
+    expect(products).toContain(
+      "pairs warm, naturally patterned stone with a silver clasp. A timeless profile, finished one piece at a time.",
+    );
+    expect(products).not.toContain("hand-finished silver clasp");
   });
 
   it("keeps the WEB-025 Hero and lifestyle strings", () => {

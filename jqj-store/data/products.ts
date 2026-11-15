@@ -28,17 +28,6 @@ export interface Product {
   specs: Record<string, string>;
 }
 
-// Stone filters used on listing pages and the home "Shop by Stone" section.
-export const stones = [
-  "Sodalite",
-  "Tiger Eye",
-  "Carnelian",
-  "Tourmaline",
-  "Aquamarine",
-  "Amethyst",
-  "Lapis Lazuli",
-] as const;
-
 export const categories: { slug: CategorySlug; name: string }[] = [
   { slug: "bracelets", name: "Bracelets" },
   { slug: "necklaces", name: "Necklaces" },
@@ -48,7 +37,7 @@ export const categories: { slug: CategorySlug; name: string }[] = [
 
 const sharedFeatures = [
   "Tailored for your preferred fit",
-  "Natural gemstones selected for color and character",
+  "Natural gemstones selected for colour and character",
   "Designed in Hong Kong",
 ];
 
@@ -58,7 +47,7 @@ const catalog: Product[] = [
     name: "Red Leopard Skin Jasper Bracelet III (6mm)",
     slug: "red-leopard-skin-jasper-bracelet-iii",
     description:
-      "Grounded and expressive, this Red Leopard Skin Jasper bracelet pairs warm, naturally patterned stone with a hand-finished silver clasp. A timeless profile, crafted one piece at a time.",
+      "Grounded and expressive, this Red Leopard Skin Jasper bracelet pairs warm, naturally patterned stone with a silver clasp. A timeless profile, finished one piece at a time.",
     price: 599.99,
     compareAtPrice: 699.99,
     sku: "JQJ-RLSJ-III",
@@ -66,8 +55,6 @@ const catalog: Product[] = [
     images: [
       "/products/red-leopard-skin-jasper-bracelet-iii-2.jpg",
       "/products/red-leopard-skin-jasper-bracelet-hover.jpg",
-      "/products/pearl-silver-necklace-v-2.jpg",
-      "/products/JQJ-Group-—-Natural-Stone-Jewelry-with-Cultural-Craft_Photoshoot_Vintage-Sunwashed-Film_2026-06-29_1x.png",
     ],
     hoverImage: "/products/red-leopard-skin-jasper-bracelet-hover.jpg",
     inStock: true,
@@ -79,10 +66,10 @@ const catalog: Product[] = [
       { size: "Large", material: "Sterling Silver", sku: "JQJ-RLSJ-III-L-SS", stockCount: 3 },
     ],
     tags: ["sale"],
-    stone: "Carnelian",
+    stone: "Jasper",
     features: sharedFeatures,
     specs: {
-      Color: "Red",
+      Colour: "Red",
       "Bead Size": "6mm",
       "Bead Shape": "Round",
       Stone: "Red Leopard Skin Jasper",
@@ -95,16 +82,12 @@ const catalog: Product[] = [
     name: "Raw Brown Tourmaline Bracelet I (8-10mm)",
     slug: "raw-brown-tourmaline-bracelet-i",
     description:
-      "Raw brown tourmaline nuggets are left close to their natural form, highlighting each stone's individual texture. Designed for everyday wear with artisanal character.",
+      "Raw brown tourmaline nuggets are left close to their natural form, highlighting each stone's individual texture. Designed for everyday wear.",
     price: 368.99,
     compareAtPrice: null,
     sku: "JQJ-TOURM-I",
     category: "bracelets",
-    images: [
-      "/products/raw-brown-tourmaline-bracelet-i-2.jpg",
-      "/products/raw-brown-tourmaline-bracelet-i-3.jpg",
-      "/products/brown-tourmaline-bracelet.webp",
-    ],
+    images: ["/products/brown-tourmaline-bracelet.webp"],
     inStock: true,
     stockCount: 8,
     lowStockThreshold: 5,
@@ -112,7 +95,7 @@ const catalog: Product[] = [
     stone: "Tourmaline",
     features: sharedFeatures,
     specs: {
-      Color: "Brown",
+      Colour: "Brown",
       "Bead Size": "8-10mm",
       "Bead Shape": "Irregular",
       Stone: "Raw Brown Tourmaline",
@@ -138,7 +121,7 @@ const catalog: Product[] = [
     stone: "Sodalite",
     features: sharedFeatures,
     specs: {
-      Color: "Blue",
+      Colour: "Blue",
       "Bead Size": "4mm",
       "Bead Shape": "Round",
       Stone: "Sodalite",
@@ -164,7 +147,7 @@ const catalog: Product[] = [
     stone: "Amethyst",
     features: sharedFeatures,
     specs: {
-      Color: "Purple",
+      Colour: "Purple",
       "Bead Size": "5mm",
       "Bead Shape": "Round",
       Stone: "Amethyst",
@@ -187,10 +170,10 @@ const catalog: Product[] = [
     stockCount: 9,
     lowStockThreshold: 5,
     tags: ["restocked", "sale"],
-    stone: "Tiger Eye",
+    stone: "Hematite Silver",
     features: sharedFeatures,
     specs: {
-      Color: "Silver",
+      Colour: "Silver",
       "Bead Size": "4mm",
       "Bead Shape": "Round",
       Stone: "Hematite Silver",
@@ -208,15 +191,15 @@ const catalog: Product[] = [
     compareAtPrice: null,
     sku: "JQJ-LABR-V",
     category: "bracelets",
-    images: ["/products/labradorite-bracelet-v-1.jpg", "/products/labradorite-bracelet.webp"],
+    images: ["/products/labradorite-bracelet.webp"],
     inStock: true,
     stockCount: 6,
     lowStockThreshold: 5,
     tags: ["limited"],
-    stone: "Lapis Lazuli",
+    stone: "Labradorite",
     features: sharedFeatures,
     specs: {
-      Color: "Gray",
+      Colour: "Gray",
       "Bead Size": "8mm",
       "Bead Shape": "Round",
       Stone: "Labradorite",
@@ -234,7 +217,7 @@ const catalog: Product[] = [
     compareAtPrice: null,
     sku: "JQJ-BLAPEN",
     category: "necklaces",
-    images: ["/products/blue-lace-agate-silver-pendant-1.jpg", "/products/blue-lace-agate-pendant.webp"],
+    images: ["/products/blue-lace-agate-pendant.webp"],
     inStock: true,
     stockCount: 18,
     lowStockThreshold: 5,
@@ -244,7 +227,7 @@ const catalog: Product[] = [
       { size: "55cm", material: "Gold Vermeil", sku: "JQJ-BLAPEN-55-GV", stockCount: 3 },
     ],
     tags: ["new"],
-    stone: "Aquamarine",
+    stone: "Agate",
     features: sharedFeatures,
     specs: {
       "Chain Length": "55cm",
@@ -263,12 +246,12 @@ const catalog: Product[] = [
     compareAtPrice: null,
     sku: "JQJ-LABPEN",
     category: "necklaces",
-    images: ["/products/labradorite-silver-pendant-1.jpg", "/products/labradorite-pendant.webp"],
+    images: ["/products/labradorite-pendant.webp"],
     inStock: true,
     stockCount: 11,
     lowStockThreshold: 5,
     tags: ["restocked"],
-    stone: "Lapis Lazuli",
+    stone: "Labradorite",
     features: sharedFeatures,
     specs: {
       "Chain Length": "55cm",
@@ -287,16 +270,12 @@ const catalog: Product[] = [
     compareAtPrice: null,
     sku: "JQJ-PEARL-V",
     category: "necklaces",
-    images: [
-      "/products/pearl-silver-necklace-v-1.jpg",
-      "/products/pearl-silver-necklace-v-2.jpg",
-      "/products/pearl-silver-necklace.webp",
-    ],
+    images: ["/products/pearl-silver-necklace.webp"],
     inStock: true,
     stockCount: 5,
     lowStockThreshold: 5,
     tags: ["limited"],
-    stone: "Tiger Eye",
+    stone: "Pearl",
     features: sharedFeatures,
     specs: {
       "Bead Size": "7mm",
@@ -373,4 +352,65 @@ export function getRelatedProducts(product: Product, limit = 4): Product[] {
   return products
     .filter((p) => p.id !== product.id && p.category === product.category)
     .slice(0, limit);
+}
+
+/** New Arrivals is the `new` tag only. Sale-only and limited-only SKUs stay off /new. */
+export function getNewArrivals(): Product[] {
+  return products.filter((product) => product.tags.includes("new"));
+}
+
+/** Limited Edition spans categories. Pearl is a limited necklace, not a bracelet. */
+export function getLimitedEditionProducts(): Product[] {
+  return products.filter((product) => product.tags.includes("limited"));
+}
+
+const STONE_TILE_ORDER = [
+  "Sodalite",
+  "Tourmaline",
+  "Amethyst",
+  "Jasper",
+  "Labradorite",
+  "Hematite Silver",
+  "Agate",
+  "Pearl",
+] as const;
+
+/**
+ * Raw mineral photos already in public/stones. Stones without a file are
+ * omitted here so the homepage does not invent a photograph.
+ */
+const STONE_RAW_IMAGES: Partial<Record<string, string>> = {
+  Sodalite: "/stones/sodalite-raw.webp",
+  Tourmaline: "/stones/tourmaline-raw.webp",
+  Amethyst: "/stones/amethyst-raw.webp",
+};
+
+export function getCatalogStones(): string[] {
+  const sold = new Set(products.map((product) => product.stone));
+  const ordered = STONE_TILE_ORDER.filter((stone) => sold.has(stone));
+  const extras = [...sold]
+    .filter((stone) => !STONE_TILE_ORDER.includes(stone as (typeof STONE_TILE_ORDER)[number]))
+    .sort((a, b) => a.localeCompare(b));
+  return [...ordered, ...extras];
+}
+
+export function stoneRawImage(stone: string): string | undefined {
+  return STONE_RAW_IMAGES[stone];
+}
+
+/**
+ * Point a stone tile at an existing category filter.
+ * Labradorite is sold as both a bracelet and a necklace, and no current public
+ * URL lists both. The closest existing pattern is the bracelet filter; the
+ * pendant remains at /necklaces?stone=Labradorite.
+ */
+export function catalogStoneHref(stone: string): string {
+  const matches = products.filter((product) => product.stone === stone);
+  const categories = new Set(matches.map((product) => product.category));
+  if (categories.size === 1 && matches[0]) {
+    return `/${matches[0].category}?stone=${encodeURIComponent(stone)}`;
+  }
+  const bracelet = matches.find((product) => product.category === "bracelets");
+  const category = bracelet?.category ?? matches[0]?.category ?? "bracelets";
+  return `/${category}?stone=${encodeURIComponent(stone)}`;
 }

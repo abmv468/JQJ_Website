@@ -5,21 +5,19 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
+import {
+  CART_STORAGE_KEY,
+  LEGACY_CART_STORAGE_KEY,
+  cartPayloadToPersist,
+  readStoredCart,
+  type StoredCartItem,
+} from "@/lib/cart-storage";
 
-export interface CartItem {
-  id: string;
-  slug: string;
-  name: string;
-  price: number;
-  image: string;
-  sku?: string;
-  size?: string;
-  material?: string;
-  quantity: number;
-}
+export type CartItem = StoredCartItem;
 
 interface CartContextValue {
   items: CartItem[];
@@ -35,14 +33,12 @@ interface CartContextValue {
   clearCart: () => void;
   itemCount: number;
   subtotal: number;
+  hydrated: boolean;
   isOpen: boolean;
   setOpen: (open: boolean) => void;
 }
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
-
-const STORAGE_KEY = "JQD-cart";
-const LEGACY_STORAGE_KEY = "JQJ-cart";
 
 function lineKey(id: string, sku?: string, size?: string, material?: string) {
   return `${id}__${sku ?? ""}__${size ?? ""}__${material ?? ""}`;
@@ -52,25 +48,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isOpen, setOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  // An empty persist is allowed only after the shopper changes the cart.
+  // Inferred: a remount otherwise writes [] over a line saved a moment earlier.
+  const emptyWriteAllowed = useRef(false);
 
   // Load persisted cart after mount to avoid hydration mismatch.
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
-      if (raw) {
-        try {
-          setItems(JSON.parse(raw));
-        } catch {
-          localStorage.removeItem(STORAGE_KEY);
-          if (legacyRaw) {
-            setItems(JSON.parse(legacyRaw));
-            localStorage.setItem(STORAGE_KEY, legacyRaw);
-          }
-        }
-      } else if (legacyRaw) {
-        setItems(JSON.parse(legacyRaw));
-        localStorage.setItem(STORAGE_KEY, legacyRaw);
+      const loaded = readStoredCart(localStorage);
+      if (loaded.length > 0) setItems(loaded);
+      const current = localStorage.getItem(CART_STORAGE_KEY);
+      const legacy = localStorage.getItem(LEGACY_CART_STORAGE_KEY);
+      if (!current && legacy) {
+        localStorage.setItem(CART_STORAGE_KEY, legacy);
       }
     } catch {
       // ignore malformed storage
@@ -80,11 +70,23 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-    localStorage.removeItem(LEGACY_STORAGE_KEY);
+    try {
+      const payload = cartPayloadToPersist({
+        items,
+        hydrated,
+        emptyWriteAllowed: emptyWriteAllowed.current,
+        storedRaw: localStorage.getItem(CART_STORAGE_KEY),
+      });
+      if (payload === null) return;
+      localStorage.setItem(CART_STORAGE_KEY, payload);
+      localStorage.removeItem(LEGACY_CART_STORAGE_KEY);
+    } catch {
+      // ignore storage failures
+    }
   }, [items, hydrated]);
 
   function addItem(item: Omit<CartItem, "quantity">, quantity = 1) {
+    emptyWriteAllowed.current = true;
     setItems((prev) => {
       const key = lineKey(item.id, item.sku, item.size, item.material);
       const existing = prev.find((p) => lineKey(p.id, p.sku, p.size, p.material) === key);
@@ -101,6 +103,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }
 
   function removeItem(id: string, sku?: string, size?: string, material?: string) {
+    emptyWriteAllowed.current = true;
     const key = lineKey(id, sku, size, material);
     setItems((prev) => prev.filter((p) => lineKey(p.id, p.sku, p.size, p.material) !== key));
   }
@@ -112,6 +115,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     material: string | undefined,
     quantity: number
   ) {
+    emptyWriteAllowed.current = true;
     const key = lineKey(id, sku, size, material);
     setItems((prev) =>
       prev
@@ -125,6 +129,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }
 
   function clearCart() {
+    emptyWriteAllowed.current = true;
     setItems([]);
   }
 
@@ -145,6 +150,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     clearCart,
     itemCount,
     subtotal,
+    hydrated,
     isOpen,
     setOpen,
   };

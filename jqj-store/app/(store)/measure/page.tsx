@@ -4,7 +4,7 @@ import PolicyPage from "@/components/trust/PolicyPage";
 export const metadata: Metadata = {
   title: "Bracelet Wrist Size Guide",
   description:
-    "Measure your wrist and choose a close, everyday, or relaxed bracelet fit before ordering natural stone jewelry from JQD Group.",
+    "Measure your wrist and choose a close, everyday, or relaxed bracelet fit before ordering natural stone jewellery from Jewellery Quintessential.",
   alternates: { canonical: "/measure" },
 };
 

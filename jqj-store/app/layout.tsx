@@ -16,14 +16,19 @@ const body = Manrope({
   display: "swap",
 });
 
+const HOUSE_NAME = "Jewellery Quintessential";
+const ROOT_TITLE =
+  "Jewellery Quintessential · 極氣 | Natural Stone Jewellery with Cultural Craft";
+const ROOT_DESCRIPTION =
+  "Bracelets and necklaces inspired by Eastern cultural heritage, museum collaborations, and natural gemstone artistry.";
+
 export const metadata: Metadata = {
   metadataBase: siteUrl,
   title: {
-    default: "JQD Group | Natural Stone Jewelry with Cultural Craft",
-    template: "%s | JQD Group",
+    default: ROOT_TITLE,
+    template: "%s — Jewellery Quintessential",
   },
-  description:
-    "Handcrafted bracelets and necklaces inspired by Eastern cultural heritage, museum collaborations, and natural gemstone artistry.",
+  description: ROOT_DESCRIPTION,
   icons: {
     icon: [
       {
@@ -50,24 +55,22 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: "/",
-    siteName: "JQD Group",
-    title: "JQD Group | Natural Stone Jewelry with Cultural Craft",
-    description:
-      "Handcrafted bracelets and necklaces inspired by Eastern cultural heritage, museum collaborations, and natural gemstone artistry.",
+    siteName: HOUSE_NAME,
+    title: ROOT_TITLE,
+    description: ROOT_DESCRIPTION,
     images: [
       {
         url: "/products/hero-image.jpg",
         width: 1200,
         height: 630,
-        alt: "JQD Group natural stone jewelry",
+        alt: "Jewellery Quintessential natural stone jewellery",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "JQD Group | Natural Stone Jewelry with Cultural Craft",
-    description:
-      "Handcrafted bracelets and necklaces inspired by Eastern cultural heritage, museum collaborations, and natural gemstone artistry.",
+    title: ROOT_TITLE,
+    description: ROOT_DESCRIPTION,
     images: ["/products/hero-image.jpg"],
   },
   robots: {
@@ -91,7 +94,7 @@ export default function RootLayout({
   const organizationSchema = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: "JQD Group",
+    name: HOUSE_NAME,
     url: absoluteUrl(),
     logo: absoluteUrl("/icon-512.png"),
   };
@@ -99,7 +102,7 @@ export default function RootLayout({
   const websiteSchema = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: "JQD Group",
+    name: HOUSE_NAME,
     url: absoluteUrl(),
   };
 

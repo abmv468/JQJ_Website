@@ -27,7 +27,7 @@ const LOCKED_SHA256: Record<string, string> = {
 };
 
 const DESCRIPTION =
-  "Handcrafted bracelets and necklaces inspired by Eastern cultural heritage, museum collaborations, and natural gemstone artistry.";
+  "Bracelets and necklaces inspired by Eastern cultural heritage, museum collaborations, and natural gemstone artistry.";
 
 function source(relative: string): string {
   return readFileSync(path.join(root, relative), "utf8");
@@ -190,11 +190,16 @@ describe("light/dark gem-and-wave favicon", () => {
   });
 
   it("keeps titles, descriptions, site name, and social images", () => {
-    expect(layout).toContain('default: "JQD Group | Natural Stone Jewelry with Cultural Craft"');
-    expect(layout).toContain('template: "%s | JQD Group"');
-    expect(layout).toContain('siteName: "JQD Group"');
-    expect(layout.match(/name: "JQD Group"/g)).toHaveLength(2);
-    expect(layout.split(DESCRIPTION).length - 1).toBe(3);
+    expect(layout).toContain(
+      "Jewellery Quintessential · 極氣 | Natural Stone Jewellery with Cultural Craft",
+    );
+    expect(layout).toContain('template: "%s — Jewellery Quintessential"');
+    expect(layout).toContain('const HOUSE_NAME = "Jewellery Quintessential"');
+    expect(layout).toContain("siteName: HOUSE_NAME");
+    expect(layout.match(/name: HOUSE_NAME/g)).toHaveLength(2);
+    expect(layout).not.toContain('name: "JQD Group"');
+    expect(layout.match(/description: ROOT_DESCRIPTION/g)).toHaveLength(3);
+    expect(layout.split(DESCRIPTION).length - 1).toBe(1);
     expect(layout).toContain('url: "/products/hero-image.jpg"');
     expect(layout).toContain('images: ["/products/hero-image.jpg"]');
   });

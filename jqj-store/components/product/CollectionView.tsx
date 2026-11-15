@@ -8,7 +8,7 @@ import { formatPrice } from "@/lib/utils";
 import ProductCard from "./ProductCard";
 
 const filterGroups = [
-  "Color",
+  "Colour",
   "Price",
   "Availability",
   "Bead Size",
@@ -148,7 +148,7 @@ export default function CollectionView({
   );
 
   const colorOptions = useMemo(
-    () => getFacetOptions(products, (product) => product.specs.Color),
+    () => getFacetOptions(products, (product) => product.specs.Colour),
     [products]
   );
   const beadSizeOptions = useMemo(
@@ -180,7 +180,7 @@ export default function CollectionView({
     if (stone) list = list.filter((p) => p.stone === stone);
     if (tag) list = list.filter((p) => p.tags.includes(tag));
     if (selectedColors.length) {
-      list = list.filter((product) => selectedColors.includes(product.specs.Color ?? ""));
+      list = list.filter((product) => selectedColors.includes(product.specs.Colour ?? ""));
     }
     list = list.filter(
       (product) => product.price >= priceRange[0] && product.price <= priceRange[1]
@@ -388,7 +388,7 @@ export default function CollectionView({
 
   const renderFilterPanel = (group: FilterGroup) => {
     switch (group) {
-      case "Color":
+      case "Colour":
         return renderCheckboxFacet(colorOptions, selectedColors, setSelectedColors, true);
       case "Price":
         return (
@@ -534,7 +534,7 @@ export default function CollectionView({
       </nav>
 
       <header className="mb-10 text-center">
-        <h1 className="font-heading text-2xl font-light uppercase tracking-wider2 text-white">
+        <h1 className="scroll-clear font-heading text-2xl font-light uppercase tracking-wider2 text-white">
           {displayTitle}
         </h1>
         {subtitle && (
@@ -703,10 +703,11 @@ export default function CollectionView({
           ) : (
             <>
               <div className="grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3">
-                {visible.map((p) => (
+                {visible.map((p, index) => (
                   <ProductCard
                     key={p.id}
                     product={p}
+                    priority={page === 1 && index < 3}
                     sizes="(max-width: 767px) 50vw, 33vw"
                   />
                 ))}

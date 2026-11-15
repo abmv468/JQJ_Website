@@ -26,7 +26,7 @@ export function productPageMetadata(
     title: product?.name ?? "Product",
     description:
       product?.description ??
-      "Explore handcrafted natural stone jewelry from JQD Group.",
+      "Explore natural stone jewellery from Jewellery Quintessential.",
     alternates: { canonical: productPath },
     // Omit the key for catalog products. An explicit `undefined` replaces the
     // root layout robots and drops their index, follow tags.

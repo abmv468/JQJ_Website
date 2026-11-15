@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { Minus, Plus, X } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
+import { shouldShowEmptyCart } from "@/lib/cart-storage";
+import CatalogImage from "@/components/product/CatalogImage";
 
 export default function CartPage() {
-  const { items, updateQuantity, removeItem, subtotal } = useCart();
+  const { items, updateQuantity, removeItem, subtotal, hydrated, itemCount } = useCart();
   const { formatFromUsd } = useCurrency();
   const [stockErrors, setStockErrors] = useState<string[]>([]);
   const [stockLoading, setStockLoading] = useState(false);
@@ -42,12 +43,21 @@ export default function CartPage() {
       .finally(() => setStockLoading(false));
   }, [payloadItems]);
 
-  if (items.length === 0) {
+  if (!hydrated) {
+    return (
+      <div className="container-site flex flex-col items-center py-28 text-center" aria-busy="true">
+        <h1 className="scroll-clear font-heading text-2xl uppercase tracking-wider2">Cart</h1>
+        <p className="mt-3 text-sm text-brand-muted">Loading your cart…</p>
+      </div>
+    );
+  }
+
+  if (shouldShowEmptyCart(hydrated, itemCount)) {
     return (
       <div className="container-site flex flex-col items-center py-28 text-center">
-        <h1 className="font-heading text-2xl uppercase tracking-wider2">Your cart is empty</h1>
+        <h1 className="scroll-clear font-heading text-2xl uppercase tracking-wider2">Your cart is empty</h1>
         <p className="mt-3 text-sm text-brand-muted">
-          Discover hand-crafted bracelets and necklaces.
+          Discover bracelets and necklaces selected for everyday wear.
         </p>
         <Link href="/new" className="btn-gold mt-8">
           Shop New Arrivals
@@ -58,13 +68,13 @@ export default function CartPage() {
 
   return (
     <div className="container-site py-12">
-      <h1 className="mb-10 font-heading text-2xl uppercase tracking-wider2">Cart</h1>
+      <h1 className="scroll-clear mb-10 font-heading text-2xl uppercase tracking-wider2">Cart</h1>
       <div className="grid grid-cols-1 gap-12 lg:grid-cols-[1fr_360px]">
         <ul className="divide-y divide-brand-border border-y border-brand-border">
           {items.map((item) => (
             <li key={`${item.id}-${item.sku ?? ""}-${item.size ?? ""}-${item.material ?? ""}`} className="flex gap-5 py-6">
               <div className="relative h-28 w-28 shrink-0 overflow-hidden bg-brand-card">
-                <Image src={item.image} alt={item.name} fill sizes="112px" className="object-cover" />
+                <CatalogImage src={item.image} alt={item.name} fill sizes="112px" className="object-cover" />
               </div>
               <div className="flex flex-1 flex-col">
                 <div className="flex items-start justify-between">

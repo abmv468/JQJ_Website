@@ -1,17 +1,17 @@
 import Link from "next/link";
-import Image from "next/image";
 import { ArrowUpRight } from "lucide-react";
 import { products } from "@/data/products";
+import CatalogImage from "@/components/product/CatalogImage";
 
-// Build "collection" cards from available product imagery.
+// Tile photos follow each product's default image. Held defaults stay until a later photo pass.
 const collections = [
-  { name: "Sodalite Signature", image: products[2].images[0], href: "/bracelets", alt: "Sodalite natural stone bracelet" },
-  { name: "Raw Tourmaline", image: products[1].images[0], href: "/bracelets", alt: "Raw tourmaline natural stone bracelet" },
-  { name: "Jasper Heritage", image: products[0].images[0], href: "/bracelets", alt: "Red leopard skin jasper bracelet" },
-  { name: "Labradorite Light", image: products[5].images[0], href: "/bracelets", alt: "Labradorite natural stone bracelet" },
-  { name: "Amethyst Studio", image: products[3].images[0], href: "/bracelets", alt: "Amethyst natural stone bracelet" },
-  { name: "Silver Minimal", image: products[4].images[0], href: "/bracelets", alt: "Silver accent natural stone bracelet" },
-  { name: "Pearl Collection", image: products[8].images[0], href: "/necklaces", alt: "Pearl and silver necklace" },
+  { name: "Sodalite Signature", image: products[2].images[0], href: "/bracelets?stone=Sodalite", alt: "Sodalite natural stone bracelet" },
+  { name: "Raw Tourmaline", image: products[1].images[0], href: "/bracelets?stone=Tourmaline", alt: "Raw tourmaline natural stone bracelet" },
+  { name: "Jasper Heritage", image: products[0].images[0], href: "/bracelets?stone=Jasper", alt: "Red leopard skin jasper bracelet" },
+  { name: "Labradorite Light", image: products[5].images[0], href: "/bracelets?stone=Labradorite", alt: "Labradorite natural stone bracelet" },
+  { name: "Amethyst Studio", image: products[3].images[0], href: "/bracelets?stone=Amethyst", alt: "Amethyst natural stone bracelet" },
+  { name: "Silver Minimal", image: products[4].images[0], href: `/bracelets?stone=${encodeURIComponent("Hematite Silver")}`, alt: "Silver accent natural stone bracelet" },
+  { name: "Pearl Collection", image: products[8].images[0], href: "/necklaces?stone=Pearl", alt: "Pearl and silver necklace" },
 ];
 
 export default function LatestCollections() {
@@ -27,17 +27,18 @@ export default function LatestCollections() {
         </div>
 
         <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">
-          {collections.map((c) => (
+          {collections.map((c, index) => (
             <Link
               key={c.name}
               href={c.href}
               className="group flex h-full flex-col rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-3 transition-[transform,border-color,background-color] duration-200 hover:-translate-y-1 hover:border-white/18 hover:bg-white/[0.05]"
             >
               <div className="relative aspect-[0.94] overflow-hidden rounded-[1.15rem] bg-brand-card">
-                <Image
+                <CatalogImage
                   src={c.image}
                   alt={c.alt}
                   fill
+                  priority={index < 4}
                   sizes="(max-width: 768px) 33vw, 14vw"
                   className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
                 />

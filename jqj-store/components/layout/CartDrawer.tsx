@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { X, Minus, Plus } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
+import CatalogImage from "@/components/product/CatalogImage";
 
 export default function CartDrawer() {
   const { formatFromUsd } = useCurrency();
@@ -16,6 +16,7 @@ export default function CartDrawer() {
     updateQuantity,
     subtotal,
     itemCount,
+    hydrated,
   } = useCart();
 
   return (
@@ -44,16 +45,27 @@ export default function CartDrawer() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-5">
-          {items.length === 0 ? (
-            <p className="mt-10 text-center text-sm text-brand-muted">
-              Your cart is empty.
+          {!hydrated ? (
+            <p className="mt-10 text-center text-sm text-brand-muted" aria-busy="true">
+              Loading your cart…
             </p>
+          ) : items.length === 0 ? (
+            <div className="mt-10 text-center">
+              <p className="text-sm text-brand-muted">Your cart is empty.</p>
+              <Link
+                href="/new"
+                className="btn-gold mt-6 inline-flex"
+                onClick={() => setOpen(false)}
+              >
+                Continue Shopping
+              </Link>
+            </div>
           ) : (
             <ul className="space-y-5">
               {items.map((item) => (
                 <li key={`${item.id}-${item.sku ?? ""}-${item.size ?? ""}-${item.material ?? ""}`} className="flex gap-4">
                   <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-brand bg-brand-card">
-                    <Image
+                    <CatalogImage
                       src={item.image}
                       alt={item.name}
                       fill

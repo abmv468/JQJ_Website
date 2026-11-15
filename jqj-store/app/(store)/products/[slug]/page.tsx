@@ -33,7 +33,7 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
     category: categoryName,
     brand: {
       "@type": "Brand",
-      name: "JQD Group",
+      name: "Jewellery Quintessential",
     },
     offers: {
       "@type": "Offer",

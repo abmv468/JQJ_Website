@@ -4,9 +4,9 @@ import { RETURNS_DAYS } from "@/lib/policy";
 import { jsonLd } from "@/lib/seo";
 
 export const metadata = {
-  title: "Jewelry FAQs",
+  title: "Jewellery FAQs",
   description:
-    "Answers about JQD Group orders, payment, shipping, returns, resizing, natural stone jewelry care, and repairs.",
+    "Answers about Jewellery Quintessential orders, payment, shipping, returns, resizing, natural stone jewellery care, and repairs.",
   alternates: { canonical: "/faqs" },
 };
 
@@ -71,10 +71,10 @@ const faqSections = [
       {
         question: "Will natural stones look exactly like the photos?",
         answer:
-          "Each stone is unique, so color and pattern may vary slightly.",
+          "Each stone is unique, so colour and pattern may vary slightly.",
       },
       {
-        question: "How should I care for my jewelry?",
+        question: "How should I care for my jewellery?",
         answer:
           "Keep pieces dry, avoid chemicals, and store separately to reduce wear.",
       },
