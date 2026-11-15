@@ -6,6 +6,7 @@ import { ArrowUpRight } from "lucide-react";
 import type { Product } from "@/data/products";
 import { getStockState } from "@/lib/product-stock";
 import { useCurrency } from "@/context/CurrencyContext";
+import CatalogImage from "./CatalogImage";
 
 const tagLabels: Record<string, string> = {
   new: "New",
@@ -17,9 +18,11 @@ const tagLabels: Record<string, string> = {
 export default function ProductCard({
   product,
   sizes = "(max-width: 767px) 50vw, 25vw",
+  priority = false,
 }: {
   product: Product;
   sizes?: string;
+  priority?: boolean;
 }) {
   const { formatFromUsd } = useCurrency();
   const primaryTag = product.tags[0];
@@ -62,12 +65,13 @@ export default function ProductCard({
               Low stock
             </span>
           ) : null}
-          <Image
+          <CatalogImage
             src={product.images[0]}
             alt={product.name}
             fill
+            priority={priority}
             sizes={sizes}
-            className={`rounded-[1.2rem] object-cover transition-[transform,opacity] duration-500 ${hoverImage ? "opacity-100 group-hover:scale-[1.04] group-hover:opacity-0" : "group-hover:scale-[1.04]"}`}
+            className={`rounded-[1.2rem] object-cover transition-[transform,opacity] duration-500 ${hoverImage ? "group-hover:scale-[1.04] group-hover:opacity-0" : "group-hover:scale-[1.04]"}`}
           />
           {hoverImage ? (
             <Image

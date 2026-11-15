@@ -6,6 +6,11 @@ export const metadata: Metadata = {
   title: { absolute: "Journal — Jewellery Quintessential" },
   description: `${JOURNAL_INTRO.dek} ${JOURNAL_INTRO.fictional}`,
   alternates: { canonical: "/journal" },
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: { index: false, follow: false },
+  },
 };
 
 export default function JournalPage({

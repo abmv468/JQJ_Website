@@ -191,7 +191,8 @@ describe("storefront header nav marble", () => {
     expect(announcement).not.toContain("marble");
     expect(announcement).not.toContain("monogram-jq");
     expect(announcement).toContain("Free worldwide shipping on orders over");
-    expect(announcement).toContain("Handcrafted with premium natural gemstones");
+    expect(announcement).toContain("Premium natural gemstones, selected for character");
+    expect(announcement).not.toContain("Handcrafted with premium natural gemstones");
     expect(announcement).toContain("Free resizing for new customers");
 
     expect(header).toContain("from-transparent via-white/30 to-transparent");
@@ -207,6 +208,6 @@ describe("storefront header nav marble", () => {
     expect(header).toContain('href: "/necklaces"');
     expect(header).toContain('aria-label="Open menu"');
     expect(header).toContain('aria-label="Cart"');
-    expect(header).toContain('aria-label="JQD Group home"');
+    expect(header).toContain('aria-label="Jewellery Quintessential home"');
   });
 });

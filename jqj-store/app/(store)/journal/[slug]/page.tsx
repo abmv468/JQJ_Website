@@ -10,13 +10,25 @@ export function generateStaticParams() {
 export function generateMetadata({ params }: { params: { slug: string } }): Metadata {
   const post = getJournalPost(params.slug);
   if (!post) {
-    return { title: { absolute: "Journal — Jewellery Quintessential" } };
+    return {
+      title: { absolute: "Journal — Jewellery Quintessential" },
+      robots: {
+        index: false,
+        follow: false,
+        googleBot: { index: false, follow: false },
+      },
+    };
   }
 
   return {
     title: { absolute: `${post.title} — Journal — Jewellery Quintessential` },
     description: post.dek,
     alternates: { canonical: `/journal/${post.slug}` },
+    robots: {
+      index: false,
+      follow: false,
+      googleBot: { index: false, follow: false },
+    },
   };
 }
 

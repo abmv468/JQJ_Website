@@ -1,4 +1,19 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: { absolute: "Page not found — Jewellery Quintessential" },
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: {
+      index: false,
+      follow: false,
+    },
+  },
+  // A 404 must not canonicalize to the homepage.
+  alternates: { canonical: null },
+};
 
 export default function NotFound() {
   return (

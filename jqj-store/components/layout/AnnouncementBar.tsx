@@ -10,7 +10,7 @@ export default function AnnouncementBar() {
   const messages = useMemo(
     () => [
       `Free worldwide shipping on orders over ${formatFromUsd(FREE_SHIPPING_THRESHOLD_USD)}`,
-      "Handcrafted with premium natural gemstones",
+      "Premium natural gemstones, selected for character",
       "Free resizing for new customers",
     ],
     [formatFromUsd]

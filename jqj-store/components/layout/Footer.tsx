@@ -13,7 +13,7 @@ const columns = [
       { label: "How to Measure Your Wrist", href: "/measure" },
       { label: "Returns, Resizes & Exchanges", href: "/returns" },
       { label: "Repair", href: "/repair" },
-      { label: "How to Care for Your Jewelry", href: "/care" },
+      { label: "How to Care for Your Jewellery", href: "/care" },
     ],
   },
   {
@@ -26,7 +26,7 @@ const columns = [
     ],
   },
   {
-    title: "#JQDGroup",
+    title: "Jewellery Quintessential",
     links: [
       { label: "Our Story", href: "/story" },
       { label: "Privacy Policy", href: "/privacy" },

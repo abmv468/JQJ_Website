@@ -4,7 +4,7 @@ import PolicyPage from "@/components/trust/PolicyPage";
 export const metadata: Metadata = {
   title: "Our Story",
   description:
-    "Discover JQD Group's approach to hand-finished natural stone jewelry, thoughtful gifting, and everyday ritual.",
+    "Discover how Jewellery Quintessential approaches natural stone jewellery, thoughtful gifting, and everyday ritual.",
   alternates: { canonical: "/story" },
 };
 
@@ -12,13 +12,13 @@ export default function StoryPage() {
   return (
     <PolicyPage
       title="Our Story"
-      intro="JQD Group creates hand-finished natural stone pieces for everyday ritual, thoughtful gifting, and a collection that grows with you."
+      intro="Jewellery Quintessential creates natural stone pieces for everyday ritual, thoughtful gifting, and a collection that grows with you."
       effectiveDate="July 28, 2026"
       sections={[
         {
           title: "Made for Meaningful Wear",
           paragraphs: [
-            "We choose stones for their natural character, color, and presence, then shape each collection around pieces designed to be worn often rather than saved for an occasion.",
+            "We choose stones for their natural character, colour, and presence, then shape each collection around pieces designed to be worn often rather than saved for an occasion.",
           ],
         },
         {

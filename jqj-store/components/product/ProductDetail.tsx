@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { ChevronDown, Minus, Plus } from "lucide-react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
@@ -9,14 +8,19 @@ import type { Product } from "@/data/products";
 import { useCart } from "@/context/CartContext";
 import { RETURNS_DAYS } from "@/lib/policy";
 import ProductCard from "./ProductCard";
+import CatalogImage from "./CatalogImage";
+import { displayedSpecs, type SpecVariant } from "@/lib/product-specs";
 import { getStockState, getVariantLabel } from "@/lib/product-stock";
 import { useCurrency } from "@/context/CurrencyContext";
 
-const accordionData = (product: Product) => [
+const accordionData = (
+  product: Product,
+  variant?: SpecVariant | null,
+) => [
   { title: "Description", content: product.description },
   {
     title: "Specifications",
-    content: Object.entries(product.specs)
+    content: displayedSpecs(product.specs, variant)
       .map(([k, v]) => `${k}: ${v}`)
       .join("  •  "),
   },
@@ -87,6 +91,8 @@ export default function ProductDetail({
 
   const hasVariants = variants.length > 0;
   const selectedVariant = variants.find((variant) => variant.sku === variantSku) ?? null;
+  const specVariant =
+    selectedVariant ?? variants.find((variant) => variant.inStock) ?? variants[0] ?? null;
   const effectiveStock = selectedVariant
     ? selectedVariant.stockCount
     : (liveStock?.stockCount ?? fallbackStock.availableStock);
@@ -170,9 +176,9 @@ export default function ProductDetail({
     <div className="container-site py-12">
       <div className="grid grid-cols-1 gap-12 lg:grid-cols-2">
         {/* Gallery */}
-        <div>
+        <div className="scroll-clear">
           <div className="relative aspect-square overflow-hidden bg-brand-card">
-            <Image
+            <CatalogImage
               src={product.images[activeImage]}
               alt={product.name}
               fill
@@ -192,7 +198,7 @@ export default function ProductDetail({
                     activeImage === i ? "border-brand-gold" : "border-brand-border"
                   }`}
                 >
-                  <Image
+                  <CatalogImage
                     src={img}
                     alt={`${product.name} ${i + 1}`}
                     fill
@@ -207,7 +213,7 @@ export default function ProductDetail({
 
         {/* Info */}
         <div className="lg:pl-6">
-          <h1 className="font-heading text-xl uppercase tracking-wider2 text-white">
+          <h1 className="scroll-clear font-heading text-xl uppercase tracking-wider2 text-white">
             {product.name}
           </h1>
           <div className="mt-3 flex items-center gap-4">
@@ -391,7 +397,7 @@ export default function ProductDetail({
 
           {/* Accordions */}
           <div className="mt-6 border-t border-brand-border">
-            {accordionData(product).map((a) => (
+            {accordionData(product, specVariant).map((a) => (
               <div key={a.title} className="border-b border-brand-border">
                 <button
                   type="button"

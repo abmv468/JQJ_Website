@@ -12,6 +12,15 @@
 html {
   scroll-behavior: smooth;
   background: #010101;
+  /* Sticky header is h-[4.75rem] plus its 1px border. Clears anchors after the promo bar scrolls away. */
+  scroll-padding-top: calc(4.75rem + 1px);
+}
+
+h1,
+h2,
+#catalog-search,
+.scroll-clear {
+  scroll-margin-top: calc(4.75rem + 1px);
 }
 
 body {

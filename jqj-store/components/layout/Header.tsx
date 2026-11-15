@@ -8,6 +8,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ArrowUpRight, ChevronDown, Menu, Search, ShoppingBag, User, X } from "lucide-react";
 import { AnimatePresence, LazyMotion, domAnimation, m, useReducedMotion } from "framer-motion";
 import { useCart } from "@/context/CartContext";
+import { isCartBadgeHidden } from "@/lib/cart-storage";
 import { useCurrency } from "@/context/CurrencyContext";
 import { createClient } from "@/lib/supabase/client";
 
@@ -100,7 +101,7 @@ const megaMenus: Record<MegaMenuKey, MegaMenuConfig> = {
     label: "Bracelets",
     columns: [
       {
-        title: "Shop by Color",
+        title: "Shop by Colour",
         items: [
           { label: "Black & Gray", href: queryHref("bracelets", "Black and Gray") },
           { label: "Cool Blues", href: queryHref("bracelets", "Cool Blues") },
@@ -109,7 +110,7 @@ const megaMenus: Record<MegaMenuKey, MegaMenuConfig> = {
           { label: "Royal Purple", href: queryHref("bracelets", "Royal Purple") },
           { label: "Rich Green", href: queryHref("bracelets", "Rich Green") },
           { label: "White & Light Tones", href: queryHref("bracelets", "White and Light Tones") },
-          { label: "Multi-color", href: queryHref("bracelets", "Multicolor") },
+          { label: "Multi-colour", href: queryHref("bracelets", "Multicolor") },
         ],
       },
       {
@@ -140,7 +141,8 @@ function getMegaMenuKeyByHref(href: string): MegaMenuKey | null {
 }
 
 export default function Header() {
-  const { itemCount, setOpen } = useCart();
+  const { itemCount, setOpen, hydrated } = useCart();
+  const badgeHidden = isCartBadgeHidden(hydrated, itemCount);
   const { currency, setCurrency, supportedCurrencies } = useCurrency();
   const router = useRouter();
   const pathname = usePathname();
@@ -404,7 +406,7 @@ export default function Header() {
             </nav>
           </div>
 
-          <Link href="/" aria-label="JQD Group home" className="group shrink-0">
+          <Link href="/" aria-label="Jewellery Quintessential home" className="group shrink-0">
             <Image
               src="/header/monogram-jq.png"
               alt=""
@@ -514,10 +516,10 @@ export default function Header() {
               </span>
               <span
                 className={`absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border border-black/10 bg-brand-gold px-1 text-[10px] font-semibold text-black transition-[opacity,transform] ${
-                  itemCount > 0 ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"
+                  badgeHidden ? "translate-y-1 opacity-0" : "translate-y-0 opacity-100"
                 }`}
               >
-                {itemCount}
+                {hydrated ? itemCount : ""}
               </span>
             </m.button>
           </m.div>
