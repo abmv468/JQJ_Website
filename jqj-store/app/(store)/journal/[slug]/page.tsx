@@ -17,6 +17,7 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
         follow: false,
         googleBot: { index: false, follow: false },
       },
+      alternates: { canonical: null },
     };
   }
 
@@ -28,6 +29,15 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
       index: true,
       follow: true,
       googleBot: { index: true, follow: true },
+    },
+    openGraph: {
+      title: post.metaTitle,
+      description: post.metaDescription,
+      url: `/journal/${post.slug}`,
+    },
+    twitter: {
+      title: post.metaTitle,
+      description: post.metaDescription,
     },
   };
 }
