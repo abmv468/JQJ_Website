@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { RETURNS_DAYS } from "@/lib/policy";
 import { jsonLd } from "@/lib/seo";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Jewellery FAQs",
   description:
     "Answers about Jewellery Quintessential orders, payment, shipping, returns, resizing, natural stone jewellery care, and repairs.",
@@ -16,7 +16,8 @@ const faqSections = [
     questions: [
       {
         question: "How do I know my order is confirmed?",
-        answer: "You will receive an order confirmation email shortly after checkout.",
+        answer:
+          "You will receive an order confirmation email shortly after checkout.",
       },
       {
         question: "Which payment methods are accepted?",
@@ -44,7 +45,8 @@ const faqSections = [
       },
       {
         question: "How do I track my package?",
-        answer: "Tracking details are sent by email when your label is created.",
+        answer:
+          "Tracking details are sent by email when your label is created.",
       },
     ],
   },
@@ -99,7 +101,7 @@ export default function FaqsPage() {
           "@type": "Answer",
           text: item.answer,
         },
-      }))
+      })),
     ),
   };
 
@@ -114,12 +116,16 @@ export default function FaqsPage() {
         intro="Find quick answers about ordering, shipping, returns, and product care."
         effectiveDate="January 1, 2026"
         contactDetails={[
-          { label: "Need Help", value: "support@jqdgroup.com", href: "mailto:support@jqdgroup.com" },
+          {
+            label: "Need Help",
+            value: "support@jqdgroup.com",
+            href: "mailto:support@jqdgroup.com",
+          },
         ]}
         sections={faqSections.map((section) => ({
           title: section.title,
           bullets: section.questions.map(
-            (item) => `${item.question} - ${item.answer}`
+            (item) => `${item.question} - ${item.answer}`,
           ),
         }))}
       />

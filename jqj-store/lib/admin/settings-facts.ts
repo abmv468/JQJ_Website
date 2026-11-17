@@ -39,10 +39,13 @@ function serverEnv(env?: AdminSettingsEnv): AdminSettingsEnv {
  * Live only when the server is set to production and production calls are enabled.
  * Any other combination stays Sandbox, matching the runtime gate in getAirwallexEnvironment.
  */
-export function readAirwallexModeLabel(env?: AdminSettingsEnv): AirwallexModeLabel {
+export function readAirwallexModeLabel(
+  env?: AdminSettingsEnv,
+): AirwallexModeLabel {
   const resolved = serverEnv(env);
   const name = (resolved.AIRWALLEX_ENV ?? "sandbox").trim().toLowerCase();
-  if (name === "production" && resolved.AIRWALLEX_PRODUCTION_ENABLED === "true") return "Live";
+  if (name === "production" && resolved.AIRWALLEX_PRODUCTION_ENABLED === "true")
+    return "Live";
   return "Sandbox";
 }
 
@@ -52,7 +55,9 @@ export function readAdminEmailLabel(env?: AdminSettingsEnv): string {
   return email;
 }
 
-export function readAdminSettingsFacts(env?: AdminSettingsEnv): AdminSettingsFacts {
+export function readAdminSettingsFacts(
+  env?: AdminSettingsEnv,
+): AdminSettingsFacts {
   const resolved = serverEnv(env);
   return {
     airwallexMode: readAirwallexModeLabel(resolved),

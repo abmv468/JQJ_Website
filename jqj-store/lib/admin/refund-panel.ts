@@ -13,7 +13,7 @@ export function orderDisplayId(id: string): string {
 }
 
 export function parseRefundAmount(
-  raw: string
+  raw: string,
 ): { ok: true; amount: number } | { ok: false; message: string } {
   if (raw.trim() === "") return { ok: false, message: REFUND_AMOUNT_REQUIRED };
   const amount = Number(raw);
@@ -29,22 +29,46 @@ export type RefundPrepare =
   | { callApi: true; fieldError: null; openConfirm: true; amount: number };
 
 /** Empty amount never opens confirm and never calls the refund API. */
-export function prepareRefundSubmit(raw: string, confirmed: boolean): RefundPrepare {
+export function prepareRefundSubmit(
+  raw: string,
+  confirmed: boolean,
+): RefundPrepare {
   const parsed = parseRefundAmount(raw);
-  if (!parsed.ok) return { callApi: false, fieldError: parsed.message, openConfirm: false };
-  if (!confirmed) return { callApi: false, fieldError: null, openConfirm: true, amount: parsed.amount };
-  return { callApi: true, fieldError: null, openConfirm: true, amount: parsed.amount };
+  if (!parsed.ok)
+    return { callApi: false, fieldError: parsed.message, openConfirm: false };
+  if (!confirmed)
+    return {
+      callApi: false,
+      fieldError: null,
+      openConfirm: true,
+      amount: parsed.amount,
+    };
+  return {
+    callApi: true,
+    fieldError: null,
+    openConfirm: true,
+    amount: parsed.amount,
+  };
 }
 
-export function refundConfirmPrompt(amountLabel: string, orderId: string): string {
+export function refundConfirmPrompt(
+  amountLabel: string,
+  orderId: string,
+): string {
   return `Refund ${amountLabel} on order ${orderId}?`;
 }
 
-export function partialRefundRecorded(amountLabel: string, orderId: string): string {
+export function partialRefundRecorded(
+  amountLabel: string,
+  orderId: string,
+): string {
   return `A refund of ${amountLabel} has been recorded on order ${orderId}. The order is not fully refunded.`;
 }
 
-export function fullRefundRecorded(amountLabel: string, orderId: string): string {
+export function fullRefundRecorded(
+  amountLabel: string,
+  orderId: string,
+): string {
   return `A refund of ${amountLabel} has been recorded on order ${orderId}. Fully refunded.`;
 }
 
@@ -52,7 +76,10 @@ export function remainingToRefund(total: number, refunded: number): number {
   return Math.max(total - refunded, 0);
 }
 
-export function remainingAfterThisRefund(remaining: number, amount: number): number {
+export function remainingAfterThisRefund(
+  remaining: number,
+  amount: number,
+): number {
   return Math.max(remaining - amount, 0);
 }
 
@@ -61,12 +88,14 @@ export function isProviderBalanceFailure(text: string): boolean {
   if (value.includes("amount_above_limit")) return true;
   if (value.includes("available balance")) return true;
   if (value.includes("insufficient receivable")) return true;
-  if (value.includes("insufficient") && value.includes("receivable")) return true;
+  if (value.includes("insufficient") && value.includes("receivable"))
+    return true;
   if (value.includes("insufficient") && value.includes("balance")) return true;
   return false;
 }
 
-export type RefundOutcome = "rejected" | "pending" | "partial" | "full" | "failed";
+export type RefundOutcome =
+  "rejected" | "pending" | "partial" | "full" | "failed";
 
 export type RefundAttempt = {
   outcome: RefundOutcome;
@@ -88,7 +117,9 @@ export function interpretRefundAttempt(input: {
   orderId: string;
   orderReturned: boolean;
 }): RefundAttempt {
-  const blob = [input.error, input.code, input.refundStatus].filter(Boolean).join(" ");
+  const blob = [input.error, input.code, input.refundStatus]
+    .filter(Boolean)
+    .join(" ");
   const status = (input.refundStatus ?? "").trim().toLowerCase();
   const balanceFailure = status === "failed" || isProviderBalanceFailure(blob);
 
@@ -104,13 +135,16 @@ export function interpretRefundAttempt(input: {
   if (!input.httpOk) {
     return {
       outcome: "rejected",
-      message: input.error?.trim() || "This refund couldn\u2019t be completed. The order was not marked as refunded.",
+      message:
+        input.error?.trim() ||
+        "This refund couldn\u2019t be completed. The order was not marked as refunded.",
       applyOrder: false,
       fullyRefunded: false,
     };
   }
 
-  const increased = input.nextRefunded > input.previousRefunded + REFUND_EPSILON;
+  const increased =
+    input.nextRefunded > input.previousRefunded + REFUND_EPSILON;
   const confirmed = increased || status === "settled";
   if (!confirmed) {
     return {
@@ -149,7 +183,7 @@ type RefundIdentity = {
 export function orderAfterRefundAttempt<T extends RefundIdentity>(
   previous: T,
   returned: T | null,
-  outcome: RefundOutcome
+  outcome: RefundOutcome,
 ): T {
   if (!returned) return previous;
   if (outcome === "partial" || outcome === "full") return returned;

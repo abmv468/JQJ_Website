@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isProtectedOrder, PROTECTED_ORDER_ALERT_EVENT } from "@/lib/payments/airwallex-orders";
+import {
+  isProtectedOrder,
+  PROTECTED_ORDER_ALERT_EVENT,
+} from "@/lib/payments/airwallex-orders";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +32,10 @@ function money(value: unknown) {
   return null;
 }
 
-function refundCoversCapturedPayment(order: AttentionRow, paymentAmount: unknown) {
+function refundCoversCapturedPayment(
+  order: AttentionRow,
+  paymentAmount: unknown,
+) {
   const captured = money(paymentAmount) ?? money(order.total_amount);
   if (captured == null) return false;
   const refunded = money(order.refunded_amount) ?? 0;
@@ -37,17 +43,24 @@ function refundCoversCapturedPayment(order: AttentionRow, paymentAmount: unknown
 }
 
 function succeededPaymentStatus(value: unknown) {
-  return String(value ?? "").trim().toLowerCase() === "succeeded";
+  return (
+    String(value ?? "")
+      .trim()
+      .toLowerCase() === "succeeded"
+  );
 }
 
-const PROTECTED_ORDER_FILTER = "status.ilike.*cancelled*,sales_channel.ilike.*test*";
+const PROTECTED_ORDER_FILTER =
+  "status.ilike.*cancelled*,sales_channel.ilike.*test*";
 
 function attentionReason(row: AttentionRow) {
   if (isProtectedOrder(row)) return PROTECTED_ORDER_ALERT_EVENT;
   return "inventory_exception";
 }
 
-function embeddedOrder(value: AttentionRow | AttentionRow[] | null | undefined) {
+function embeddedOrder(
+  value: AttentionRow | AttentionRow[] | null | undefined,
+) {
   if (Array.isArray(value)) return value[0] ?? null;
   return value ?? null;
 }
@@ -96,7 +109,8 @@ export async function GET(req: Request) {
       merged.set(row.id, row);
     }
     for (const row of (byOrder.data ?? []) as AttentionRow[]) {
-      if (!succeededPaymentStatus(row.payment_status) || !isProtectedOrder(row)) continue;
+      if (!succeededPaymentStatus(row.payment_status) || !isProtectedOrder(row))
+        continue;
       if (refundCoversCapturedPayment(row, null)) continue;
       merged.set(row.id, row);
     }
@@ -113,10 +127,12 @@ export async function GET(req: Request) {
       merged.set(order.id, order);
     }
     const rows = [...merged.values()].sort((left, right) =>
-      String(right.created_at ?? "").localeCompare(String(left.created_at ?? ""))
+      String(right.created_at ?? "").localeCompare(
+        String(left.created_at ?? ""),
+      ),
     );
     const capped = [byInventory.data, byOrder.data, byPayment.data].some(
-      (page) => (page?.length ?? 0) > PAGE_LIMIT
+      (page) => (page?.length ?? 0) > PAGE_LIMIT,
     );
     const truncated = capped || rows.length > PAGE_LIMIT;
     const orders = rows.slice(0, PAGE_LIMIT).map((row) => ({
@@ -132,6 +148,9 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ orders, truncated }, { headers: noStore });
   } catch {
-    return NextResponse.json({ error: "Internal error" }, { status: 500, headers: noStore });
+    return NextResponse.json(
+      { error: "Internal error" },
+      { status: 500, headers: noStore },
+    );
   }
 }

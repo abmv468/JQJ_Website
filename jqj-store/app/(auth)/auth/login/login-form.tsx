@@ -11,9 +11,12 @@ import { PASSWORDS_DO_NOT_MATCH, plainAuthError } from "@/lib/auth/plain-error";
 import { authRedirectUrl } from "@/lib/auth/redirect-url";
 import { createClient } from "@/lib/supabase/client";
 
-const SIGN_IN_ERROR = "We couldn\u2019t sign you in. Check your email and password and try again.";
-const SIGN_UP_ERROR = "We couldn\u2019t create your account. Check your details and try again.";
-const RESEND_ERROR = "We couldn\u2019t resend the confirmation email. Please try again.";
+const SIGN_IN_ERROR =
+  "We couldn\u2019t sign you in. Check your email and password and try again.";
+const SIGN_UP_ERROR =
+  "We couldn\u2019t create your account. Check your details and try again.";
+const RESEND_ERROR =
+  "We couldn\u2019t resend the confirmation email. Please try again.";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -34,10 +37,18 @@ export default function LoginForm() {
     const next = sanitizeNextPath(params.get("next"));
     setNextPath(next);
     setStatusMessage(loginStatusMessage(params.get("status")));
-    const confirmedEmail = readNoticeEmail(params.get("notice"), params.get("email"), "confirm");
+    const confirmedEmail = readNoticeEmail(
+      params.get("notice"),
+      params.get("email"),
+      "confirm",
+    );
     if (confirmedEmail) {
       setInboxEmail(confirmedEmail);
-      setBackHref(params.has("next") ? `/auth/login?next=${encodeURIComponent(next)}` : "/auth/login");
+      setBackHref(
+        params.has("next")
+          ? `/auth/login?next=${encodeURIComponent(next)}`
+          : "/auth/login",
+      );
     }
   }, []);
 
@@ -50,7 +61,11 @@ export default function LoginForm() {
     setInboxEmail(address);
     setErrorMessage(null);
     setResendNote(null);
-    setBackHref(params.has("next") ? `/auth/login?next=${encodeURIComponent(next)}` : "/auth/login");
+    setBackHref(
+      params.has("next")
+        ? `/auth/login?next=${encodeURIComponent(next)}`
+        : "/auth/login",
+    );
     router.replace(`/auth/login?${params.toString()}`);
   }
 
@@ -68,7 +83,10 @@ export default function LoginForm() {
 
     try {
       if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
         if (error) throw error;
         router.push(nextPath);
         router.refresh();
@@ -77,7 +95,10 @@ export default function LoginForm() {
           email,
           password,
           options: {
-            emailRedirectTo: authRedirectUrl("/auth/confirm", window.location.origin),
+            emailRedirectTo: authRedirectUrl(
+              "/auth/confirm",
+              window.location.origin,
+            ),
           },
         });
         if (error) throw error;
@@ -91,7 +112,9 @@ export default function LoginForm() {
         showConfirmInbox(email.trim());
       }
     } catch (err) {
-      setErrorMessage(plainAuthError(err, mode === "signin" ? SIGN_IN_ERROR : SIGN_UP_ERROR));
+      setErrorMessage(
+        plainAuthError(err, mode === "signin" ? SIGN_IN_ERROR : SIGN_UP_ERROR),
+      );
     } finally {
       setLoading(false);
     }
@@ -108,7 +131,10 @@ export default function LoginForm() {
         type: "signup",
         email: inboxEmail,
         options: {
-          emailRedirectTo: authRedirectUrl("/auth/confirm", window.location.origin),
+          emailRedirectTo: authRedirectUrl(
+            "/auth/confirm",
+            window.location.origin,
+          ),
         },
       });
       if (error) throw error;
@@ -136,24 +162,40 @@ export default function LoginForm() {
   }
 
   return (
-    <main className="login-frame" data-auth-view={mode === "signin" ? "sign-in" : "create"}>
-      <aside className="still-life fade-in" aria-label="Product still-life placeholder">
+    <main
+      className="login-frame"
+      data-auth-view={mode === "signin" ? "sign-in" : "create"}
+    >
+      <aside
+        className="still-life fade-in"
+        aria-label="Product still-life placeholder"
+      >
         <div className="still-life-copy">
           <p className="still-life-kicker">Product still-life</p>
           <hr className="still-life-rule" />
-          <p className="still-life-text">Placeholder — real JQ photograph to be supplied.</p>
+          <p className="still-life-text">
+            Placeholder — real JQ photograph to be supplied.
+          </p>
         </div>
       </aside>
 
       <section className="form-pane fade-in">
         <form className="form-card" onSubmit={handleSubmit}>
-          <h1 className="sr-only">{mode === "signin" ? "Sign in" : "Create account"}</h1>
-          <p className={statusMessage ? "page-lead is-status" : "page-lead is-tight"}>
+          <h1 className="sr-only">
+            {mode === "signin" ? "Sign in" : "Create account"}
+          </h1>
+          <p
+            className={
+              statusMessage ? "page-lead is-status" : "page-lead is-tight"
+            }
+          >
             {mode === "signin"
               ? "Welcome back."
               : "Create your account to save pieces and follow your orders."}
           </p>
-          {statusMessage ? <p className="status-note">{statusMessage}</p> : null}
+          {statusMessage ? (
+            <p className="status-note">{statusMessage}</p>
+          ) : null}
           <div className="tabs" role="tablist" aria-label="Account">
             <button
               type="button"
@@ -198,7 +240,9 @@ export default function LoginForm() {
               id="password"
               name="password"
               type="password"
-              autoComplete={mode === "signin" ? "current-password" : "new-password"}
+              autoComplete={
+                mode === "signin" ? "current-password" : "new-password"
+              }
               required
               minLength={6}
               value={password}
@@ -220,7 +264,12 @@ export default function LoginForm() {
               />
             </div>
           ) : null}
-          <button type="submit" className="btn-primary" disabled={loading} aria-busy={loading}>
+          <button
+            type="submit"
+            className="btn-primary"
+            disabled={loading}
+            aria-busy={loading}
+          >
             {mode === "signin" ? "Sign in" : "Create account"}
           </button>
           {mode === "signin" ? (
@@ -231,7 +280,8 @@ export default function LoginForm() {
             </div>
           ) : (
             <p className="fine-print">
-              By creating an account you agree to our <Link href="/terms">Terms</Link> and{" "}
+              By creating an account you agree to our{" "}
+              <Link href="/terms">Terms</Link> and{" "}
               <Link href="/privacy" className="nowrap">
                 Privacy Policy
               </Link>

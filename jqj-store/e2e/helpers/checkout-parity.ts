@@ -52,9 +52,8 @@ function isAllowedBrowserUrl(url: string, appOrigin: string) {
 export async function installCheckoutIsolation(page: Page, baseURL?: string) {
   const appOrigin = new URL(baseURL ?? DEFAULT_APP_ORIGIN).origin;
   await page.addInitScript(() => {
-    const store: { type: string; env?: string; intent_id?: string }[] = JSON.parse(
-      sessionStorage.getItem("aw-calls") ?? "[]"
-    );
+    const store: { type: string; env?: string; intent_id?: string }[] =
+      JSON.parse(sessionStorage.getItem("aw-calls") ?? "[]");
     window.AirwallexComponentsSDK = {
       init: async (config) => {
         store.push({ type: "init", env: config.env });
@@ -73,7 +72,8 @@ export async function installCheckoutIsolation(page: Page, baseURL?: string) {
   });
 
   await page.route("**/*", (route) => {
-    if (isAllowedBrowserUrl(route.request().url(), appOrigin)) return route.continue();
+    if (isAllowedBrowserUrl(route.request().url(), appOrigin))
+      return route.continue();
     // blockedbyclient is distinct from a network failure (net::ERR_FAILED).
     return route.abort("blockedbyclient");
   });
@@ -83,7 +83,7 @@ export async function installCheckoutIsolation(page: Page, baseURL?: string) {
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({ errors: [] }),
-    })
+    }),
   );
 }
 
@@ -102,9 +102,13 @@ export function parseUsd(text: string): number {
 }
 
 export async function fillCheckout(page: Page) {
-  await page.getByPlaceholder("Email", { exact: true }).fill("buyer@example.com");
+  await page
+    .getByPlaceholder("Email", { exact: true })
+    .fill("buyer@example.com");
   await page.getByPlaceholder("First name", { exact: true }).fill("Ada");
-  await page.getByPlaceholder("Address", { exact: true }).fill("1 Atelier Lane");
+  await page
+    .getByPlaceholder("Address", { exact: true })
+    .fill("1 Atelier Lane");
   await page.getByPlaceholder("City", { exact: true }).fill("Austin");
 }
 
@@ -178,7 +182,10 @@ export async function assertPayControlInView(page: Page, name: string) {
   expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + 0.5);
 }
 
-function quoteFromRequest(body: CheckoutRequest, method: CheckoutMethod): Quote {
+function quoteFromRequest(
+  body: CheckoutRequest,
+  method: CheckoutMethod,
+): Quote {
   const items = body.items ?? [];
   if (items.length === 0) throw new Error("Checkout request has no items");
   return quoteCheckout(
@@ -191,7 +198,7 @@ function quoteFromRequest(body: CheckoutRequest, method: CheckoutMethod): Quote 
         quantity: item.quantity,
       };
     }),
-    method
+    method,
   );
 }
 
@@ -220,7 +227,7 @@ export async function stubAirwallexVerify(page: Page, orderId: string) {
         pending: false,
         inventoryReserved: true,
       }),
-    })
+    }),
   );
 }
 
@@ -229,7 +236,11 @@ export async function stubAirwallexVerify(page: Page, orderId: string) {
  * The amount is catalog price plus the expectations module, not the UI text
  * and not the shipping figure the browser sent.
  */
-export async function stubCheckoutCreate(page: Page, method: CheckoutMethod, orderId: string) {
+export async function stubCheckoutCreate(
+  page: Page,
+  method: CheckoutMethod,
+  orderId: string,
+) {
   const captured: {
     request: CheckoutRequest | null;
     quote: Quote | null;
@@ -276,20 +287,28 @@ export async function stubCheckoutCreate(page: Page, method: CheckoutMethod, ord
 
 export function assertServerMatchesUi(
   ui: { subtotal: number; shipping: number; codFee: number; total: number },
-  server: ServerPricing
+  server: ServerPricing,
 ) {
-  expect(toCents(ui.subtotal) + toCents(ui.shipping) + toCents(ui.codFee)).toBe(toCents(ui.total));
-  expect(toCents(server.subtotal), "server subtotal").toBe(toCents(ui.subtotal));
-  expect(toCents(server.shipping), "server shipping").toBe(toCents(ui.shipping));
+  expect(toCents(ui.subtotal) + toCents(ui.shipping) + toCents(ui.codFee)).toBe(
+    toCents(ui.total),
+  );
+  expect(toCents(server.subtotal), "server subtotal").toBe(
+    toCents(ui.subtotal),
+  );
+  expect(toCents(server.shipping), "server shipping").toBe(
+    toCents(ui.shipping),
+  );
   expect(toCents(server.codFee), "server COD fee").toBe(toCents(ui.codFee));
-  expect(toCents(server.amount), "server amount equals UI total").toBe(toCents(ui.total));
+  expect(toCents(server.amount), "server amount equals UI total").toBe(
+    toCents(ui.total),
+  );
 }
 
 export async function submitAndAssertParity(
   page: Page,
   testInfo: TestInfo,
   method: CheckoutMethod,
-  orderId: string
+  orderId: string,
 ) {
   const captured = await stubCheckoutCreate(page, method, orderId);
   if (method === "airwallex") await stubAirwallexVerify(page, orderId);
@@ -299,7 +318,8 @@ export async function submitAndAssertParity(
   }
 
   const ui = await readCheckoutTotals(page, method);
-  const buttonName = method === "cod" ? "Place Order" : "Continue to Secure Payment";
+  const buttonName =
+    method === "cod" ? "Place Order" : "Continue to Secure Payment";
   if (testInfo.project.name === MOBILE_PROJECT) {
     await assertPayControlInView(page, buttonName);
   }
@@ -321,7 +341,9 @@ export async function submitAndAssertParity(
   expect(response.request().postDataJSON()).toEqual(request);
 
   const catalogQuote = quoteFromRequest(request, method);
-  expect(toCents(payload.amount), "response amount").toBe(toCents(catalogQuote.total));
+  expect(toCents(payload.amount), "response amount").toBe(
+    toCents(catalogQuote.total),
+  );
   expect(toCents(payload.subtotal)).toBe(toCents(catalogQuote.subtotal));
   expect(toCents(payload.shipping)).toBe(toCents(catalogQuote.shipping));
   expect(toCents(payload.codFee)).toBe(toCents(catalogQuote.codFee));
@@ -339,20 +361,26 @@ export async function submitAndAssertParity(
 export async function assertCurrentConfirmation(
   page: Page,
   orderId: string,
-  method: CheckoutMethod
+  method: CheckoutMethod,
 ) {
-  await expect(page.getByRole("heading", { name: "Thank you for your order" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Thank you for your order" }),
+  ).toBeVisible();
   await expect(
     page.getByText(
       method === "cod"
         ? "Your Cash on Delivery order has been placed."
-        : "Your Airwallex payment was successful."
-    )
+        : "Your Airwallex payment was successful.",
+    ),
   ).toBeVisible();
   await expect(page.getByText("Order reference:")).toBeVisible();
   await expect(page.getByText(orderId, { exact: true })).toBeVisible();
-  await expect(page.getByText("A confirmation email is on its way to your inbox.")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Continue Shopping" })).toBeVisible();
+  await expect(
+    page.getByText("A confirmation email is on its way to your inbox."),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Continue Shopping" }),
+  ).toBeVisible();
   await expect(page.getByRole("link", { name: "View Orders" })).toBeVisible();
 }
 

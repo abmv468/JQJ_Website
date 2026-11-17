@@ -1,15 +1,25 @@
 import { createHmac } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/webhooks/airwallex/route";
-import { createCheckoutDb, dbError, setActiveDb, type MemoryDb } from "../helpers/memory-db";
+import {
+  createCheckoutDb,
+  dbError,
+  setActiveDb,
+  type MemoryDb,
+} from "../helpers/memory-db";
 
 const SECRET = "test_dummy_webhook_secret";
 
 function sign(timestamp: string, body: string) {
-  return createHmac("sha256", SECRET).update(`${timestamp}${body}`).digest("hex");
+  return createHmac("sha256", SECRET)
+    .update(`${timestamp}${body}`)
+    .digest("hex");
 }
 
-function signed(body: unknown, timestamp = String(Math.floor(Date.now() / 1000))) {
+function signed(
+  body: unknown,
+  timestamp = String(Math.floor(Date.now() / 1000)),
+) {
   const raw = JSON.stringify(body);
   return new Request("http://localhost:3000/api/webhooks/airwallex", {
     method: "POST",
@@ -51,7 +61,7 @@ describe("Airwallex webhook claim failures", () => {
       "fetch",
       vi.fn(async () => {
         throw new Error("unexpected network call");
-      })
+      }),
     );
     db.rowsOf("products")[0].stock_count = 4;
     db.seed("orders", [
@@ -116,8 +126,12 @@ describe("Airwallex webhook claim failures", () => {
       status: "processed",
     });
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
-    expect(db.rpcCalls.filter((call) => call.fn === "reserve_order_inventory")).toHaveLength(0);
-    expect(db.rpcCalls.filter((call) => call.fn === "restore_order_inventory")).toHaveLength(0);
+    expect(
+      db.rpcCalls.filter((call) => call.fn === "reserve_order_inventory"),
+    ).toHaveLength(0);
+    expect(
+      db.rpcCalls.filter((call) => call.fn === "restore_order_inventory"),
+    ).toHaveLength(0);
   });
 
   it("treats a duplicate success event as a no-op", async () => {
@@ -126,11 +140,16 @@ describe("Airwallex webhook claim failures", () => {
     expect((await POST(signed(payload))).status).toBe(200);
     const duplicate = await POST(signed(payload));
     expect(duplicate.status).toBe(200);
-    await expect(duplicate.json()).resolves.toEqual({ received: true, duplicate: true });
+    await expect(duplicate.json()).resolves.toEqual({
+      received: true,
+      duplicate: true,
+    });
     expect(db.rowsOf("orders")[0].payment_status).toBe("succeeded");
     expect(db.rowsOf("payment_webhook_events")).toHaveLength(1);
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
-    expect(db.rowsOf("orders")[0].confirmation_email_sent_at).toEqual(expect.any(String));
+    expect(db.rowsOf("orders")[0].confirmation_email_sent_at).toEqual(
+      expect.any(String),
+    );
   });
 
   it("returns a generic error body when processing throws", async () => {
@@ -182,7 +201,9 @@ describe("Airwallex webhook claim failures", () => {
       provider_event_id: "evt_db",
       status: "failed",
     });
-    expect(db.rowsOf("orders")[0].payment_status).toBe("requires_payment_method");
+    expect(db.rowsOf("orders")[0].payment_status).toBe(
+      "requires_payment_method",
+    );
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
   });
 

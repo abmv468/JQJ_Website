@@ -14,7 +14,10 @@ import {
 } from "@/data/products";
 import { displayedSpecs } from "@/lib/product-specs";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const root = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../..",
+);
 
 const RETIRED_STONES = ["Carnelian", "Aquamarine", "Lapis Lazuli", "Tiger Eye"];
 const DROPPED_FILES = [
@@ -47,7 +50,9 @@ describe("merchandising preview", () => {
     expect(bySlug("labradorite-bracelet-v").stone).toBe("Labradorite");
     expect(bySlug("labradorite-silver-pendant").stone).toBe("Labradorite");
     expect(bySlug("blue-lace-agate-silver-pendant").stone).toBe("Agate");
-    expect(bySlug("blue-lace-agate-silver-pendant").name).toBe("Blue Lace Agate Silver Pendant");
+    expect(bySlug("blue-lace-agate-silver-pendant").name).toBe(
+      "Blue Lace Agate Silver Pendant",
+    );
     expect(bySlug("silver-bracelet-iv").stone).toBe("Hematite Silver");
     expect(bySlug("silver-bracelet-iv").specs.Stone).toBe("Hematite Silver");
     expect(bySlug("pearl-silver-necklace-v").stone).toBe("Pearl");
@@ -74,18 +79,34 @@ describe("merchandising preview", () => {
     expect(catalogStoneHref("Jasper")).toBe("/bracelets?stone=Jasper");
     expect(catalogStoneHref("Agate")).toBe("/necklaces?stone=Agate");
     expect(catalogStoneHref("Pearl")).toBe("/necklaces?stone=Pearl");
-    expect(catalogStoneHref("Hematite Silver")).toBe("/bracelets?stone=Hematite%20Silver");
+    expect(catalogStoneHref("Hematite Silver")).toBe(
+      "/bracelets?stone=Hematite%20Silver",
+    );
     // No public URL lists the Labradorite bracelet and pendant together.
-    expect(catalogStoneHref("Labradorite")).toBe("/bracelets?stone=Labradorite");
+    expect(catalogStoneHref("Labradorite")).toBe(
+      "/bracelets?stone=Labradorite",
+    );
 
     expect(stoneRawImage("Sodalite")).toBe("/stones/sodalite-raw.webp");
     expect(stoneRawImage("Tourmaline")).toBe("/stones/tourmaline-raw.webp");
     expect(stoneRawImage("Amethyst")).toBe("/stones/amethyst-raw.webp");
-    for (const stone of ["Jasper", "Labradorite", "Hematite Silver", "Agate", "Pearl"]) {
+    for (const stone of [
+      "Jasper",
+      "Labradorite",
+      "Hematite Silver",
+      "Agate",
+      "Pearl",
+    ]) {
       expect(stoneRawImage(stone)).toBeUndefined();
-      expect(existsSync(path.join(root, "public/stones", `${stone.toLowerCase().replace(/\s+/g, "-")}-raw.webp`))).toBe(
-        false,
-      );
+      expect(
+        existsSync(
+          path.join(
+            root,
+            "public/stones",
+            `${stone.toLowerCase().replace(/\s+/g, "-")}-raw.webp`,
+          ),
+        ),
+      ).toBe(false);
     }
   });
 
@@ -110,10 +131,20 @@ describe("merchandising preview", () => {
       "blue-lace-agate-silver-pendant",
       "raw-brown-tourmaline-bracelet-i",
     ]);
-    expect(arrivals.every((product) => product.tags.includes("new"))).toBe(true);
-    expect(arrivals.some((product) => product.slug === "labradorite-bracelet-v")).toBe(false);
-    expect(arrivals.some((product) => product.slug === "pearl-silver-necklace-v")).toBe(false);
-    expect(arrivals.some((product) => product.slug === "red-leopard-skin-jasper-bracelet-iii")).toBe(false);
+    expect(arrivals.every((product) => product.tags.includes("new"))).toBe(
+      true,
+    );
+    expect(
+      arrivals.some((product) => product.slug === "labradorite-bracelet-v"),
+    ).toBe(false);
+    expect(
+      arrivals.some((product) => product.slug === "pearl-silver-necklace-v"),
+    ).toBe(false);
+    expect(
+      arrivals.some(
+        (product) => product.slug === "red-leopard-skin-jasper-bracelet-iii",
+      ),
+    ).toBe(false);
     expect(arrivals).toHaveLength(3);
   });
 
@@ -124,10 +155,16 @@ describe("merchandising preview", () => {
       "labradorite-bracelet-v",
       "pearl-silver-necklace-v",
     ]);
-    const bracelets = readFileSync(path.join(root, "app/(store)/bracelets/page.tsx"), "utf8");
+    const bracelets = readFileSync(
+      path.join(root, "app/(store)/bracelets/page.tsx"),
+      "utf8",
+    );
     expect(bracelets).toContain('searchParams.tag === "limited"');
     expect(bracelets).toContain("getLimitedEditionProducts()");
-    const header = readFileSync(path.join(root, "components/layout/Header.tsx"), "utf8");
+    const header = readFileSync(
+      path.join(root, "components/layout/Header.tsx"),
+      "utf8",
+    );
     expect(header).toContain('href: "/bracelets?tag=limited"');
   });
 
@@ -135,9 +172,15 @@ describe("merchandising preview", () => {
     expect(bySlug("blue-lace-agate-silver-pendant").images).toEqual([
       "/products/blue-lace-agate-pendant.webp",
     ]);
-    expect(bySlug("labradorite-silver-pendant").images).toEqual(["/products/labradorite-pendant.webp"]);
-    expect(bySlug("pearl-silver-necklace-v").images).toEqual(["/products/pearl-silver-necklace.webp"]);
-    expect(bySlug("labradorite-bracelet-v").images).toEqual(["/products/labradorite-bracelet.webp"]);
+    expect(bySlug("labradorite-silver-pendant").images).toEqual([
+      "/products/labradorite-pendant.webp",
+    ]);
+    expect(bySlug("pearl-silver-necklace-v").images).toEqual([
+      "/products/pearl-silver-necklace.webp",
+    ]);
+    expect(bySlug("labradorite-bracelet-v").images).toEqual([
+      "/products/labradorite-bracelet.webp",
+    ]);
     expect(bySlug("raw-brown-tourmaline-bracelet-i").images).toEqual([
       "/products/brown-tourmaline-bracelet.webp",
     ]);
@@ -152,9 +195,15 @@ describe("merchandising preview", () => {
   });
 
   it("leaves held defaults and the payment-test listing alone", () => {
-    expect(bySlug("amethyst-bracelet-xv").images[0]).toBe("/products/amethyst-bracelet-xv-1.jpg");
-    expect(bySlug("sodalite-bracelet-viii").images[0]).toBe("/products/sodalite-bracelet-viii-1.jpg");
-    expect(bySlug("silver-bracelet-iv").images[0]).toBe("/products/silver-bracelet-iv-2.jpg");
+    expect(bySlug("amethyst-bracelet-xv").images[0]).toBe(
+      "/products/amethyst-bracelet-xv-1.jpg",
+    );
+    expect(bySlug("sodalite-bracelet-viii").images[0]).toBe(
+      "/products/sodalite-bracelet-viii-1.jpg",
+    );
+    expect(bySlug("silver-bracelet-iv").images[0]).toBe(
+      "/products/silver-bracelet-iv-2.jpg",
+    );
     expect(bySlug("red-leopard-skin-jasper-bracelet-iii").images[0]).toBe(
       "/products/red-leopard-skin-jasper-bracelet-iii-2.jpg",
     );

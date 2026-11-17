@@ -1,13 +1,18 @@
 import type { Metadata } from "next";
 import CollectionView from "@/components/product/CollectionView";
-import { getLimitedEditionProducts, getProductsByCategory } from "@/data/products";
+import {
+  getLimitedEditionProducts,
+  getProductsByCategory,
+} from "@/data/products";
 
 export function generateMetadata({
   searchParams,
 }: {
   searchParams: { stone?: string; tag?: string; q?: string };
 }): Metadata {
-  const isFiltered = Boolean(searchParams.stone || searchParams.tag || searchParams.q);
+  const isFiltered = Boolean(
+    searchParams.stone || searchParams.tag || searchParams.q,
+  );
 
   return {
     title: "Natural Stone Bracelets",

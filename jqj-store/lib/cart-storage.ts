@@ -63,11 +63,17 @@ export function cartPayloadToPersist(options: {
 }
 
 /** Hide the header badge only after hydration knows the cart is empty. */
-export function isCartBadgeHidden(hydrated: boolean, itemCount: number): boolean {
+export function isCartBadgeHidden(
+  hydrated: boolean,
+  itemCount: number,
+): boolean {
   return hydrated && itemCount === 0;
 }
 
 /** The empty cart page waits until hydration. A saved line must not flash as empty. */
-export function shouldShowEmptyCart(hydrated: boolean, itemCount: number): boolean {
+export function shouldShowEmptyCart(
+  hydrated: boolean,
+  itemCount: number,
+): boolean {
   return hydrated && itemCount === 0;
 }

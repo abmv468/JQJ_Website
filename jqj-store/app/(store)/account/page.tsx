@@ -6,7 +6,11 @@ import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { useCart } from "@/context/CartContext";
 import { useCurrency } from "@/context/CurrencyContext";
-import { formatCustomerOrderStatusLabel, hasPartialRefund, isFullyRefunded } from "@/lib/order-lifecycle";
+import {
+  formatCustomerOrderStatusLabel,
+  hasPartialRefund,
+  isFullyRefunded,
+} from "@/lib/order-lifecycle";
 
 interface ProfileRow {
   first_name: string | null;
@@ -111,19 +115,32 @@ export default function AccountPage() {
   const { addItem } = useCart();
   const { formatFromUsd } = useCurrency();
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState({ firstName: "", lastName: "", phone: "" });
+  const [profile, setProfile] = useState({
+    firstName: "",
+    lastName: "",
+    phone: "",
+  });
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
   const [addresses, setAddresses] = useState<AddressRow[]>([]);
-  const [addressForm, setAddressForm] = useState<AddressForm>(DEFAULT_ADDRESS_FORM);
+  const [addressForm, setAddressForm] =
+    useState<AddressForm>(DEFAULT_ADDRESS_FORM);
   const [addressEditingId, setAddressEditingId] = useState<string | null>(null);
   const [addressSaving, setAddressSaving] = useState(false);
   const [addressMessage, setAddressMessage] = useState<string | null>(null);
   const [orders, setOrders] = useState<OrderRow[]>([]);
-  const [productsById, setProductsById] = useState<Record<string, ProductLookup>>({});
-  const [productsBySlug, setProductsBySlug] = useState<Record<string, ProductLookup>>({});
-  const [productsByName, setProductsByName] = useState<Record<string, ProductLookup>>({});
-  const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
+  const [productsById, setProductsById] = useState<
+    Record<string, ProductLookup>
+  >({});
+  const [productsBySlug, setProductsBySlug] = useState<
+    Record<string, ProductLookup>
+  >({});
+  const [productsByName, setProductsByName] = useState<
+    Record<string, ProductLookup>
+  >({});
+  const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>(
+    {},
+  );
   const [orderMessage, setOrderMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [signOutError, setSignOutError] = useState<string | null>(null);
@@ -137,27 +154,29 @@ export default function AccountPage() {
       }
       setUser(data.user);
 
-      const [profileRes, addressRes, orderRes, productsRes] = await Promise.all([
-        supabase
-          .from("customer_profiles")
-          .select("first_name, last_name, phone")
-          .eq("user_id", data.user.id)
-          .maybeSingle(),
-        supabase
-          .from("customer_addresses")
-          .select("*")
-          .eq("user_id", data.user.id)
-          .order("is_default", { ascending: false })
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("orders")
-          .select(
-            "id, status, payment_status, payment_provider, fulfillment_status, currency, total_amount, refunded_amount, shipping_amount, customer_name, customer_email, shipping_address, created_at, order_items(id, product_id, product_name, quantity, price_at_purchase, line_item_meta)"
-          )
-          .eq("user_id", data.user.id)
-          .order("created_at", { ascending: false }),
-        supabase.from("products").select("id, slug, name, price, images"),
-      ]);
+      const [profileRes, addressRes, orderRes, productsRes] = await Promise.all(
+        [
+          supabase
+            .from("customer_profiles")
+            .select("first_name, last_name, phone")
+            .eq("user_id", data.user.id)
+            .maybeSingle(),
+          supabase
+            .from("customer_addresses")
+            .select("*")
+            .eq("user_id", data.user.id)
+            .order("is_default", { ascending: false })
+            .order("created_at", { ascending: false }),
+          supabase
+            .from("orders")
+            .select(
+              "id, status, payment_status, payment_provider, fulfillment_status, currency, total_amount, refunded_amount, shipping_amount, customer_name, customer_email, shipping_address, created_at, order_items(id, product_id, product_name, quantity, price_at_purchase, line_item_meta)",
+            )
+            .eq("user_id", data.user.id)
+            .order("created_at", { ascending: false }),
+          supabase.from("products").select("id, slug, name, price, images"),
+        ],
+      );
 
       const profileData = profileRes.data as ProfileRow | null;
       setProfile({
@@ -235,7 +254,7 @@ export default function AccountPage() {
         phone: profile.phone.trim() || null,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "user_id" }
+      { onConflict: "user_id" },
     );
     setProfileSaving(false);
     setProfileMessage(error ? error.message : "Profile saved.");
@@ -260,12 +279,19 @@ export default function AccountPage() {
 
   function resetAddressForm() {
     setAddressEditingId(null);
-    setAddressForm({ ...DEFAULT_ADDRESS_FORM, isDefault: addresses.length === 0 });
+    setAddressForm({
+      ...DEFAULT_ADDRESS_FORM,
+      isDefault: addresses.length === 0,
+    });
   }
 
   async function saveAddress() {
     if (!user) return;
-    if (!addressForm.addressLine1 || !addressForm.city || !addressForm.country) {
+    if (
+      !addressForm.addressLine1 ||
+      !addressForm.city ||
+      !addressForm.country
+    ) {
       setAddressMessage("Address, city, and country are required.");
       return;
     }
@@ -275,7 +301,10 @@ export default function AccountPage() {
     const supabase = createClient();
 
     if (addressForm.isDefault) {
-      await supabase.from("customer_addresses").update({ is_default: false }).eq("user_id", user.id);
+      await supabase
+        .from("customer_addresses")
+        .update({ is_default: false })
+        .eq("user_id", user.id);
     }
 
     const payload = {
@@ -295,7 +324,10 @@ export default function AccountPage() {
     };
 
     const query = addressEditingId
-      ? supabase.from("customer_addresses").update(payload).eq("id", addressEditingId)
+      ? supabase
+          .from("customer_addresses")
+          .update(payload)
+          .eq("id", addressEditingId)
       : supabase.from("customer_addresses").insert(payload);
     const { error } = await query;
 
@@ -312,7 +344,10 @@ export default function AccountPage() {
   async function removeAddress(id: string, isDefault: boolean) {
     if (!user) return;
     const supabase = createClient();
-    const { error } = await supabase.from("customer_addresses").delete().eq("id", id);
+    const { error } = await supabase
+      .from("customer_addresses")
+      .delete()
+      .eq("id", id);
     if (error) {
       setAddressMessage(error.message);
       return;
@@ -335,7 +370,10 @@ export default function AccountPage() {
   async function setDefaultAddress(id: string) {
     if (!user) return;
     const supabase = createClient();
-    await supabase.from("customer_addresses").update({ is_default: false }).eq("user_id", user.id);
+    await supabase
+      .from("customer_addresses")
+      .update({ is_default: false })
+      .eq("user_id", user.id);
     const { error } = await supabase
       .from("customer_addresses")
       .update({ is_default: true, updated_at: new Date().toISOString() })
@@ -362,8 +400,10 @@ export default function AccountPage() {
         (productSlug ? productsBySlug[productSlug] : undefined) ||
         productsByName[line.product_name.toLowerCase()];
 
-      const slug = matchedProduct?.slug || productSlug || slugify(line.product_name);
-      const cartId = matchedProduct?.id || cartItemId || slug || `legacy-${line.id}`;
+      const slug =
+        matchedProduct?.slug || productSlug || slugify(line.product_name);
+      const cartId =
+        matchedProduct?.id || cartItemId || slug || `legacy-${line.id}`;
       if (!slug) return;
 
       addItem(
@@ -372,16 +412,19 @@ export default function AccountPage() {
           slug,
           name: matchedProduct?.name || line.product_name,
           price: Number(matchedProduct?.price ?? line.price_at_purchase),
-          image: matchedProduct?.images?.[0] || image || "/products/lifestyle.webp",
+          image:
+            matchedProduct?.images?.[0] || image || "/products/lifestyle.webp",
           size: size || undefined,
         },
-        line.quantity
+        line.quantity,
       );
       added += line.quantity;
     });
 
     if (added > 0) {
-      setOrderMessage(`Added ${added} item${added > 1 ? "s" : ""} to your cart.`);
+      setOrderMessage(
+        `Added ${added} item${added > 1 ? "s" : ""} to your cart.`,
+      );
       router.push("/cart");
       return;
     }
@@ -394,12 +437,17 @@ export default function AccountPage() {
 
   function formatAddress(order: OrderRow) {
     const shipping = order.shipping_address ?? {};
-    const address = typeof shipping.address === "string" ? shipping.address : "";
-    const apartment = typeof shipping.apartment === "string" ? shipping.apartment : "";
+    const address =
+      typeof shipping.address === "string" ? shipping.address : "";
+    const apartment =
+      typeof shipping.apartment === "string" ? shipping.apartment : "";
     const city = typeof shipping.city === "string" ? shipping.city : "";
     const region = typeof shipping.region === "string" ? shipping.region : "";
-    const country = typeof shipping.country === "string" ? shipping.country : "";
-    return [address, apartment, city, region, country].filter(Boolean).join(", ");
+    const country =
+      typeof shipping.country === "string" ? shipping.country : "";
+    return [address, apartment, city, region, country]
+      .filter(Boolean)
+      .join(", ");
   }
 
   function paymentMethod(order: OrderRow) {
@@ -419,19 +467,32 @@ export default function AccountPage() {
   return (
     <div className="container-site py-12">
       <div className="mb-10 flex items-center justify-between">
-        <h1 className="font-heading text-2xl uppercase tracking-wider2">My Account</h1>
-        <button type="button" onClick={signOut} className="btn-secondary">Sign Out</button>
+        <h1 className="font-heading text-2xl uppercase tracking-wider2">
+          My Account
+        </h1>
+        <button type="button" onClick={signOut} className="btn-secondary">
+          Sign Out
+        </button>
       </div>
 
       <p className="mb-10 text-sm text-brand-muted">
         Signed in as <span className="text-white">{user?.email}</span>
       </p>
-      {signOutError && <p className="mb-6 text-sm text-red-400">{signOutError}</p>}
+      {signOutError && (
+        <p className="mb-6 text-sm text-red-400">{signOutError}</p>
+      )}
 
       <section className="mb-10 border border-brand-border p-6">
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="font-heading text-sm uppercase tracking-wider2">Profile</h2>
-          <button type="button" disabled={profileSaving} onClick={saveProfile} className="btn-gold disabled:opacity-60">
+          <h2 className="font-heading text-sm uppercase tracking-wider2">
+            Profile
+          </h2>
+          <button
+            type="button"
+            disabled={profileSaving}
+            onClick={saveProfile}
+            className="btn-gold disabled:opacity-60"
+          >
             {profileSaving ? "Saving…" : "Save Profile"}
           </button>
         </div>
@@ -440,58 +501,109 @@ export default function AccountPage() {
             className="input-field"
             placeholder="First name"
             value={profile.firstName}
-            onChange={(e) => setProfile((prev) => ({ ...prev, firstName: e.target.value }))}
+            onChange={(e) =>
+              setProfile((prev) => ({ ...prev, firstName: e.target.value }))
+            }
           />
           <input
             className="input-field"
             placeholder="Last name"
             value={profile.lastName}
-            onChange={(e) => setProfile((prev) => ({ ...prev, lastName: e.target.value }))}
+            onChange={(e) =>
+              setProfile((prev) => ({ ...prev, lastName: e.target.value }))
+            }
           />
           <input
             className="input-field md:col-span-2"
             placeholder="Phone"
             value={profile.phone}
-            onChange={(e) => setProfile((prev) => ({ ...prev, phone: e.target.value }))}
+            onChange={(e) =>
+              setProfile((prev) => ({ ...prev, phone: e.target.value }))
+            }
           />
-          <input className="input-field md:col-span-2" value={user?.email || ""} disabled readOnly />
+          <input
+            className="input-field md:col-span-2"
+            value={user?.email || ""}
+            disabled
+            readOnly
+          />
         </div>
-        {profileMessage && <p className="mt-3 text-xs text-brand-gold">{profileMessage}</p>}
+        {profileMessage && (
+          <p className="mt-3 text-xs text-brand-gold">{profileMessage}</p>
+        )}
       </section>
 
       <section className="mb-10 border border-brand-border p-6">
-        <h2 className="mb-5 font-heading text-sm uppercase tracking-wider2">Saved Addresses</h2>
+        <h2 className="mb-5 font-heading text-sm uppercase tracking-wider2">
+          Saved Addresses
+        </h2>
         {addresses.length === 0 ? (
-          <p className="mb-4 text-sm text-brand-muted">You have no saved addresses yet.</p>
+          <p className="mb-4 text-sm text-brand-muted">
+            You have no saved addresses yet.
+          </p>
         ) : (
           <div className="mb-6 space-y-3">
             {addresses.map((address) => (
-              <div key={address.id} className="border border-brand-border/60 p-4 text-sm">
+              <div
+                key={address.id}
+                className="border border-brand-border/60 p-4 text-sm"
+              >
                 <div className="mb-1 flex flex-wrap items-center gap-2">
-                  <span className="font-heading text-xs uppercase tracking-wider2">{address.label || "Address"}</span>
-                  {address.is_default && <span className="text-xs text-brand-gold">Default</span>}
+                  <span className="font-heading text-xs uppercase tracking-wider2">
+                    {address.label || "Address"}
+                  </span>
+                  {address.is_default && (
+                    <span className="text-xs text-brand-gold">Default</span>
+                  )}
                 </div>
                 <p className="text-brand-muted">
                   {[
-                    [address.first_name, address.last_name].filter(Boolean).join(" "),
-                    [address.address_line1, address.address_line2, address.city, address.region, address.postal_code, address.country]
+                    [address.first_name, address.last_name]
+                      .filter(Boolean)
+                      .join(" "),
+                    [
+                      address.address_line1,
+                      address.address_line2,
+                      address.city,
+                      address.region,
+                      address.postal_code,
+                      address.country,
+                    ]
                       .filter(Boolean)
                       .join(", "),
                   ]
                     .filter(Boolean)
                     .join(" — ")}
                 </p>
-                {address.phone && <p className="mt-1 text-brand-muted">Phone: {address.phone}</p>}
+                {address.phone && (
+                  <p className="mt-1 text-brand-muted">
+                    Phone: {address.phone}
+                  </p>
+                )}
                 <div className="mt-3 flex flex-wrap gap-3">
-                  <button type="button" className="text-xs text-brand-gold underline" onClick={() => editAddress(address)}>
+                  <button
+                    type="button"
+                    className="text-xs text-brand-gold underline"
+                    onClick={() => editAddress(address)}
+                  >
                     Edit
                   </button>
                   {!address.is_default && (
-                    <button type="button" className="text-xs text-brand-gold underline" onClick={() => setDefaultAddress(address.id)}>
+                    <button
+                      type="button"
+                      className="text-xs text-brand-gold underline"
+                      onClick={() => setDefaultAddress(address.id)}
+                    >
                       Set default
                     </button>
                   )}
-                  <button type="button" className="text-xs text-red-400 underline" onClick={() => removeAddress(address.id, address.is_default)}>
+                  <button
+                    type="button"
+                    className="text-xs text-red-400 underline"
+                    onClick={() =>
+                      removeAddress(address.id, address.is_default)
+                    }
+                  >
                     Remove
                   </button>
                 </div>
@@ -504,41 +616,144 @@ export default function AccountPage() {
           {addressEditingId ? "Edit Address" : "Add Address"}
         </h3>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <input className="input-field" placeholder="Label" value={addressForm.label} onChange={(e) => setAddressForm((prev) => ({ ...prev, label: e.target.value }))} />
-          <input className="input-field" placeholder="Country" value={addressForm.country} onChange={(e) => setAddressForm((prev) => ({ ...prev, country: e.target.value }))} />
-          <input className="input-field" placeholder="First name" value={addressForm.firstName} onChange={(e) => setAddressForm((prev) => ({ ...prev, firstName: e.target.value }))} />
-          <input className="input-field" placeholder="Last name" value={addressForm.lastName} onChange={(e) => setAddressForm((prev) => ({ ...prev, lastName: e.target.value }))} />
-          <input className="input-field md:col-span-2" placeholder="Address line 1" value={addressForm.addressLine1} onChange={(e) => setAddressForm((prev) => ({ ...prev, addressLine1: e.target.value }))} />
-          <input className="input-field md:col-span-2" placeholder="Address line 2" value={addressForm.addressLine2} onChange={(e) => setAddressForm((prev) => ({ ...prev, addressLine2: e.target.value }))} />
-          <input className="input-field" placeholder="City" value={addressForm.city} onChange={(e) => setAddressForm((prev) => ({ ...prev, city: e.target.value }))} />
-          <input className="input-field" placeholder="Region / State" value={addressForm.region} onChange={(e) => setAddressForm((prev) => ({ ...prev, region: e.target.value }))} />
-          <input className="input-field" placeholder="Postal code" value={addressForm.postalCode} onChange={(e) => setAddressForm((prev) => ({ ...prev, postalCode: e.target.value }))} />
-          <input className="input-field" placeholder="Phone" value={addressForm.phone} onChange={(e) => setAddressForm((prev) => ({ ...prev, phone: e.target.value }))} />
+          <input
+            className="input-field"
+            placeholder="Label"
+            value={addressForm.label}
+            onChange={(e) =>
+              setAddressForm((prev) => ({ ...prev, label: e.target.value }))
+            }
+          />
+          <input
+            className="input-field"
+            placeholder="Country"
+            value={addressForm.country}
+            onChange={(e) =>
+              setAddressForm((prev) => ({ ...prev, country: e.target.value }))
+            }
+          />
+          <input
+            className="input-field"
+            placeholder="First name"
+            value={addressForm.firstName}
+            onChange={(e) =>
+              setAddressForm((prev) => ({ ...prev, firstName: e.target.value }))
+            }
+          />
+          <input
+            className="input-field"
+            placeholder="Last name"
+            value={addressForm.lastName}
+            onChange={(e) =>
+              setAddressForm((prev) => ({ ...prev, lastName: e.target.value }))
+            }
+          />
+          <input
+            className="input-field md:col-span-2"
+            placeholder="Address line 1"
+            value={addressForm.addressLine1}
+            onChange={(e) =>
+              setAddressForm((prev) => ({
+                ...prev,
+                addressLine1: e.target.value,
+              }))
+            }
+          />
+          <input
+            className="input-field md:col-span-2"
+            placeholder="Address line 2"
+            value={addressForm.addressLine2}
+            onChange={(e) =>
+              setAddressForm((prev) => ({
+                ...prev,
+                addressLine2: e.target.value,
+              }))
+            }
+          />
+          <input
+            className="input-field"
+            placeholder="City"
+            value={addressForm.city}
+            onChange={(e) =>
+              setAddressForm((prev) => ({ ...prev, city: e.target.value }))
+            }
+          />
+          <input
+            className="input-field"
+            placeholder="Region / State"
+            value={addressForm.region}
+            onChange={(e) =>
+              setAddressForm((prev) => ({ ...prev, region: e.target.value }))
+            }
+          />
+          <input
+            className="input-field"
+            placeholder="Postal code"
+            value={addressForm.postalCode}
+            onChange={(e) =>
+              setAddressForm((prev) => ({
+                ...prev,
+                postalCode: e.target.value,
+              }))
+            }
+          />
+          <input
+            className="input-field"
+            placeholder="Phone"
+            value={addressForm.phone}
+            onChange={(e) =>
+              setAddressForm((prev) => ({ ...prev, phone: e.target.value }))
+            }
+          />
         </div>
         <label className="mt-3 inline-flex items-center gap-2 text-xs text-brand-muted">
           <input
             type="checkbox"
             checked={addressForm.isDefault}
-            onChange={(e) => setAddressForm((prev) => ({ ...prev, isDefault: e.target.checked }))}
+            onChange={(e) =>
+              setAddressForm((prev) => ({
+                ...prev,
+                isDefault: e.target.checked,
+              }))
+            }
             className="accent-brand-gold"
           />
           Set as default address
         </label>
         <div className="mt-4 flex flex-wrap gap-3">
-          <button type="button" disabled={addressSaving} onClick={saveAddress} className="btn-gold disabled:opacity-60">
-            {addressSaving ? "Saving…" : addressEditingId ? "Update Address" : "Save Address"}
+          <button
+            type="button"
+            disabled={addressSaving}
+            onClick={saveAddress}
+            className="btn-gold disabled:opacity-60"
+          >
+            {addressSaving
+              ? "Saving…"
+              : addressEditingId
+                ? "Update Address"
+                : "Save Address"}
           </button>
           {addressEditingId && (
-            <button type="button" onClick={resetAddressForm} className="btn-secondary">
+            <button
+              type="button"
+              onClick={resetAddressForm}
+              className="btn-secondary"
+            >
               Cancel
             </button>
           )}
         </div>
-        {addressMessage && <p className="mt-3 text-xs text-brand-gold">{addressMessage}</p>}
+        {addressMessage && (
+          <p className="mt-3 text-xs text-brand-gold">{addressMessage}</p>
+        )}
       </section>
 
-      <h2 className="mb-4 font-heading text-sm uppercase tracking-wider2">Order History</h2>
-      {orderMessage && <p className="mb-4 text-sm text-brand-gold">{orderMessage}</p>}
+      <h2 className="mb-4 font-heading text-sm uppercase tracking-wider2">
+        Order History
+      </h2>
+      {orderMessage && (
+        <p className="mb-4 text-sm text-brand-gold">{orderMessage}</p>
+      )}
       {orders.length === 0 ? (
         <p className="text-sm text-brand-muted">You have no orders yet.</p>
       ) : (
@@ -547,24 +762,51 @@ export default function AccountPage() {
             <article key={order.id} className="border border-brand-border">
               <div className="flex flex-col gap-3 border-b border-brand-border p-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <p className="font-mono text-xs text-brand-muted">#{order.id.slice(0, 8)}</p>
-                  <p className="text-xs text-brand-muted">{new Date(order.created_at).toLocaleString()}</p>
+                  <p className="font-mono text-xs text-brand-muted">
+                    #{order.id.slice(0, 8)}
+                  </p>
+                  <p className="text-xs text-brand-muted">
+                    {new Date(order.created_at).toLocaleString()}
+                  </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3 text-sm">
                   <span>
-                    {formatCustomerOrderStatusLabel(order.status, order.payment_status)}
-                    {hasPartialRefund(Number(order.total_amount), Number(order.refunded_amount || 0)) && (
-                      <span className="ml-2 text-xs text-brand-muted">(partial refund)</span>
+                    {formatCustomerOrderStatusLabel(
+                      order.status,
+                      order.payment_status,
                     )}
-                    {isFullyRefunded(Number(order.total_amount), Number(order.refunded_amount || 0)) && (
-                      <span className="ml-2 text-xs text-brand-muted">(fully refunded)</span>
+                    {hasPartialRefund(
+                      Number(order.total_amount),
+                      Number(order.refunded_amount || 0),
+                    ) && (
+                      <span className="ml-2 text-xs text-brand-muted">
+                        (partial refund)
+                      </span>
+                    )}
+                    {isFullyRefunded(
+                      Number(order.total_amount),
+                      Number(order.refunded_amount || 0),
+                    ) && (
+                      <span className="ml-2 text-xs text-brand-muted">
+                        (fully refunded)
+                      </span>
                     )}
                   </span>
-                  <span className="text-brand-gold">{formatFromUsd(order.total_amount)}</span>
-                  <button type="button" onClick={() => toggleOrder(order.id)} className="btn-secondary px-4 py-2">
+                  <span className="text-brand-gold">
+                    {formatFromUsd(order.total_amount)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => toggleOrder(order.id)}
+                    className="btn-secondary px-4 py-2"
+                  >
                     {expandedOrders[order.id] ? "Hide Details" : "View Details"}
                   </button>
-                  <button type="button" onClick={() => reorder(order)} className="btn-gold px-4 py-2">
+                  <button
+                    type="button"
+                    onClick={() => reorder(order)}
+                    className="btn-gold px-4 py-2"
+                  >
                     Reorder
                   </button>
                 </div>
@@ -584,11 +826,20 @@ export default function AccountPage() {
                       </thead>
                       <tbody>
                         {order.order_items.map((item) => (
-                          <tr key={item.id} className="border-b border-brand-border/40">
+                          <tr
+                            key={item.id}
+                            className="border-b border-brand-border/40"
+                          >
                             <td className="p-3">{item.product_name}</td>
                             <td className="p-3">{item.quantity}</td>
-                            <td className="p-3 text-right">{formatFromUsd(item.price_at_purchase)}</td>
-                            <td className="p-3 text-right">{formatFromUsd(item.price_at_purchase * item.quantity)}</td>
+                            <td className="p-3 text-right">
+                              {formatFromUsd(item.price_at_purchase)}
+                            </td>
+                            <td className="p-3 text-right">
+                              {formatFromUsd(
+                                item.price_at_purchase * item.quantity,
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -596,22 +847,44 @@ export default function AccountPage() {
                   </div>
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div className="border border-brand-border/60 p-3">
-                      <p className="mb-1 text-xs uppercase tracking-wider2 text-brand-muted">Shipping</p>
+                      <p className="mb-1 text-xs uppercase tracking-wider2 text-brand-muted">
+                        Shipping
+                      </p>
                       <p>{order.customer_name || "N/A"}</p>
-                      <p className="text-brand-muted">{order.customer_email || "N/A"}</p>
-                      <p className="mt-1 text-brand-muted">{formatAddress(order) || "N/A"}</p>
+                      <p className="text-brand-muted">
+                        {order.customer_email || "N/A"}
+                      </p>
+                      <p className="mt-1 text-brand-muted">
+                        {formatAddress(order) || "N/A"}
+                      </p>
                     </div>
                     <div className="border border-brand-border/60 p-3">
-                      <p className="mb-1 text-xs uppercase tracking-wider2 text-brand-muted">Payment & Totals</p>
+                      <p className="mb-1 text-xs uppercase tracking-wider2 text-brand-muted">
+                        Payment & Totals
+                      </p>
                       <p>Method: {paymentMethod(order)}</p>
                       {order.payment_status && (
-                        <p>Status: {order.payment_status.replace(/_/g, " ").toUpperCase()}</p>
+                        <p>
+                          Status:{" "}
+                          {order.payment_status
+                            .replace(/_/g, " ")
+                            .toUpperCase()}
+                        </p>
                       )}
                       {order.fulfillment_status && (
-                        <p>Fulfilment: {formatCustomerOrderStatusLabel(order.fulfillment_status)}</p>
+                        <p>
+                          Fulfilment:{" "}
+                          {formatCustomerOrderStatusLabel(
+                            order.fulfillment_status,
+                          )}
+                        </p>
                       )}
-                      <p>Shipping: {formatFromUsd(order.shipping_amount || 0)}</p>
-                      <p className="text-brand-gold">Total: {formatFromUsd(order.total_amount)}</p>
+                      <p>
+                        Shipping: {formatFromUsd(order.shipping_amount || 0)}
+                      </p>
+                      <p className="text-brand-gold">
+                        Total: {formatFromUsd(order.total_amount)}
+                      </p>
                     </div>
                   </div>
                 </div>

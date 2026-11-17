@@ -3,17 +3,28 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "@/app/api/admin/orders/needs-attention/route";
 import { POST as webhook } from "@/app/api/webhooks/airwallex/route";
 import { PROTECTED_ORDER_ALERT_EVENT } from "@/lib/payments/airwallex-orders";
-import { createCheckoutDb, dbError, setActiveDb, type MemoryDb } from "../helpers/memory-db";
+import {
+  createCheckoutDb,
+  dbError,
+  setActiveDb,
+  type MemoryDb,
+} from "../helpers/memory-db";
 
 vi.mock("@supabase/supabase-js", () => ({
   createClient: () => ({
     auth: {
       getUser: async (token: string) => {
         if (token === "shopper-token") {
-          return { data: { user: { email: "shopper@example.com" } }, error: null };
+          return {
+            data: { user: { email: "shopper@example.com" } },
+            error: null,
+          };
         }
         if (token === "admin-token") {
-          return { data: { user: { email: "admin@example.com" } }, error: null };
+          return {
+            data: { user: { email: "admin@example.com" } },
+            error: null,
+          };
         }
         return { data: { user: null }, error: { message: "invalid" } };
       },
@@ -53,7 +64,7 @@ function seedOrder(
     sales_channel?: string;
     customer_email?: string;
     refunded_amount?: number;
-  }
+  },
 ) {
   db.seed("orders", [
     {
@@ -88,7 +99,9 @@ describe("GET /api/admin/orders/needs-attention", () => {
   it("returns 401 without a bearer token and 403 for a non-admin", async () => {
     const missing = await GET(request());
     expect(missing.status).toBe(401);
-    expect(await missing.json()).toEqual({ error: "Missing authentication token" });
+    expect(await missing.json()).toEqual({
+      error: "Missing authentication token",
+    });
 
     const forbidden = await GET(request("Bearer shopper-token"));
     expect(forbidden.status).toBe(403);
@@ -191,7 +204,8 @@ describe("GET /api/admin/orders/needs-attention", () => {
       payment_status: "requires_payment_method",
       created_at: "2026-11-10T12:00:00.000Z",
     });
-    db.rowsOf("orders").find((row) => row.id === "order-padded")!.status = "Cancelled ";
+    db.rowsOf("orders").find((row) => row.id === "order-padded")!.status =
+      "Cancelled ";
     seedPayment(db, "order-padded");
     seedOrder(db, {
       id: "order-cancelled-unpaid",
@@ -280,7 +294,9 @@ describe("GET /api/admin/orders/needs-attention", () => {
       created_at: "2026-11-10T11:00:00.000Z",
     });
     seedPayment(db, "order-null-amount");
-    db.rowsOf("payments").find((row) => row.order_id === "order-null-amount")!.amount = null;
+    db
+      .rowsOf("payments")
+      .find((row) => row.order_id === "order-null-amount")!.amount = null;
     seedOrder(db, {
       id: "order-null-partial",
       status: "cancelled",
@@ -289,7 +305,9 @@ describe("GET /api/admin/orders/needs-attention", () => {
       created_at: "2026-11-10T12:00:00.000Z",
     });
     seedPayment(db, "order-null-partial");
-    db.rowsOf("payments").find((row) => row.order_id === "order-null-partial")!.amount = null;
+    db
+      .rowsOf("payments")
+      .find((row) => row.order_id === "order-null-partial")!.amount = null;
 
     const response = await GET(request("Bearer admin-token"));
     const body = await response.json();
@@ -334,9 +352,12 @@ describe("GET /api/admin/orders/needs-attention", () => {
       "order-paid-padded",
       "order-paid-here",
     ]);
-    expect(body.orders.every((order: { reason: string }) => order.reason === PROTECTED_ORDER_ALERT_EVENT)).toBe(
-      true
-    );
+    expect(
+      body.orders.every(
+        (order: { reason: string }) =>
+          order.reason === PROTECTED_ORDER_ALERT_EVENT,
+      ),
+    ).toBe(true);
   });
 
   it("limits the payments query to 101 rows", async () => {
@@ -379,7 +400,9 @@ describe("GET /api/admin/orders/needs-attention", () => {
     expect(body.truncated).toBe(true);
     expect(body.orders).toHaveLength(100);
     expect(body.orders[0].id).toBe("order-100");
-    expect(body.orders.map((order: { id: string }) => order.id)).not.toContain("order-000");
+    expect(body.orders.map((order: { id: string }) => order.id)).not.toContain(
+      "order-000",
+    );
   });
 
   it("does not let ordinary succeeded payments crowd a protected order out of the page", async () => {
@@ -400,14 +423,17 @@ describe("GET /api/admin/orders/needs-attention", () => {
       });
       seedPayment(db, id);
     }
-    db.rowsOf("orders").find((row) => row.id === "order-paid-000")!.status = "precancelled";
+    db.rowsOf("orders").find((row) => row.id === "order-paid-000")!.status =
+      "precancelled";
 
     const response = await GET(request("Bearer admin-token"));
     const body = await response.json();
 
     expect(response.status).toBe(200);
     expect(body.truncated).toBe(false);
-    expect(body.orders.map((order: { id: string }) => order.id)).toEqual(["order-closed"]);
+    expect(body.orders.map((order: { id: string }) => order.id)).toEqual([
+      "order-closed",
+    ]);
   });
 
   it("lists an inventory exception until the refund covers the order total", async () => {
@@ -438,17 +464,21 @@ describe("GET /api/admin/orders/needs-attention", () => {
       payment_status: "succeeded",
       created_at: "2026-11-10T11:00:00.000Z",
     });
-    db.rowsOf("orders").find((row) => row.id === "order-over")!.refunded_amount = 200;
+    db
+      .rowsOf("orders")
+      .find((row) => row.id === "order-over")!.refunded_amount = 200;
 
     const response = await GET(request("Bearer admin-token"));
     const body = await response.json();
 
     expect(response.status).toBe(200);
     expect(body.truncated).toBe(false);
-    expect(body.orders.map((order: { id: string; reason: string }) => ({
-      id: order.id,
-      reason: order.reason,
-    }))).toEqual([
+    expect(
+      body.orders.map((order: { id: string; reason: string }) => ({
+        id: order.id,
+        reason: order.reason,
+      })),
+    ).toEqual([
       { id: "order-partial", reason: "inventory_exception" },
       { id: "order-open", reason: "inventory_exception" },
     ]);
@@ -485,7 +515,9 @@ describe("GET /api/admin/orders/needs-attention", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.orders.map((order: { id: string }) => order.id)).toEqual(["order-test-open"]);
+    expect(body.orders.map((order: { id: string }) => order.id)).toEqual([
+      "order-test-open",
+    ]);
   });
 
   it("returns the 100 newest rows and sets truncated when more match", async () => {
@@ -507,7 +539,9 @@ describe("GET /api/admin/orders/needs-attention", () => {
     expect(body.orders).toHaveLength(100);
     expect(body.orders[0].id).toBe("order-100");
     expect(body.orders[99].id).toBe("order-001");
-    expect(body.orders.map((order: { id: string }) => order.id)).not.toContain("order-000");
+    expect(body.orders.map((order: { id: string }) => order.id)).not.toContain(
+      "order-000",
+    );
   });
 
   it("applies the 100-row limit after merging a protected payment with inventory exceptions", async () => {
@@ -536,7 +570,9 @@ describe("GET /api/admin/orders/needs-attention", () => {
     expect(body.orders).toHaveLength(100);
     expect(body.orders[0].id).toBe("order-protected");
     expect(body.orders[0].reason).toBe(PROTECTED_ORDER_ALERT_EVENT);
-    expect(body.orders.map((order: { id: string }) => order.id)).not.toContain("order-000");
+    expect(body.orders.map((order: { id: string }) => order.id)).not.toContain(
+      "order-000",
+    );
   });
 
   it("lists a cancelled order after the success webhook records the payment", async () => {
@@ -588,15 +624,20 @@ describe("GET /api/admin/orders/needs-attention", () => {
           "x-timestamp": timestamp,
         },
         body: raw,
-      })
+      }),
     );
     const listed = await GET(request("Bearer admin-token"));
     const body = await listed.json();
 
     expect(posted.status).toBe(200);
     expect(db.rowsOf("orders")[0].status).toBe("cancelled");
-    expect(db.rowsOf("orders")[0].payment_status).toBe("requires_payment_method");
-    expect(db.rowsOf("payments")[0]).toMatchObject({ status: "succeeded", amount: 115 });
+    expect(db.rowsOf("orders")[0].payment_status).toBe(
+      "requires_payment_method",
+    );
+    expect(db.rowsOf("payments")[0]).toMatchObject({
+      status: "succeeded",
+      amount: 115,
+    });
     expect(db.rowsOf("products")[0].stock_count).toBe(5);
     expect(body.orders).toEqual([
       {
@@ -614,7 +655,8 @@ describe("GET /api/admin/orders/needs-attention", () => {
 
   it("hides a payments query failure behind a generic body", async () => {
     const injected = dbError("payments-secret-xyz", "XX000");
-    db.failWhen = (table, op) => (table === "payments" && op === "select" ? injected : null);
+    db.failWhen = (table, op) =>
+      table === "payments" && op === "select" ? injected : null;
 
     const response = await GET(request("Bearer admin-token"));
     const body = await response.json();
@@ -628,7 +670,8 @@ describe("GET /api/admin/orders/needs-attention", () => {
   it("hides an orders query failure behind a generic body", async () => {
     const injected = dbError("orders-secret-xyz", "XX000");
     expect(injected instanceof Error).toBe(false);
-    db.failWhen = (table, op) => (table === "orders" && op === "select" ? injected : null);
+    db.failWhen = (table, op) =>
+      table === "orders" && op === "select" ? injected : null;
 
     const response = await GET(request("Bearer admin-token"));
     const body = await response.json();
@@ -648,7 +691,8 @@ describe("GET /api/admin/orders/needs-attention", () => {
       hint: null,
     });
     expect(injected instanceof Error).toBe(false);
-    db.failWhen = (table, op) => (table === "orders" && op === "select" ? injected : null);
+    db.failWhen = (table, op) =>
+      table === "orders" && op === "select" ? injected : null;
 
     const response = await GET(request("Bearer admin-token"));
     const body = await response.json();

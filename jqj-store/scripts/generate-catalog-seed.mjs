@@ -7,16 +7,21 @@ import { categories, products } from "../data/products.ts";
 const outputUrl = new URL("../supabase/seed.sql", import.meta.url);
 
 const text = (value) =>
-  value === null || value === undefined ? "null" : `'${String(value).replace(/'/g, "''")}'`;
+  value === null || value === undefined
+    ? "null"
+    : `'${String(value).replace(/'/g, "''")}'`;
 
 const number = (value) => {
   if (value === null || value === undefined) return "null";
-  if (!Number.isFinite(Number(value))) throw new Error(`Invalid number: ${value}`);
+  if (!Number.isFinite(Number(value)))
+    throw new Error(`Invalid number: ${value}`);
   return String(Number(value));
 };
 
 const textArray = (values) =>
-  values?.length ? `array[${values.map(text).join(", ")}]::text[]` : "'{}'::text[]";
+  values?.length
+    ? `array[${values.map(text).join(", ")}]::text[]`
+    : "'{}'::text[]";
 
 const json = (value) => `${text(JSON.stringify(value ?? {}))}::jsonb`;
 
@@ -31,16 +36,28 @@ function assertUnique(label, values) {
 const categorySlugs = new Set(categories.map((category) => category.slug));
 for (const product of products) {
   if (!categorySlugs.has(product.category)) {
-    throw new Error(`Product ${product.slug} uses unknown category ${product.category}`);
+    throw new Error(
+      `Product ${product.slug} uses unknown category ${product.category}`,
+    );
   }
 }
-assertUnique("product slug", products.map((product) => product.slug));
+assertUnique(
+  "product slug",
+  products.map((product) => product.slug),
+);
 assertUnique(
   "SKU",
-  products.flatMap((product) => [product.sku, ...(product.variants ?? []).map((variant) => variant.sku)]).filter(Boolean)
+  products
+    .flatMap((product) => [
+      product.sku,
+      ...(product.variants ?? []).map((variant) => variant.sku),
+    ])
+    .filter(Boolean),
 );
 
-const categoryRows = categories.map((category) => `  (${text(category.name)}, ${text(category.slug)})`);
+const categoryRows = categories.map(
+  (category) => `  (${text(category.name)}, ${text(category.slug)})`,
+);
 
 const productRows = products.map((product) =>
   [
@@ -59,7 +76,7 @@ const productRows = products.map((product) =>
     text(product.stone),
     textArray(product.features),
     json(product.specs),
-  ].join(", ")
+  ].join(", "),
 );
 
 const variantRows = products.flatMap((product) =>
@@ -70,8 +87,8 @@ const variantRows = products.flatMap((product) =>
       text(variant.material ?? null),
       text(variant.sku),
       number(variant.stockCount),
-    ].join(", ")
-  )
+    ].join(", "),
+  ),
 );
 
 const sql = `-- JQD store — catalog seed.
@@ -123,5 +140,5 @@ commit;
 
 writeFileSync(outputUrl, sql);
 console.log(
-  `Wrote supabase/seed.sql: ${categories.length} categories, ${products.length} products, ${variantRows.length} variants`
+  `Wrote supabase/seed.sql: ${categories.length} categories, ${products.length} products, ${variantRows.length} variants`,
 );

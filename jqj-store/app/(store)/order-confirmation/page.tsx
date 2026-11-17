@@ -54,7 +54,10 @@ function Confirmation() {
       }
 
       if (data.failed) {
-        if (data.paymentStatus === "cancelled" || data.paymentStatus === "abandoned") {
+        if (
+          data.paymentStatus === "cancelled" ||
+          data.paymentStatus === "abandoned"
+        ) {
           setStatus("cancelled");
           return;
         }
@@ -72,7 +75,7 @@ function Confirmation() {
 
       setStatus("pending");
     },
-    [clearCart, intentId]
+    [clearCart, intentId],
   );
 
   useEffect(() => {
@@ -113,7 +116,15 @@ function Confirmation() {
     }
 
     setStatus("error");
-  }, [sessionId, codOrderId, method, provider, returnState, verifyAirwallexOrder, clearCart]);
+  }, [
+    sessionId,
+    codOrderId,
+    method,
+    provider,
+    returnState,
+    verifyAirwallexOrder,
+    clearCart,
+  ]);
 
   if (status === "loading") {
     return (
@@ -128,13 +139,19 @@ function Confirmation() {
   if (status === "pending") {
     return (
       <div className="text-center">
-        <h1 className="font-heading text-2xl uppercase tracking-wider2">Payment verification pending</h1>
+        <h1 className="font-heading text-2xl uppercase tracking-wider2">
+          Payment verification pending
+        </h1>
         <p className="mt-3 text-sm text-brand-muted">
-          We received your return from Airwallex, but payment confirmation is still pending.
+          We received your return from Airwallex, but payment confirmation is
+          still pending.
         </p>
         <p className="mt-2 text-xs text-brand-muted">
           If this status does not update after a few minutes, contact{" "}
-          <a className="text-brand-gold underline" href="mailto:support@jqdgroup.com">
+          <a
+            className="text-brand-gold underline"
+            href="mailto:support@jqdgroup.com"
+          >
             support@jqdgroup.com
           </a>{" "}
           and include your order reference.
@@ -151,7 +168,9 @@ function Confirmation() {
             onClick={() => {
               if (orderId) {
                 setStatus("loading");
-                void verifyAirwallexOrder(orderId).catch(() => setStatus("error"));
+                void verifyAirwallexOrder(orderId).catch(() =>
+                  setStatus("error"),
+                );
               }
             }}
           >
@@ -183,7 +202,10 @@ function Confirmation() {
         {(status === "failed" || status === "cancelled") && (
           <p className="mt-2 text-xs text-brand-muted">
             If you continue to have issues, contact{" "}
-            <a className="text-brand-gold underline" href="mailto:support@jqdgroup.com">
+            <a
+              className="text-brand-gold underline"
+              href="mailto:support@jqdgroup.com"
+            >
               support@jqdgroup.com
             </a>{" "}
             and include your order reference.
@@ -201,7 +223,9 @@ function Confirmation() {
               className="btn-secondary"
               onClick={() => {
                 setStatus("loading");
-                void verifyAirwallexOrder(orderId).catch(() => setStatus("error"));
+                void verifyAirwallexOrder(orderId).catch(() =>
+                  setStatus("error"),
+                );
               }}
             >
               Re-check Status
@@ -218,7 +242,9 @@ function Confirmation() {
   return (
     <div className="text-center">
       <CheckCircle2 className="mx-auto h-14 w-14 text-brand-gold" />
-      <h1 className="mt-6 font-heading text-2xl uppercase tracking-wider2">Thank you for your order</h1>
+      <h1 className="mt-6 font-heading text-2xl uppercase tracking-wider2">
+        Thank you for your order
+      </h1>
       <p className="mt-3 text-sm text-brand-muted">
         {method === "cod"
           ? "Your Cash on Delivery order has been placed."
@@ -235,8 +261,12 @@ function Confirmation() {
         A confirmation email is on its way to your inbox.
       </p>
       <div className="mt-8 flex justify-center gap-4">
-        <Link href="/new" className="btn-secondary">Continue Shopping</Link>
-        <Link href="/account" className="btn-gold">View Orders</Link>
+        <Link href="/new" className="btn-secondary">
+          Continue Shopping
+        </Link>
+        <Link href="/account" className="btn-gold">
+          View Orders
+        </Link>
       </div>
     </div>
   );

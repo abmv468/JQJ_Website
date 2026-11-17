@@ -7,11 +7,11 @@
   --bg: #010101;
   --surface: #0c0c0c;
   --card: #141414;
-  --gold: #BB9D7B;
-  --gold-light: #E1C19D;
-  --border: #3E3E3E;
+  --gold: #bb9d7b;
+  --gold-light: #e1c19d;
+  --border: #3e3e3e;
   --muted: #8a8174;
-  --text: #F3F0EA;
+  --text: #f3f0ea;
   --font-heading: var(--font-auth-heading), "Instrument Sans", sans-serif;
   --font-body: var(--font-auth-body), "Manrope", sans-serif;
   --font-zh: var(--font-auth-zh), "Noto Serif CJK TC", serif;
@@ -41,7 +41,7 @@
 }
 
 .jq-admin :where(a, button, input, textarea, select):focus-visible {
-  outline: 2px solid #E1C19D;
+  outline: 2px solid #e1c19d;
   outline-offset: 3px;
 }
 
@@ -50,12 +50,18 @@
 }
 
 @keyframes jq-admin-fade {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .jq-admin .fade-in { animation: none; }
+  .jq-admin .fade-in {
+    animation: none;
+  }
   .jq-admin .btn-primary,
   .jq-admin .nav-btn,
   .jq-admin .text-btn {
@@ -147,7 +153,9 @@
   color: var(--muted);
   cursor: pointer;
   white-space: nowrap;
-  transition: color 180ms ease, border-color 180ms ease;
+  transition:
+    color 180ms ease,
+    border-color 180ms ease;
 }
 
 .jq-admin .nav-btn.is-active {
@@ -215,7 +223,10 @@
   text-transform: uppercase;
   text-decoration: none;
   cursor: pointer;
-  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease;
 }
 
 .jq-admin .btn-primary:disabled {

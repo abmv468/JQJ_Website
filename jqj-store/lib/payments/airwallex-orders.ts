@@ -13,13 +13,7 @@ import {
   type InternalPaymentStatus,
 } from "@/lib/payments/airwallex";
 
-type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json }
-  | Json[];
+type Json = string | number | boolean | null | { [key: string]: Json } | Json[];
 
 interface PaymentRow {
   id: string;
@@ -111,7 +105,7 @@ export function reportPaymentAfterExpiryUnfulfilled(input: {
       tag: "jqd_alert",
       event: PAYMENT_AFTER_EXPIRY_UNFULFILLED_EVENT,
       orderId: input.orderId,
-    })
+    }),
   );
 }
 
@@ -125,12 +119,13 @@ export function reportPaidClaimLost(orderId: string) {
       tag: "jqd_alert",
       event: PAID_CLAIM_LOST_EVENT,
       orderId,
-    })
+    }),
   );
 }
 
 /** Stable event for a terminal payment on a cancelled or test order. Ids only. */
-export const PAYMENT_ON_PROTECTED_ORDER_EVENT = "airwallex.payment_on_protected_order";
+export const PAYMENT_ON_PROTECTED_ORDER_EVENT =
+  "airwallex.payment_on_protected_order";
 export const PROTECTED_ORDER_ALERT_EVENT = "payment_on_protected_order";
 
 export type ProtectedOrderReason = "cancelled" | "test";
@@ -148,7 +143,9 @@ export function protectedOrderReason(order: {
   status?: string | null;
   sales_channel?: string | null;
 }): ProtectedOrderReason {
-  return (order.status ?? "").trim().toLowerCase() === "cancelled" ? "cancelled" : "test";
+  return (order.status ?? "").trim().toLowerCase() === "cancelled"
+    ? "cancelled"
+    : "test";
 }
 
 export function reportPaymentOnProtectedOrder(input: {
@@ -210,23 +207,33 @@ function shouldApplyPaymentStatusTransition(
   currentStatus: InternalPaymentStatus,
   nextStatus: InternalPaymentStatus,
   currentEventCreatedAt: string | null,
-  nextEventCreatedAt: string | null
+  nextEventCreatedAt: string | null,
 ) {
   if (currentStatus === nextStatus) return true;
   if (currentStatus === "succeeded" && nextStatus !== "succeeded") return false;
 
   const currentEventAt = toIso(currentEventCreatedAt);
   const nextEventAt = toIso(nextEventCreatedAt);
-  if (currentEventAt && nextEventAt && Date.parse(nextEventAt) < Date.parse(currentEventAt)) {
-    if (nextStatus === "succeeded" && currentStatus !== "succeeded") return true;
+  if (
+    currentEventAt &&
+    nextEventAt &&
+    Date.parse(nextEventAt) < Date.parse(currentEventAt)
+  ) {
+    if (nextStatus === "succeeded" && currentStatus !== "succeeded")
+      return true;
     return false;
   }
 
-  if (isTerminalFailedPaymentStatus(currentStatus) && isPendingPaymentStatus(nextStatus)) {
+  if (
+    isTerminalFailedPaymentStatus(currentStatus) &&
+    isPendingPaymentStatus(nextStatus)
+  ) {
     return false;
   }
 
-  return PAYMENT_STATUS_WEIGHT[nextStatus] >= PAYMENT_STATUS_WEIGHT[currentStatus];
+  return (
+    PAYMENT_STATUS_WEIGHT[nextStatus] >= PAYMENT_STATUS_WEIGHT[currentStatus]
+  );
 }
 
 function normalizeFulfillmentStatus(status: string | null | undefined) {
@@ -236,17 +243,29 @@ function normalizeFulfillmentStatus(status: string | null | undefined) {
 
 function deriveOrderStatusForPayment(
   order: OrderRow,
-  nextPaymentStatus: InternalPaymentStatus
-): Pick<OrderRow, "status" | "fulfillment_status" | "payment_status" | "paid_at"> {
+  nextPaymentStatus: InternalPaymentStatus,
+): Pick<
+  OrderRow,
+  "status" | "fulfillment_status" | "payment_status" | "paid_at"
+> {
   const existingOrderStatus = normalizeFulfillmentStatus(order.status);
-  const existingFulfillment = normalizeFulfillmentStatus(order.fulfillment_status);
+  const existingFulfillment = normalizeFulfillmentStatus(
+    order.fulfillment_status,
+  );
   const existingPaidAt = order.paid_at;
 
-  const immutableFulfillmentStates = new Set(["packed", "shipped", "delivered", "refunded"]);
+  const immutableFulfillmentStates = new Set([
+    "packed",
+    "shipped",
+    "delivered",
+    "refunded",
+  ]);
 
   if (isSuccessfulPaymentStatus(nextPaymentStatus)) {
     return {
-      status: immutableFulfillmentStates.has(existingOrderStatus) ? existingOrderStatus : "paid",
+      status: immutableFulfillmentStates.has(existingOrderStatus)
+        ? existingOrderStatus
+        : "paid",
       fulfillment_status: immutableFulfillmentStates.has(existingFulfillment)
         ? existingFulfillment
         : "paid",
@@ -257,7 +276,9 @@ function deriveOrderStatusForPayment(
 
   if (isTerminalFailedPaymentStatus(nextPaymentStatus)) {
     return {
-      status: immutableFulfillmentStates.has(existingOrderStatus) ? existingOrderStatus : "failed",
+      status: immutableFulfillmentStates.has(existingOrderStatus)
+        ? existingOrderStatus
+        : "failed",
       fulfillment_status: immutableFulfillmentStates.has(existingFulfillment)
         ? existingFulfillment
         : "payment_failed",
@@ -267,7 +288,9 @@ function deriveOrderStatusForPayment(
   }
 
   return {
-    status: immutableFulfillmentStates.has(existingOrderStatus) ? existingOrderStatus : "pending",
+    status: immutableFulfillmentStates.has(existingOrderStatus)
+      ? existingOrderStatus
+      : "pending",
     fulfillment_status: immutableFulfillmentStates.has(existingFulfillment)
       ? existingFulfillment
       : "pending_payment",
@@ -276,7 +299,10 @@ function deriveOrderStatusForPayment(
   };
 }
 
-async function getOrderItemReservations(supabase: SupabaseClient, orderId: string) {
+async function getOrderItemReservations(
+  supabase: SupabaseClient,
+  orderId: string,
+) {
   const { data, error } = await supabase
     .from("order_items")
     .select("product_id, variant_id, quantity")
@@ -289,7 +315,10 @@ async function getOrderItemReservations(supabase: SupabaseClient, orderId: strin
     quantity: number;
   }>;
 
-  const aggregate = new Map<string, { product_id: string; variant_id: string | null; quantity: number }>();
+  const aggregate = new Map<
+    string,
+    { product_id: string; variant_id: string | null; quantity: number }
+  >();
   for (const row of rows) {
     if (!row.product_id) continue;
     const quantity = Math.max(0, Math.floor(Number(row.quantity) || 0));
@@ -312,7 +341,9 @@ async function getOrderItemReservations(supabase: SupabaseClient, orderId: strin
 function orderReleasedByExpiry(order: OrderRow) {
   // Any unreserved order that is not already paid. Abandoned is the sweep's
   // status, but failed (and other unpaid statuses) can also hold no stock.
-  return order.inventory_reserved !== true && order.payment_status !== "succeeded";
+  return (
+    order.inventory_reserved !== true && order.payment_status !== "succeeded"
+  );
 }
 
 function errorText(error: unknown) {
@@ -333,7 +364,7 @@ function isUnavailableStock(error: unknown) {
 async function readStockCount(
   supabase: SupabaseClient,
   table: "products" | "product_variants",
-  id: string
+  id: string,
 ) {
   const { data, error } = await supabase
     .from(table)
@@ -347,7 +378,11 @@ async function readStockCount(
 
 async function measureStockShortfall(
   supabase: SupabaseClient,
-  lines: Array<{ product_id: string; variant_id: string | null; quantity: number }>
+  lines: Array<{
+    product_id: string;
+    variant_id: string | null;
+    quantity: number;
+  }>,
 ): Promise<PaymentAfterExpiryShortfall[]> {
   const shortfall: PaymentAfterExpiryShortfall[] = [];
   for (const line of lines) {
@@ -377,7 +412,7 @@ async function flagPaymentAfterExpiry(
     currentStatus: InternalPaymentStatus;
     now: string;
     shortfall: PaymentAfterExpiryShortfall[];
-  }
+  },
 ) {
   let flagUpdate = supabase
     .from("orders")
@@ -394,7 +429,9 @@ async function flagPaymentAfterExpiry(
     input.order.payment_status == null
       ? flagUpdate.is("payment_status", null)
       : flagUpdate.eq("payment_status", input.order.payment_status);
-  const { data: flagged, error: flagError } = await flagUpdate.select("id").maybeSingle();
+  const { data: flagged, error: flagError } = await flagUpdate
+    .select("id")
+    .maybeSingle();
   if (flagError) throw flagError;
   if (!flagged) {
     throw new Error("Inventory exception was not recorded");
@@ -430,7 +467,10 @@ async function flagPaymentAfterExpiry(
   };
 }
 
-async function restoreInventoryForOrder(supabase: SupabaseClient, orderId: string) {
+async function restoreInventoryForOrder(
+  supabase: SupabaseClient,
+  orderId: string,
+) {
   const reservations = await getOrderItemReservations(supabase, orderId);
   if (!reservations.length) return;
 
@@ -458,7 +498,7 @@ export async function releaseOrderReservation(
     product_id: string;
     variant_id: string | null;
     quantity: number;
-  }>
+  }>,
 ) {
   const { data: order, error: orderError } = await supabase
     .from("orders")
@@ -466,7 +506,11 @@ export async function releaseOrderReservation(
     .eq("id", orderId)
     .maybeSingle();
   if (orderError) throw orderError;
-  if (!order || order.payment_status === "succeeded" || order.inventory_reserved !== true) {
+  if (
+    !order ||
+    order.payment_status === "succeeded" ||
+    order.inventory_reserved !== true
+  ) {
     return { released: false as const };
   }
 
@@ -488,17 +532,24 @@ export async function releaseOrderReservation(
   });
   if (error) throw error;
 
-  const result = (data ?? []) as Array<{ success: boolean; was_reserved?: boolean; message: string }>;
+  const result = (data ?? []) as Array<{
+    success: boolean;
+    was_reserved?: boolean;
+    message: string;
+  }>;
   const failed = result.find((entry) => !entry.success);
   if (failed) throw new Error(failed.message || "Failed to restore inventory");
   return { released: Boolean(result[0]?.was_reserved) as boolean };
 }
 
-async function sendOrderEmailsIfNeeded(supabase: SupabaseClient, orderId: string) {
+async function sendOrderEmailsIfNeeded(
+  supabase: SupabaseClient,
+  orderId: string,
+) {
   const { data, error } = await supabase
     .from("orders")
     .select(
-      "id, customer_name, customer_email, subtotal_amount, shipping_amount, total_amount, currency, shipping_address, confirmation_email_sent_at, order_items(product_name, quantity, variant_size, variant_material, price_at_purchase)"
+      "id, customer_name, customer_email, subtotal_amount, shipping_amount, total_amount, currency, shipping_address, confirmation_email_sent_at, order_items(product_name, quantity, variant_size, variant_material, price_at_purchase)",
     )
     .eq("id", orderId)
     .single();
@@ -511,11 +562,19 @@ async function sendOrderEmailsIfNeeded(supabase: SupabaseClient, orderId: string
 
   const shippingAddress = order.shipping_address ?? {};
   const address =
-    typeof shippingAddress.address === "string" ? shippingAddress.address : "Address unavailable";
-  const apartment = typeof shippingAddress.apartment === "string" ? shippingAddress.apartment : "";
-  const city = typeof shippingAddress.city === "string" ? shippingAddress.city : "";
-  const region = typeof shippingAddress.region === "string" ? shippingAddress.region : "";
-  const country = typeof shippingAddress.country === "string" ? shippingAddress.country : "";
+    typeof shippingAddress.address === "string"
+      ? shippingAddress.address
+      : "Address unavailable";
+  const apartment =
+    typeof shippingAddress.apartment === "string"
+      ? shippingAddress.apartment
+      : "";
+  const city =
+    typeof shippingAddress.city === "string" ? shippingAddress.city : "";
+  const region =
+    typeof shippingAddress.region === "string" ? shippingAddress.region : "";
+  const country =
+    typeof shippingAddress.country === "string" ? shippingAddress.country : "";
 
   await sendOrderEmails({
     orderId: order.id,
@@ -524,7 +583,7 @@ async function sendOrderEmailsIfNeeded(supabase: SupabaseClient, orderId: string
     items: (order.order_items ?? []).map((item) => ({
       name:
         item.product_name +
-        ((item.variant_size || item.variant_material)
+        (item.variant_size || item.variant_material
           ? ` (${[item.variant_size, item.variant_material].filter(Boolean).join(" / ")})`
           : ""),
       quantity: item.quantity,
@@ -533,8 +592,10 @@ async function sendOrderEmailsIfNeeded(supabase: SupabaseClient, orderId: string
     subtotal:
       toNumber(order.subtotal_amount) ||
       (order.order_items ?? []).reduce(
-        (sum, item) => sum + Number(item.price_at_purchase || 0) * Number(item.quantity || 0),
-        0
+        (sum, item) =>
+          sum +
+          Number(item.price_at_purchase || 0) * Number(item.quantity || 0),
+        0,
       ),
     shipping: toNumber(order.shipping_amount),
     total: toNumber(order.total_amount),
@@ -559,12 +620,12 @@ async function sendOrderEmailsIfNeeded(supabase: SupabaseClient, orderId: string
 
 export async function findAirwallexPaymentByIntent(
   supabase: SupabaseClient,
-  paymentIntentId: string
+  paymentIntentId: string,
 ) {
   const { data, error } = await supabase
     .from("payments")
     .select(
-      "id, order_id, provider, provider_payment_intent_id, provider_request_id, status, amount, currency, last_event_created_at"
+      "id, order_id, provider, provider_payment_intent_id, provider_request_id, status, amount, currency, last_event_created_at",
     )
     .eq("provider", AIRWALLEX_PROVIDER)
     .eq("provider_payment_intent_id", paymentIntentId)
@@ -579,16 +640,21 @@ export async function upsertAirwallexPaymentIntent(
     orderId: string;
     requestId: string;
     intent: AirwallexPaymentIntent;
-  }
+  },
 ) {
   const now = new Date().toISOString();
   const amount = toNumber(input.intent.amount);
   const normalizedStatus = normalizeAirwallexPaymentStatus(input.intent.status);
-  const existing = await findAirwallexPaymentByIntent(supabase, input.intent.id);
+  const existing = await findAirwallexPaymentByIntent(
+    supabase,
+    input.intent.id,
+  );
   if (
     existing &&
     (existing.order_id !== input.orderId ||
-      isSuccessfulPaymentStatus(normalizeAirwallexPaymentStatus(existing.status)))
+      isSuccessfulPaymentStatus(
+        normalizeAirwallexPaymentStatus(existing.status),
+      ))
   ) {
     // Keep the original order and a paid row. A second checkout must not move the intent.
     return existing;
@@ -638,12 +704,12 @@ export async function applyAirwallexPaymentIntentStatus(
     providerEventCreatedAt?: string | null;
     force?: boolean;
     amount?: number | string | null;
-  }
+  },
 ) {
   const { data: paymentData, error: paymentError } = await supabase
     .from("payments")
     .select(
-      "id, order_id, provider, provider_payment_intent_id, provider_request_id, status, amount, currency, last_event_created_at"
+      "id, order_id, provider, provider_payment_intent_id, provider_request_id, status, amount, currency, last_event_created_at",
     )
     .eq("provider", AIRWALLEX_PROVIDER)
     .eq("provider_payment_intent_id", input.paymentIntentId)
@@ -665,7 +731,9 @@ export async function applyAirwallexPaymentIntentStatus(
   if (protectedError) throw protectedError;
   if (protectedRow && isProtectedOrder(protectedRow)) {
     if (isSuccessfulPaymentStatus(input.nextStatus)) {
-      const amount = capturedPaymentAmount(input.amount == null ? payment.amount : input.amount);
+      const amount = capturedPaymentAmount(
+        input.amount == null ? payment.amount : input.amount,
+      );
       const { data: recorded, error: recordError } = await supabase
         .from("payments")
         .update({
@@ -685,11 +753,14 @@ export async function applyAirwallexPaymentIntentStatus(
             event: PROTECTED_ORDER_ALERT_EVENT,
             orderId: protectedRow.id,
             kind: input.nextStatus === "succeeded" ? "succeeded" : "failed",
-          })
+          }),
         );
       }
     }
-    if (isSuccessfulPaymentStatus(input.nextStatus) || isTerminalFailedPaymentStatus(input.nextStatus)) {
+    if (
+      isSuccessfulPaymentStatus(input.nextStatus) ||
+      isTerminalFailedPaymentStatus(input.nextStatus)
+    ) {
       reportPaymentOnProtectedOrder({
         orderId: protectedRow.id,
         paymentIntentId: input.paymentIntentId,
@@ -697,12 +768,20 @@ export async function applyAirwallexPaymentIntentStatus(
         reason: protectedOrderReason(protectedRow),
       });
     }
-    return { applied: false, reason: "protected_order" as const, orderId: protectedRow.id };
+    return {
+      applied: false,
+      reason: "protected_order" as const,
+      orderId: protectedRow.id,
+    };
   }
 
   if (isSuccessfulPaymentStatus(currentStatus)) {
     if (!isSuccessfulPaymentStatus(input.nextStatus)) {
-      return { applied: false, reason: "already_succeeded" as const, orderId: payment.order_id };
+      return {
+        applied: false,
+        reason: "already_succeeded" as const,
+        orderId: payment.order_id,
+      };
     }
     const { data: paidOrder, error: paidOrderError } = await supabase
       .from("orders")
@@ -711,7 +790,11 @@ export async function applyAirwallexPaymentIntentStatus(
       .maybeSingle();
     if (paidOrderError) throw paidOrderError;
     if (paidOrder?.payment_status === "succeeded") {
-      return { applied: false, reason: "already_succeeded" as const, orderId: payment.order_id };
+      return {
+        applied: false,
+        reason: "already_succeeded" as const,
+        orderId: payment.order_id,
+      };
     }
   }
 
@@ -721,11 +804,15 @@ export async function applyAirwallexPaymentIntentStatus(
       currentStatus,
       input.nextStatus,
       payment.last_event_created_at,
-      input.providerEventCreatedAt ?? null
+      input.providerEventCreatedAt ?? null,
     );
 
   if (!shouldApply) {
-    return { applied: false, reason: "ignored_transition" as const, orderId: payment.order_id };
+    return {
+      applied: false,
+      reason: "ignored_transition" as const,
+      orderId: payment.order_id,
+    };
   }
 
   const now = new Date().toISOString();
@@ -734,7 +821,7 @@ export async function applyAirwallexPaymentIntentStatus(
   const { data: orderData, error: orderError } = await supabase
     .from("orders")
     .select(
-      "id, status, sales_channel, fulfillment_status, payment_status, inventory_reserved, paid_at, updated_at, total_amount, refunded_amount"
+      "id, status, sales_channel, fulfillment_status, payment_status, inventory_reserved, paid_at, updated_at, total_amount, refunded_amount",
     )
     .eq("id", payment.order_id)
     .single();
@@ -754,7 +841,9 @@ export async function applyAirwallexPaymentIntentStatus(
       }
     }
     if (stockShort) {
-      const shortfall = lines.length ? await measureStockShortfall(supabase, lines) : [];
+      const shortfall = lines.length
+        ? await measureStockShortfall(supabase, lines)
+        : [];
       return flagPaymentAfterExpiry(supabase, {
         order,
         payment,
@@ -804,11 +893,15 @@ export async function applyAirwallexPaymentIntentStatus(
     // Compare-and-set on the reservation flag and the payment_status we read.
     // A restore that wins between this read and the write clears the flag, so
     // the paid update matches 0 rows instead of marking a paid order with no stock.
-    const expectReserved = reReservedThisCall || order.inventory_reserved === true;
+    const expectReserved =
+      reReservedThisCall || order.inventory_reserved === true;
     const alreadyRecordedPaid = order.payment_status === "succeeded";
     let claimedOrder: { id: string } | null = null;
     if (!alreadyRecordedPaid) {
-      let paidUpdate = supabase.from("orders").update(orderPatch).eq("id", order.id);
+      let paidUpdate = supabase
+        .from("orders")
+        .update(orderPatch)
+        .eq("id", order.id);
       if (expectReserved) {
         paidUpdate = paidUpdate.eq("inventory_reserved", true);
         paidUpdate =
@@ -816,7 +909,9 @@ export async function applyAirwallexPaymentIntentStatus(
             ? paidUpdate.is("payment_status", null)
             : paidUpdate.eq("payment_status", order.payment_status);
       } else {
-        paidUpdate = paidUpdate.or("payment_status.is.null,payment_status.neq.succeeded");
+        paidUpdate = paidUpdate.or(
+          "payment_status.is.null,payment_status.neq.succeeded",
+        );
       }
       const paidResult = await paidUpdate.select("id").maybeSingle();
       if (paidResult.error) throw paidResult.error;
@@ -826,7 +921,9 @@ export async function applyAirwallexPaymentIntentStatus(
     if (!claimedOrder && expectReserved) {
       const { data: freshOrder, error: freshError } = await supabase
         .from("orders")
-        .select("id, status, fulfillment_status, payment_status, inventory_reserved, paid_at")
+        .select(
+          "id, status, fulfillment_status, payment_status, inventory_reserved, paid_at",
+        )
         .eq("id", order.id)
         .maybeSingle();
       if (freshError) throw freshError;
@@ -838,7 +935,8 @@ export async function applyAirwallexPaymentIntentStatus(
         inventory_reserved: boolean | null;
         paid_at: string | null;
       } | null;
-      const alreadyPaid = fresh?.payment_status === "succeeded" || fresh?.status === "paid";
+      const alreadyPaid =
+        fresh?.payment_status === "succeeded" || fresh?.status === "paid";
       if (fresh && !alreadyPaid && fresh.inventory_reserved !== true) {
         const lines = await getOrderItemReservations(supabase, order.id);
         let stockShort = lines.length === 0;
@@ -851,7 +949,9 @@ export async function applyAirwallexPaymentIntentStatus(
           }
         }
         if (stockShort) {
-          const shortfall = lines.length ? await measureStockShortfall(supabase, lines) : [];
+          const shortfall = lines.length
+            ? await measureStockShortfall(supabase, lines)
+            : [];
           return flagPaymentAfterExpiry(supabase, {
             order: { ...order, ...fresh },
             payment,
@@ -965,7 +1065,10 @@ export async function applyAirwallexPaymentIntentStatus(
       .eq("id", order.id)
       .maybeSingle();
     if (rereadError) throw rereadError;
-    if (currentOrder?.payment_status === "succeeded" || order.payment_status === "succeeded") {
+    if (
+      currentOrder?.payment_status === "succeeded" ||
+      order.payment_status === "succeeded"
+    ) {
       const { error: reconcileError } = await supabase
         .from("payments")
         .update({
@@ -982,19 +1085,29 @@ export async function applyAirwallexPaymentIntentStatus(
     }
   }
 
-  if (guardedOrder && isTerminalFailedPaymentStatus(input.nextStatus) && order.inventory_reserved) {
+  if (
+    guardedOrder &&
+    isTerminalFailedPaymentStatus(input.nextStatus) &&
+    order.inventory_reserved
+  ) {
     await restoreInventoryForOrder(supabase, order.id);
   }
 
   return { applied: true, orderId: order.id };
 }
 
-function shouldApplyRefundTransition(currentStatus: string | null, nextStatus: string) {
+function shouldApplyRefundTransition(
+  currentStatus: string | null,
+  nextStatus: string,
+) {
   if (!currentStatus) return true;
   const current = currentStatus.toLowerCase();
   if (current === nextStatus) return true;
   if (current === "settled" && nextStatus !== "settled") return false;
-  return (REFUND_STATUS_WEIGHT[nextStatus] ?? 0) >= (REFUND_STATUS_WEIGHT[current] ?? 0);
+  return (
+    (REFUND_STATUS_WEIGHT[nextStatus] ?? 0) >=
+    (REFUND_STATUS_WEIGHT[current] ?? 0)
+  );
 }
 
 function mapRefundStatusFromEventName(eventName: string) {
@@ -1019,11 +1132,12 @@ export async function applyAirwallexRefundEvent(
     refundObject: Record<string, unknown>;
     providerEventId?: string | null;
     providerEventCreatedAt?: string | null;
-  }
+  },
 ) {
   // Refunds are intentionally allowed on cancelled or test orders,
   // because a refund after a cancel is the normal path.
-  const refundId = typeof input.refundObject.id === "string" ? input.refundObject.id : null;
+  const refundId =
+    typeof input.refundObject.id === "string" ? input.refundObject.id : null;
   const paymentIntentId =
     typeof input.refundObject.payment_intent_id === "string"
       ? input.refundObject.payment_intent_id
@@ -1044,8 +1158,11 @@ export async function applyAirwallexRefundEvent(
   }
 
   const statusFromPayload =
-    typeof input.refundObject.status === "string" ? input.refundObject.status : null;
-  const normalizedRefundStatus = normalizeAirwallexRefundStatus(statusFromPayload).toLowerCase();
+    typeof input.refundObject.status === "string"
+      ? input.refundObject.status
+      : null;
+  const normalizedRefundStatus =
+    normalizeAirwallexRefundStatus(statusFromPayload).toLowerCase();
   const eventStatus = mapRefundStatusFromEventName(input.eventName);
   const nextStatus =
     normalizedRefundStatus !== "pending" ? normalizedRefundStatus : eventStatus;
@@ -1077,9 +1194,13 @@ export async function applyAirwallexRefundEvent(
     provider_refund_id: refundId,
     amount: refundAmount,
     currency: currency.toUpperCase(),
-    reason: typeof input.refundObject.reason === "string" ? input.refundObject.reason : null,
+    reason:
+      typeof input.refundObject.reason === "string"
+        ? input.refundObject.reason
+        : null,
     status: nextStatus,
-    settled_at: nextStatus === "settled" ? now : existingRefund?.settled_at ?? null,
+    settled_at:
+      nextStatus === "settled" ? now : (existingRefund?.settled_at ?? null),
     metadata: input.refundObject as unknown as Json,
     updated_at: now,
   };
@@ -1089,7 +1210,8 @@ export async function applyAirwallexRefundEvent(
     .upsert(payload, { onConflict: "provider,provider_refund_id" });
   if (upsertError) throw upsertError;
 
-  const transitionedToSettled = nextStatus === "settled" && currentStatus !== "settled";
+  const transitionedToSettled =
+    nextStatus === "settled" && currentStatus !== "settled";
   if (transitionedToSettled) {
     const { data: orderData, error: orderError } = await supabase
       .from("orders")
@@ -1100,7 +1222,10 @@ export async function applyAirwallexRefundEvent(
 
     const totalAmount = toNumber(orderData.total_amount);
     const currentRefundedAmount = toNumber(orderData.refunded_amount);
-    const nextRefundedAmount = Math.min(totalAmount, currentRefundedAmount + refundAmount);
+    const nextRefundedAmount = Math.min(
+      totalAmount,
+      currentRefundedAmount + refundAmount,
+    );
     const fullyRefunded = totalAmount > 0 && nextRefundedAmount >= totalAmount;
     const orderPatch: {
       refunded_amount: number;
@@ -1122,11 +1247,16 @@ export async function applyAirwallexRefundEvent(
       .eq("id", paymentData.order_id);
     if (updateOrderError) throw updateOrderError;
 
-    const { error: insertLegacyRefundError } = await supabase.from("order_refunds").insert({
-      order_id: paymentData.order_id,
-      amount: refundAmount,
-      reason: typeof input.refundObject.reason === "string" ? input.refundObject.reason : null,
-    });
+    const { error: insertLegacyRefundError } = await supabase
+      .from("order_refunds")
+      .insert({
+        order_id: paymentData.order_id,
+        amount: refundAmount,
+        reason:
+          typeof input.refundObject.reason === "string"
+            ? input.refundObject.reason
+            : null,
+      });
     if (insertLegacyRefundError) throw insertLegacyRefundError;
   }
 
@@ -1135,7 +1265,7 @@ export async function applyAirwallexRefundEvent(
 
 export async function releaseExpiredAirwallexReservations(
   supabase: SupabaseClient,
-  olderThanMinutes = 75
+  olderThanMinutes = 75,
 ) {
   const cutoff = new Date(Date.now() - olderThanMinutes * 60_000).toISOString();
   const pendingStatuses = [
@@ -1204,7 +1334,9 @@ export async function releaseExpiredAirwallexReservations(
         order.status === "failed"
           ? claim.eq("status", "failed")
           : claim.in("payment_status", pendingStatuses);
-      const { data: released, error: updateError } = await claim.select("id").maybeSingle();
+      const { data: released, error: updateError } = await claim
+        .select("id")
+        .maybeSingle();
       if (updateError) throw updateError;
       if (!released) continue;
       const { data: stillUnpaid, error: stillUnpaidError } = await supabase
@@ -1217,13 +1349,14 @@ export async function releaseExpiredAirwallexReservations(
         .maybeSingle();
       if (stillUnpaidError) throw stillUnpaidError;
       if (!stillUnpaid) continue;
-      const { data: succeededPayment, error: succeededPaymentError } = await supabase
-        .from("payments")
-        .select("id")
-        .eq("order_id", order.id)
-        .eq("provider", AIRWALLEX_PROVIDER)
-        .eq("status", "succeeded")
-        .limit(1);
+      const { data: succeededPayment, error: succeededPaymentError } =
+        await supabase
+          .from("payments")
+          .select("id")
+          .eq("order_id", order.id)
+          .eq("provider", AIRWALLEX_PROVIDER)
+          .eq("status", "succeeded")
+          .limit(1);
       if (succeededPaymentError) throw succeededPaymentError;
       if ((succeededPayment ?? []).length > 0) continue;
       await restoreInventoryForOrder(supabase, order.id);

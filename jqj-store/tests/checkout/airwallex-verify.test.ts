@@ -1,12 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/checkout/airwallex/verify/route";
 import { retrieveAirwallexPaymentIntent } from "@/lib/payments/airwallex";
-import { createCheckoutDb, setActiveDb, type MemoryDb } from "../helpers/memory-db";
+import {
+  createCheckoutDb,
+  setActiveDb,
+  type MemoryDb,
+} from "../helpers/memory-db";
 
 vi.mock("@/lib/payments/airwallex", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/payments/airwallex")>(
-    "@/lib/payments/airwallex"
-  );
+  const actual = await vi.importActual<
+    typeof import("@/lib/payments/airwallex")
+  >("@/lib/payments/airwallex");
   return {
     ...actual,
     createAirwallexPaymentIntent: vi.fn(),
@@ -81,7 +85,7 @@ describe("POST /api/checkout/airwallex/verify", () => {
       "fetch",
       vi.fn(async () => {
         throw new Error("unexpected network call");
-      })
+      }),
     );
     vi.mocked(retrieveAirwallexPaymentIntent).mockReset();
   });
@@ -95,7 +99,9 @@ describe("POST /api/checkout/airwallex/verify", () => {
       currency: "USD",
     });
 
-    const response = await POST(verifyRequest({ orderId: "order-1", refresh: true }));
+    const response = await POST(
+      verifyRequest({ orderId: "order-1", refresh: true }),
+    );
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
       orderId: "order-1",
@@ -106,7 +112,9 @@ describe("POST /api/checkout/airwallex/verify", () => {
       inventoryReserved: true,
     });
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
-    expect(db.rowsOf("orders")[0].confirmation_email_sent_at).toEqual(expect.any(String));
+    expect(db.rowsOf("orders")[0].confirmation_email_sent_at).toEqual(
+      expect.any(String),
+    );
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -132,7 +140,9 @@ describe("POST /api/checkout/airwallex/verify", () => {
     const second = await POST(verifyRequest({ orderId: "order-1" }));
     expect(second.status).toBe(402);
     expect(db.rowsOf("products")[0].stock_count).toBe(5);
-    expect(db.rpcCalls.filter((call) => call.fn === "restore_order_inventory")).toHaveLength(1);
+    expect(
+      db.rpcCalls.filter((call) => call.fn === "restore_order_inventory"),
+    ).toHaveLength(1);
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -201,7 +211,7 @@ describe("POST /api/checkout/airwallex/verify", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: "{",
-      })
+      }),
     );
     expect(invalid.status).toBe(500);
     expect(db.rowsOf("products")[0].stock_count).toBe(5);
@@ -210,36 +220,42 @@ describe("POST /api/checkout/airwallex/verify", () => {
   it("does not change a different order when verifying one return", async () => {
     seedPayableOrder(db, "order-a");
     seedPayableOrder(db, "order-b");
-    vi.mocked(retrieveAirwallexPaymentIntent).mockImplementation(async (id) => ({
-      id,
-      status: id === "int_order-a" ? "SUCCEEDED" : "REQUIRES_PAYMENT_METHOD",
-      amount: 115,
-      currency: "USD",
-    }));
+    vi.mocked(retrieveAirwallexPaymentIntent).mockImplementation(
+      async (id) => ({
+        id,
+        status: id === "int_order-a" ? "SUCCEEDED" : "REQUIRES_PAYMENT_METHOD",
+        amount: 115,
+        currency: "USD",
+      }),
+    );
 
     const response = await POST(verifyRequest({ orderId: "order-a" }));
     expect(response.status).toBe(200);
-    expect(db.rowsOf("orders").find((row) => row.id === "order-b")?.payment_status).toBe(
-      "requires_payment_method"
-    );
+    expect(
+      db.rowsOf("orders").find((row) => row.id === "order-b")?.payment_status,
+    ).toBe("requires_payment_method");
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
   });
 
   it("accepts a payment intent only with its own order id", async () => {
     seedPayableOrder(db, "order-a");
     seedPayableOrder(db, "order-b");
-    vi.mocked(retrieveAirwallexPaymentIntent).mockImplementation(async (id) => ({
-      id,
-      status: "REQUIRES_PAYMENT_METHOD",
-      amount: 115,
-      currency: "USD",
-    }));
+    vi.mocked(retrieveAirwallexPaymentIntent).mockImplementation(
+      async (id) => ({
+        id,
+        status: "REQUIRES_PAYMENT_METHOD",
+        amount: 115,
+        currency: "USD",
+      }),
+    );
 
-    const intentOnly = await POST(verifyRequest({ paymentIntentId: "int_order-a" }));
+    const intentOnly = await POST(
+      verifyRequest({ paymentIntentId: "int_order-a" }),
+    );
     expect(intentOnly.status).toBe(400);
 
     const crossed = await POST(
-      verifyRequest({ orderId: "order-b", paymentIntentId: "int_order-a" })
+      verifyRequest({ orderId: "order-b", paymentIntentId: "int_order-a" }),
     );
     expect(crossed.status).toBe(404);
     expect(db.rowsOf("orders").map((row) => row.payment_status)).toEqual([
@@ -249,11 +265,11 @@ describe("POST /api/checkout/airwallex/verify", () => {
     expect(retrieveAirwallexPaymentIntent).not.toHaveBeenCalled();
 
     const matched = await POST(
-      verifyRequest({ orderId: "order-a", paymentIntentId: "int_order-a" })
+      verifyRequest({ orderId: "order-a", paymentIntentId: "int_order-a" }),
     );
     expect(matched.status).toBe(202);
-    expect(db.rowsOf("orders").find((row) => row.id === "order-b")?.payment_status).toBe(
-      "requires_payment_method"
-    );
+    expect(
+      db.rowsOf("orders").find((row) => row.id === "order-b")?.payment_status,
+    ).toBe("requires_payment_method");
   });
 });

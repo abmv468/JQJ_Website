@@ -44,7 +44,7 @@ export function cartFingerprint(items: CheckoutAttemptItem[]) {
         blank(item.size),
         blank(item.material),
         String(Math.max(0, Math.floor(Number(item.quantity) || 0))),
-      ].join("\u001f")
+      ].join("\u001f"),
     )
     .sort();
   return hashFingerprint(parts.join("\u001e"));
@@ -59,18 +59,27 @@ function hashFingerprint(value: string) {
   return (hash >>> 0).toString(16).padStart(8, "0");
 }
 
-export function readCheckoutAttempt(storage: AttemptStorage): CheckoutAttemptRecord | null {
+export function readCheckoutAttempt(
+  storage: AttemptStorage,
+): CheckoutAttemptRecord | null {
   try {
     const raw = storage.getItem(CHECKOUT_ATTEMPT_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<CheckoutAttemptRecord>;
-    if (!parsed || typeof parsed.fingerprint !== "string" || typeof parsed.idempotencyKey !== "string") {
+    if (
+      !parsed ||
+      typeof parsed.fingerprint !== "string" ||
+      typeof parsed.idempotencyKey !== "string"
+    ) {
       return null;
     }
     return {
       fingerprint: parsed.fingerprint,
       idempotencyKey: parsed.idempotencyKey,
-      paymentIntentId: typeof parsed.paymentIntentId === "string" ? parsed.paymentIntentId : undefined,
+      paymentIntentId:
+        typeof parsed.paymentIntentId === "string"
+          ? parsed.paymentIntentId
+          : undefined,
       orderId: typeof parsed.orderId === "string" ? parsed.orderId : undefined,
       outcome: parsed.outcome === "succeeded" ? "succeeded" : undefined,
     };
@@ -79,7 +88,10 @@ export function readCheckoutAttempt(storage: AttemptStorage): CheckoutAttemptRec
   }
 }
 
-function writeCheckoutAttempt(storage: AttemptStorage, record: CheckoutAttemptRecord) {
+function writeCheckoutAttempt(
+  storage: AttemptStorage,
+  record: CheckoutAttemptRecord,
+) {
   try {
     storage.setItem(CHECKOUT_ATTEMPT_STORAGE_KEY, JSON.stringify(record));
   } catch {
@@ -95,11 +107,15 @@ function writeCheckoutAttempt(storage: AttemptStorage, record: CheckoutAttemptRe
 export function resolveCheckoutAttempt(
   items: CheckoutAttemptItem[],
   storage: AttemptStorage,
-  createKey: () => string
+  createKey: () => string,
 ): ResolvedCheckoutAttempt {
   const fingerprint = cartFingerprint(items);
   const existing = readCheckoutAttempt(storage);
-  if (existing && existing.fingerprint === fingerprint && existing.outcome !== "succeeded") {
+  if (
+    existing &&
+    existing.fingerprint === fingerprint &&
+    existing.outcome !== "succeeded"
+  ) {
     return {
       idempotencyKey: existing.idempotencyKey,
       paymentIntentId: existing.paymentIntentId,
@@ -118,7 +134,7 @@ export function resolveCheckoutAttempt(
 
 export function rememberCheckoutIntent(
   storage: AttemptStorage,
-  input: { paymentIntentId: string; orderId: string }
+  input: { paymentIntentId: string; orderId: string },
 ) {
   const existing = readCheckoutAttempt(storage);
   if (!existing || existing.outcome === "succeeded") return;

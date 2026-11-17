@@ -4,6 +4,10 @@ export const metadata: Metadata = {
   robots: { index: false, follow: true },
 };
 
-export default function OrderConfirmationLayout({ children }: { children: React.ReactNode }) {
+export default function OrderConfirmationLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return children;
 }

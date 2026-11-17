@@ -12,9 +12,9 @@ import {
 } from "../helpers/memory-db";
 
 vi.mock("@/lib/payments/airwallex", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/payments/airwallex")>(
-    "@/lib/payments/airwallex"
-  );
+  const actual = await vi.importActual<
+    typeof import("@/lib/payments/airwallex")
+  >("@/lib/payments/airwallex");
   return {
     ...actual,
     createAirwallexPaymentIntent: vi.fn(),
@@ -41,79 +41,78 @@ describe("known checkout bugs", () => {
     delete process.env.RESEND_API_KEY;
   });
 
-  it(
-    "known bug #1: a late success after the reservation sweep must not leave a paid order with no stock held",
-    async () => {
-      db.rowsOf("products")[0].stock_count = 5;
-      db.seed("orders", [
-        {
-          id: "order-late",
-          status: "failed",
-          payment_provider: "airwallex",
-          payment_status: "abandoned",
-          fulfillment_status: "payment_failed",
-          inventory_reserved: false,
-          total_amount: 115,
-          subtotal_amount: 100,
-          shipping_amount: 15,
-          currency: "USD",
-          customer_email: "buyer@example.com",
-          customer_name: "Ada Lovelace",
-          shipping_address: {
-            address: "1 Atelier Lane",
-            city: "Austin",
-            region: "TX",
-            country: "United States",
-          },
+  it("known bug #1: a late success after the reservation sweep must not leave a paid order with no stock held", async () => {
+    db.rowsOf("products")[0].stock_count = 5;
+    db.seed("orders", [
+      {
+        id: "order-late",
+        status: "failed",
+        payment_provider: "airwallex",
+        payment_status: "abandoned",
+        fulfillment_status: "payment_failed",
+        inventory_reserved: false,
+        total_amount: 115,
+        subtotal_amount: 100,
+        shipping_amount: 15,
+        currency: "USD",
+        customer_email: "buyer@example.com",
+        customer_name: "Ada Lovelace",
+        shipping_address: {
+          address: "1 Atelier Lane",
+          city: "Austin",
+          region: "TX",
+          country: "United States",
         },
-      ]);
-      db.seed("order_items", [
-        {
-          id: "item-late",
-          order_id: "order-late",
-          product_id: "prod-amethyst",
-          variant_id: null,
-          quantity: 1,
-          product_name: "Amethyst Bracelet XV (5mm)",
-          price_at_purchase: 100,
-        },
-      ]);
-      db.seed("payments", [
-        {
-          id: "pay-late",
-          order_id: "order-late",
-          provider: "airwallex",
-          provider_payment_intent_id: "int_late",
-          provider_request_id: "req-late",
-          status: "requires_payment_method",
-          amount: 115,
-          currency: "USD",
-        },
-      ]);
+      },
+    ]);
+    db.seed("order_items", [
+      {
+        id: "item-late",
+        order_id: "order-late",
+        product_id: "prod-amethyst",
+        variant_id: null,
+        quantity: 1,
+        product_name: "Amethyst Bracelet XV (5mm)",
+        price_at_purchase: 100,
+      },
+    ]);
+    db.seed("payments", [
+      {
+        id: "pay-late",
+        order_id: "order-late",
+        provider: "airwallex",
+        provider_payment_intent_id: "int_late",
+        provider_request_id: "req-late",
+        status: "requires_payment_method",
+        amount: 115,
+        currency: "USD",
+      },
+    ]);
 
-      await applyAirwallexPaymentIntentStatus(db as never, {
-        paymentIntentId: "int_late",
-        nextStatus: "succeeded",
-        force: true,
-      });
+    await applyAirwallexPaymentIntentStatus(db as never, {
+      paymentIntentId: "int_late",
+      nextStatus: "succeeded",
+      force: true,
+    });
 
-      const order = db.rowsOf("orders")[0];
-      const paid = order.status === "paid" || order.payment_status === "succeeded";
-      if (paid) {
-        expect(order.inventory_reserved).toBe(true);
-        expect(db.rowsOf("products")[0].stock_count).toBe(4);
-      } else {
-        expect(order.payment_status).not.toBe("succeeded");
-        expect(db.rowsOf("products")[0].stock_count).toBe(5);
-      }
+    const order = db.rowsOf("orders")[0];
+    const paid =
+      order.status === "paid" || order.payment_status === "succeeded";
+    if (paid) {
+      expect(order.inventory_reserved).toBe(true);
+      expect(db.rowsOf("products")[0].stock_count).toBe(4);
+    } else {
+      expect(order.payment_status).not.toBe("succeeded");
+      expect(db.rowsOf("products")[0].stock_count).toBe(5);
     }
-  );
+  });
 
   it.fails(
     "known bug #3: a reservation sweep error must not fail a new card checkout",
     async () => {
       db.failWhen = (table, _op, filters) =>
-        table === "orders" && filters.some((filter) => filter.column === "inventory_reserved")
+        table === "orders" &&
+        filters.some((filter) => filter.column === "inventory_reserved")
           ? dbError("sweep unavailable", "XX000")
           : null;
       vi.mocked(createAirwallexPaymentIntent).mockResolvedValue({
@@ -133,10 +132,10 @@ describe("known checkout bugs", () => {
             customer: checkoutCustomer,
             idempotencyKey: "11111111-1111-4111-8111-111111111111",
           }),
-        })
+        }),
       );
 
       expect(response.status).toBe(200);
-    }
+    },
   );
 });

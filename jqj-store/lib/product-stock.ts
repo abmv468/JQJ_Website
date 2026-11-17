@@ -30,7 +30,7 @@ export function getStockState(shape: StockShape) {
   if (variants) {
     const availableStock = variants.reduce(
       (sum, variant) => sum + normalizeStockCount(variant.stockCount),
-      0
+      0,
     );
     const inStock = availableStock > 0;
     return {
@@ -53,7 +53,9 @@ export function getStockState(shape: StockShape) {
   };
 }
 
-export function getVariantLabel(variant: Pick<SellableVariant, "size" | "material" | "sku">) {
+export function getVariantLabel(
+  variant: Pick<SellableVariant, "size" | "material" | "sku">,
+) {
   const parts = [variant.size, variant.material].filter(Boolean);
   return parts.length ? parts.join(" / ") : variant.sku;
 }

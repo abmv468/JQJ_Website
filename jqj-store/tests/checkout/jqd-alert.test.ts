@@ -17,12 +17,21 @@ describe("jqd_alert log lines", () => {
     reportPaymentAfterExpiryUnfulfilled({
       orderId: "order-short",
       paymentIntentId: "int_secret",
-      shortfall: [{ productId: "prod-amethyst", variantId: null, requested: 1, available: 0 }],
+      shortfall: [
+        {
+          productId: "prod-amethyst",
+          variantId: null,
+          requested: 1,
+          available: 0,
+        },
+      ],
     });
 
     const line = spy.mock.calls
       .map((call) => call[0])
-      .find((value) => typeof value === "string" && value.includes("jqd_alert"));
+      .find(
+        (value) => typeof value === "string" && value.includes("jqd_alert"),
+      );
     expect(JSON.parse(String(line))).toEqual({
       tag: "jqd_alert",
       event: PAYMENT_AFTER_EXPIRY_UNFULFILLED_EVENT,
@@ -52,12 +61,18 @@ describe("jqd_alert log lines", () => {
 
     const line = spy.mock.calls
       .map((call) => call[0])
-      .find((value) => typeof value === "string" && value.includes("jqd_alert"));
+      .find(
+        (value) => typeof value === "string" && value.includes("jqd_alert"),
+      );
     expect(JSON.parse(String(line))).toEqual({
       tag: "jqd_alert",
       event: PAID_CLAIM_LOST_EVENT,
       orderId: "order-race",
     });
-    expect(Object.keys(JSON.parse(String(line))).sort()).toEqual(["event", "orderId", "tag"]);
+    expect(Object.keys(JSON.parse(String(line))).sort()).toEqual([
+      "event",
+      "orderId",
+      "tag",
+    ]);
   });
 });

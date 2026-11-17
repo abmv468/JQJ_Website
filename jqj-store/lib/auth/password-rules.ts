@@ -36,6 +36,9 @@ export function meetsShownPasswordConditions(password: string): boolean {
 }
 
 /** One check for the whole list. Weak and breached field errors hide it. */
-export function showPasswordRequirementCheck(password: string, fieldError: string | null): boolean {
+export function showPasswordRequirementCheck(
+  password: string,
+  fieldError: string | null,
+): boolean {
   return meetsShownPasswordConditions(password) && !fieldError;
 }

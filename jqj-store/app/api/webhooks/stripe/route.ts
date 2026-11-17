@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   if (!secret || !signature) {
     return NextResponse.json(
       { received: true, note: "Webhook secret not configured" },
-      { status: 200 }
+      { status: 200 },
     );
   }
 

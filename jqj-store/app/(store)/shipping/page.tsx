@@ -16,7 +16,11 @@ export default function ShippingPage() {
       intro="We aim to dispatch every order quickly and provide reliable tracking so you can shop with confidence."
       effectiveDate="January 1, 2026"
       contactDetails={[
-        { label: "Shipping Support", value: "shipping@jqdgroup.com", href: "mailto:shipping@jqdgroup.com" },
+        {
+          label: "Shipping Support",
+          value: "shipping@jqdgroup.com",
+          href: "mailto:shipping@jqdgroup.com",
+        },
       ]}
       sections={[
         {

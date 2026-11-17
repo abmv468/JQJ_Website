@@ -1,17 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET, POST, PUT } from "@/app/api/admin/orders/route";
 import { createAirwallexRefund } from "@/lib/payments/airwallex";
-import { createCheckoutDb, dbError, setActiveDb, type MemoryDb } from "../helpers/memory-db";
+import {
+  createCheckoutDb,
+  dbError,
+  setActiveDb,
+  type MemoryDb,
+} from "../helpers/memory-db";
 
 vi.mock("@supabase/supabase-js", () => ({
   createClient: () => ({
     auth: {
       getUser: async (token: string) => {
         if (token === "admin-token") {
-          return { data: { user: { email: "admin@example.com" } }, error: null };
+          return {
+            data: { user: { email: "admin@example.com" } },
+            error: null,
+          };
         }
         if (token === "shopper-token") {
-          return { data: { user: { email: "shopper@example.com" } }, error: null };
+          return {
+            data: { user: { email: "shopper@example.com" } },
+            error: null,
+          };
         }
         return { data: { user: null }, error: { message: "invalid" } };
       },
@@ -20,9 +31,9 @@ vi.mock("@supabase/supabase-js", () => ({
 }));
 
 vi.mock("@/lib/payments/airwallex", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/payments/airwallex")>(
-    "@/lib/payments/airwallex"
-  );
+  const actual = await vi.importActual<
+    typeof import("@/lib/payments/airwallex")
+  >("@/lib/payments/airwallex");
   return {
     ...actual,
     createAirwallexRefund: vi.fn(),
@@ -68,7 +79,7 @@ function seedOrder(
     payment_status?: string;
     paymentRow?: "succeeded" | "requires_payment_method" | "none";
     reserved?: boolean;
-  }
+  },
 ) {
   db.seed("orders", [
     {
@@ -122,7 +133,7 @@ describe("inventory_exception admin actions", () => {
       "fetch",
       vi.fn(async () => {
         throw new Error("unexpected network call");
-      })
+      }),
     );
   });
 
@@ -147,7 +158,7 @@ describe("inventory_exception admin actions", () => {
       expect(response.status).toBe(200);
       expect(db.rowsOf("orders")[0].status).toBe(status);
       expect(db.rowsOf("orders")[0].fulfillment_status).toBe(status);
-    }
+    },
   );
 
   it("marks an inventory_exception order refunded only after the money is fully returned", async () => {
@@ -165,13 +176,14 @@ describe("inventory_exception admin actions", () => {
     const early = await PUT(put("refunded", "Bearer admin-token"));
     expect(early.status).toBe(400);
     expect(await early.json()).toEqual({
-      error: "Order can be marked refunded only when total refunded amount is complete",
+      error:
+        "Order can be marked refunded only when total refunded amount is complete",
     });
 
     const skipped = await PUT(put("packed", "Bearer admin-token"));
     expect(skipped.status).toBe(400);
     expect((await skipped.json()).error).toBe(
-      "Invalid status transition from inventory_exception to packed"
+      "Invalid status transition from inventory_exception to packed",
     );
 
     const unknown = await PUT(put("not-a-status", "Bearer admin-token"));
@@ -199,7 +211,9 @@ describe("inventory_exception admin actions", () => {
     const response = await POST(refund());
 
     expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({ error: "Order is already fully refunded" });
+    expect(await response.json()).toEqual({
+      error: "Order is already fully refunded",
+    });
     expect(createAirwallexRefund).not.toHaveBeenCalled();
   });
 
@@ -209,7 +223,9 @@ describe("inventory_exception admin actions", () => {
     const response = await POST(refund());
 
     expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({ error: "Order has unsupported status value" });
+    expect(await response.json()).toEqual({
+      error: "Order has unsupported status value",
+    });
     expect(createAirwallexRefund).not.toHaveBeenCalled();
   });
 
@@ -241,7 +257,8 @@ describe("inventory_exception admin actions", () => {
 
     expect(paid.status).toBe(400);
     expect(await paid.json()).toEqual({
-      error: "Order can be marked paid or processing only after the payment has succeeded",
+      error:
+        "Order can be marked paid or processing only after the payment has succeeded",
     });
     expect(processing.status).toBe(400);
     expect(db.rowsOf("orders")[0]).toMatchObject({
@@ -251,8 +268,14 @@ describe("inventory_exception admin actions", () => {
     });
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
     expect(db.rowsOf("payments")).toEqual([]);
-    expect(db.rpcCalls.filter((call) => call.fn.includes("inventory"))).toEqual([]);
-    expect(db.writes.filter((write) => write.table === "orders" && write.op === "update")).toEqual([]);
+    expect(db.rpcCalls.filter((call) => call.fn.includes("inventory"))).toEqual(
+      [],
+    );
+    expect(
+      db.writes.filter(
+        (write) => write.table === "orders" && write.op === "update",
+      ),
+    ).toEqual([]);
   });
 
   it("accepts paid when only the payment row succeeded", async () => {
@@ -281,7 +304,11 @@ describe("inventory_exception admin actions", () => {
     });
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
     expect(db.rowsOf("payments")[0].status).toBe("succeeded");
-    expect(db.writes.filter((write) => write.table === "orders" && write.op === "update")).toEqual([]);
+    expect(
+      db.writes.filter(
+        (write) => write.table === "orders" && write.op === "update",
+      ),
+    ).toEqual([]);
 
     db.rowsOf("orders")[0].status = "pending";
     db.rowsOf("orders")[0].sales_channel = "test";
@@ -292,7 +319,11 @@ describe("inventory_exception admin actions", () => {
   });
 
   it("marks a protected order refunded only when the refund is already complete", async () => {
-    seedOrder(db, { status: "cancelled", sales_channel: "test", refunded_amount: 20 });
+    seedOrder(db, {
+      status: "cancelled",
+      sales_channel: "test",
+      refunded_amount: 20,
+    });
 
     const early = await PUT(put("refunded", "Bearer admin-token"));
     expect(early.status).toBe(400);
@@ -306,12 +337,13 @@ describe("inventory_exception admin actions", () => {
 
   it("hides admin order failures behind a generic body", async () => {
     const injected = dbError("driver-secret-xyz", "XX000");
-    db.failWhen = (table, op) => (table === "orders" && op === "select" ? injected : null);
+    db.failWhen = (table, op) =>
+      table === "orders" && op === "select" ? injected : null;
 
     const listed = await GET(
       new Request("http://localhost:3000/api/admin/orders", {
         headers: { authorization: "Bearer admin-token" },
-      })
+      }),
     );
     const listedBody = await listed.json();
     expect(listed.status).toBe(500);

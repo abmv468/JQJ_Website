@@ -57,7 +57,10 @@ function item(overrides: Partial<CheckoutItemInput> = {}): CheckoutItemInput {
 describe("validateCheckoutItems", () => {
   it("accepts an in-stock product and ignores the client price", () => {
     const inventory = new Map([[product.slug, product]]);
-    const result = validateCheckoutItems([item({ quantity: 2, price: 1 })], inventory);
+    const result = validateCheckoutItems(
+      [item({ quantity: 2, price: 1 })],
+      inventory,
+    );
     expect(result.ok).toBe(true);
     expect(result.resolved[0]?.requestedQuantity).toBe(2);
     expect(result.resolved[0]?.product.price).toBe(100);
@@ -65,36 +68,46 @@ describe("validateCheckoutItems", () => {
 
   it("rejects a quantity above stock, a zero quantity, and an unknown slug", () => {
     const inventory = new Map([[product.slug, product]]);
-    expect(validateCheckoutItems([item({ quantity: 6 })], inventory).ok).toBe(false);
-    expect(validateCheckoutItems([item({ quantity: 0 })], inventory).errors[0]).toMatch(/at least 1/);
-    expect(validateCheckoutItems([item({ slug: "missing" })], inventory).errors[0]).toMatch(/unavailable/);
+    expect(validateCheckoutItems([item({ quantity: 6 })], inventory).ok).toBe(
+      false,
+    );
+    expect(
+      validateCheckoutItems([item({ quantity: 0 })], inventory).errors[0],
+    ).toMatch(/at least 1/);
+    expect(
+      validateCheckoutItems([item({ slug: "missing" })], inventory).errors[0],
+    ).toMatch(/unavailable/);
   });
 
   it("rejects a sold-out product", () => {
-    const inventory = new Map([[product.slug, { ...product, stock_count: 0, in_stock: false }]]);
-    expect(validateCheckoutItems([item()], inventory).errors[0]).toMatch(/out of stock/);
+    const inventory = new Map([
+      [product.slug, { ...product, stock_count: 0, in_stock: false }],
+    ]);
+    expect(validateCheckoutItems([item()], inventory).errors[0]).toMatch(
+      /out of stock/,
+    );
   });
 
   it("requires a real variant and resolves the matching sku", () => {
     const inventory = new Map([[variantProduct.slug, variantProduct]]);
     const missing = validateCheckoutItems(
       [item({ slug: variantProduct.slug, size: "Large" })],
-      inventory
+      inventory,
     );
     expect(missing.ok).toBe(false);
     expect(missing.errors[0]).toMatch(/size\/material/);
 
     const matched = validateCheckoutItems(
       [item({ slug: variantProduct.slug, sku: "SKU-S", quantity: 4 })],
-      inventory
+      inventory,
     );
     expect(matched.ok).toBe(true);
     expect(matched.resolved[0]?.variant?.id).toBe("var-s");
     expect(
       validateCheckoutItems(
         [item({ slug: variantProduct.slug, sku: "SKU-S", quantity: 5 })],
-        inventory
-      ).ok
+        inventory,
+      ).ok,
     ).toBe(false);
   });
 
@@ -136,11 +149,13 @@ describe("validateCheckoutItems", () => {
           sku: paymentTest.sku ?? undefined,
         }),
       ],
-      inventory
+      inventory,
     );
     expect(hidden.ok).toBe(false);
     expect(hidden.resolved).toEqual([]);
-    expect(hidden.errors).toEqual([`Product "${paymentTest.name}" is unavailable.`]);
+    expect(hidden.errors).toEqual([
+      `Product "${paymentTest.name}" is unavailable.`,
+    ]);
 
     const mixed = validateCheckoutItems(
       [
@@ -153,10 +168,14 @@ describe("validateCheckoutItems", () => {
           sku: paymentTest.sku ?? undefined,
         }),
       ],
-      inventory
+      inventory,
     );
     expect(mixed.ok).toBe(false);
-    expect(mixed.resolved.map((line) => line.product.slug)).toEqual([product.slug]);
-    expect(mixed.errors).toEqual([`Product "${paymentTest.name}" is unavailable.`]);
+    expect(mixed.resolved.map((line) => line.product.slug)).toEqual([
+      product.slug,
+    ]);
+    expect(mixed.errors).toEqual([
+      `Product "${paymentTest.name}" is unavailable.`,
+    ]);
   });
 });

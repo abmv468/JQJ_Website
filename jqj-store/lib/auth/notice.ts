@@ -3,7 +3,7 @@ const DISPLAY_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export function readNoticeEmail(
   notice: string | null,
   email: string | null,
-  expected: "confirm" | "reset"
+  expected: "confirm" | "reset",
 ): string | null {
   if (notice !== expected) return null;
   const value = (email ?? "").trim();

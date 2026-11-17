@@ -37,7 +37,9 @@ const columns = [
 
 export default function Footer() {
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [status, setStatus] = useState<
+    "idle" | "submitting" | "success" | "error"
+  >("idle");
   const [message, setMessage] = useState("");
 
   async function handleSubscribe(event: FormEvent<HTMLFormElement>) {
@@ -51,10 +53,15 @@ export default function Footer() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
-      const data = (await response.json()) as { message?: string; error?: string };
+      const data = (await response.json()) as {
+        message?: string;
+        error?: string;
+      };
 
       if (!response.ok) {
-        throw new Error(data.error ?? "We could not subscribe you. Please try again.");
+        throw new Error(
+          data.error ?? "We could not subscribe you. Please try again.",
+        );
       }
 
       setStatus("success");
@@ -62,7 +69,11 @@ export default function Footer() {
       setEmail("");
     } catch (error) {
       setStatus("error");
-      setMessage(error instanceof Error ? error.message : "We could not subscribe you. Please try again.");
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "We could not subscribe you. Please try again.",
+      );
     }
   }
 
@@ -117,7 +128,11 @@ export default function Footer() {
               required
               disabled={status === "submitting"}
             />
-            <button type="submit" className="btn-gold w-full" disabled={status === "submitting"}>
+            <button
+              type="submit"
+              className="btn-gold w-full"
+              disabled={status === "submitting"}
+            >
               {status === "submitting" ? "Subscribing…" : "Subscribe"}
             </button>
             <p

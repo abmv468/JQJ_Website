@@ -21,14 +21,21 @@ export default function ForgotPasswordForm() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const sent = readNoticeEmail(params.get("notice"), params.get("email"), "reset");
+    const sent = readNoticeEmail(
+      params.get("notice"),
+      params.get("email"),
+      "reset",
+    );
     if (sent) setInboxEmail(sent);
   }, []);
 
   async function sendReset(address: string) {
     const supabase = createClient();
     const { error } = await supabase.auth.resetPasswordForEmail(address, {
-      redirectTo: authRedirectUrl("/auth/reset-password", window.location.origin),
+      redirectTo: authRedirectUrl(
+        "/auth/reset-password",
+        window.location.origin,
+      ),
     });
     if (error) throw error;
   }
@@ -88,7 +95,9 @@ export default function ForgotPasswordForm() {
     <main className="center-frame" data-auth-view="forgot">
       <form className="form-card fade-in" onSubmit={handleSubmit}>
         <h1 className="page-title">Forgot password</h1>
-        <p className="page-lead">Enter your email and we will send a reset link.</p>
+        <p className="page-lead">
+          Enter your email and we will send a reset link.
+        </p>
         <div className="field">
           <label htmlFor="email">Email</label>
           <input
@@ -101,7 +110,12 @@ export default function ForgotPasswordForm() {
             onChange={(e) => setEmail(e.target.value)}
           />
         </div>
-        <button type="submit" className="btn-primary" disabled={loading} aria-busy={loading}>
+        <button
+          type="submit"
+          className="btn-primary"
+          disabled={loading}
+          aria-busy={loading}
+        >
           Send reset link
         </button>
         {errorMessage ? (

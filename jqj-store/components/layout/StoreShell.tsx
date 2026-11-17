@@ -4,7 +4,11 @@ import Footer from "./Footer";
 import CartDrawer from "./CartDrawer";
 import InteractiveBackground from "./InteractiveBackground";
 
-export default function StoreShell({ children }: { children: React.ReactNode }) {
+export default function StoreShell({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <div className="relative isolate flex min-h-screen flex-col overflow-x-clip bg-brand-bg">
       <InteractiveBackground />

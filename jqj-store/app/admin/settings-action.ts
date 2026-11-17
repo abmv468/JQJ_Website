@@ -1,10 +1,13 @@
 "use server";
 
 import { requireAdmin } from "@/lib/auth/require-admin";
-import { readAdminSettingsFacts, type AdminSettingsFacts } from "@/lib/admin/settings-facts";
+import {
+  readAdminSettingsFacts,
+  type AdminSettingsFacts,
+} from "@/lib/admin/settings-facts";
 
 export async function loadAdminSettingsFacts(
-  accessToken: string
+  accessToken: string,
 ): Promise<{ ok: true; facts: AdminSettingsFacts } | { ok: false }> {
   const request = new Request("http://127.0.0.1/admin", {
     headers: { authorization: `Bearer ${accessToken}` },

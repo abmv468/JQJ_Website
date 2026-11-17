@@ -58,22 +58,28 @@ const passwordRules = () => source("lib/auth/password-rules.ts");
 
 describe("admin settings facts", () => {
   it("reads Airwallex mode and the admin mailbox from the server env", () => {
-    expect(readAirwallexModeLabel({ AIRWALLEX_ENV: "sandbox" })).toBe("Sandbox");
+    expect(readAirwallexModeLabel({ AIRWALLEX_ENV: "sandbox" })).toBe(
+      "Sandbox",
+    );
     expect(
       readAirwallexModeLabel({
         AIRWALLEX_ENV: "production",
         AIRWALLEX_PRODUCTION_ENABLED: "false",
-      })
+      }),
     ).toBe("Sandbox");
     expect(
       readAirwallexModeLabel({
         AIRWALLEX_ENV: "production",
         AIRWALLEX_PRODUCTION_ENABLED: "true",
-      })
+      }),
     ).toBe("Live");
 
-    expect(readAdminEmailLabel({ ADMIN_EMAIL: "admin@jqdgroup.com" })).toBe("admin@jqdgroup.com");
-    expect(readAdminEmailLabel({ ADMIN_EMAIL: "  admin@jqdgroup.com  " })).toBe("admin@jqdgroup.com");
+    expect(readAdminEmailLabel({ ADMIN_EMAIL: "admin@jqdgroup.com" })).toBe(
+      "admin@jqdgroup.com",
+    );
+    expect(readAdminEmailLabel({ ADMIN_EMAIL: "  admin@jqdgroup.com  " })).toBe(
+      "admin@jqdgroup.com",
+    );
     expect(readAdminEmailLabel({})).toBe(HIDDEN_ON_SERVER);
     expect(readAdminEmailLabel({ ADMIN_EMAIL: "   " })).toBe(HIDDEN_ON_SERVER);
 
@@ -91,7 +97,7 @@ describe("admin settings facts", () => {
     expect(facts.flatShippingUsd).toBe(15);
     expect(facts.adminEmail).not.toBe("Not set");
     expect(AIRWALLEX_SETTINGS_NOTE).toBe(
-      "Airwallex mode is read from server settings. This screen does not change payment mode or keys."
+      "Airwallex mode is read from server settings. This screen does not change payment mode or keys.",
     );
   });
 
@@ -130,7 +136,8 @@ describe("refund panel honesty", () => {
 
     const unconfirmed = prepareRefundSubmit("48", false);
     expect(unconfirmed.callApi).toBe(false);
-    if (unconfirmed.callApi) throw new Error("confirm step must not call the API");
+    if (unconfirmed.callApi)
+      throw new Error("confirm step must not call the API");
     expect(unconfirmed.openConfirm).toBe(true);
 
     const confirmed = prepareRefundSubmit("48", true);
@@ -138,7 +145,9 @@ describe("refund panel honesty", () => {
   });
 
   it("uses a typographic confirm prompt instead of window.confirm", () => {
-    expect(refundConfirmPrompt("$20.00", "ab12cd34")).toBe("Refund $20.00 on order ab12cd34?");
+    expect(refundConfirmPrompt("$20.00", "ab12cd34")).toBe(
+      "Refund $20.00 on order ab12cd34?",
+    );
     const page = adminPage();
     expect(page).not.toContain("window.confirm");
     expect(page).toContain("refundConfirmPrompt");
@@ -153,7 +162,7 @@ describe("refund panel honesty", () => {
   it("shows partial success without flashing Fully refunded", () => {
     const message = partialRefundRecorded("$20.00", "ab12cd34");
     expect(message).toBe(
-      "A refund of $20.00 has been recorded on order ab12cd34. The order is not fully refunded."
+      "A refund of $20.00 has been recorded on order ab12cd34. The order is not fully refunded.",
     );
     expect(message).not.toContain("Fully refunded");
 
@@ -193,9 +202,15 @@ describe("refund panel honesty", () => {
   it("keeps a failed refund off the order and uses the locked copy", () => {
     expect(isProviderBalanceFailure("amount_above_limit")).toBe(true);
     expect(isProviderBalanceFailure("insufficient receivable")).toBe(true);
-    expect(isProviderBalanceFailure("insufficient available balance")).toBe(true);
+    expect(isProviderBalanceFailure("insufficient available balance")).toBe(
+      true,
+    );
 
-    for (const error of ["amount_above_limit", "insufficient receivable", "Not enough available balance"]) {
+    for (const error of [
+      "amount_above_limit",
+      "insufficient receivable",
+      "Not enough available balance",
+    ]) {
       const attempt = interpretRefundAttempt({
         httpOk: false,
         error,
@@ -229,7 +244,9 @@ describe("refund panel honesty", () => {
       status: "paid",
       fulfillment_status: "paid",
       refunded_amount: 0,
-      payments: [] as Array<{ payment_refunds?: Array<{ status: string; amount: number }> }>,
+      payments: [] as Array<{
+        payment_refunds?: Array<{ status: string; amount: number }>;
+      }>,
     };
     const returned = {
       status: "refunded",
@@ -242,10 +259,12 @@ describe("refund panel honesty", () => {
     expect(merged.fulfillment_status).toBe("paid");
     expect(merged.refunded_amount).toBe(0);
     expect(merged.payments?.[0].payment_refunds?.[0].status).toBe("failed");
-    expect(settledRefundedAmount({
-      refundedAmount: Number(merged.refunded_amount),
-      providerRefunds: merged.payments?.[0].payment_refunds,
-    })).toBe(0);
+    expect(
+      settledRefundedAmount({
+        refundedAmount: Number(merged.refunded_amount),
+        providerRefunds: merged.payments?.[0].payment_refunds,
+      }),
+    ).toBe(0);
   });
 
   it("keeps the pre-confirm remaining out of the payment total", () => {
@@ -257,7 +276,9 @@ describe("refund panel honesty", () => {
     expect(payment).toBeGreaterThan(-1);
     expect(refund).toBeGreaterThan(payment);
     expect(page.indexOf("Remaining after this refund")).toBeGreaterThan(refund);
-    expect(page.indexOf('label="Remaining to refund"')).toBeGreaterThan(payment);
+    expect(page.indexOf('label="Remaining to refund"')).toBeGreaterThan(
+      payment,
+    );
     expect(page.indexOf('label="Remaining to refund"')).toBeLessThan(refund);
   });
 });
@@ -265,10 +286,7 @@ describe("refund panel honesty", () => {
 describe("admin order view", () => {
   it("sums revenue from order totals and does not subtract refunds", () => {
     expect(
-      sumOrderRevenue([
-        { total_amount: 100 },
-        { total_amount: "15.50" },
-      ])
+      sumOrderRevenue([{ total_amount: 100 }, { total_amount: "15.50" }]),
     ).toBe(115.5);
     const page = adminPage();
     expect(page).toContain("sumOrderRevenue");
@@ -277,13 +295,27 @@ describe("admin order view", () => {
   });
 
   it("reads line items and the checkout address, and keeps the live id display", () => {
-    expect(orderDisplayId("ab12cd34-ffff-ffff-ffff-ffffffffffff")).toBe("ab12cd34");
+    expect(orderDisplayId("ab12cd34-ffff-ffff-ffff-ffffffffffff")).toBe(
+      "ab12cd34",
+    );
     expect(
       orderLines([
-        { id: "line-1", product_name: "Stone bead", sku: "JQ-BD-1", quantity: 2, price_at_purchase: 40 },
-      ])
+        {
+          id: "line-1",
+          product_name: "Stone bead",
+          sku: "JQ-BD-1",
+          quantity: 2,
+          price_at_purchase: 40,
+        },
+      ]),
     ).toEqual([
-      { id: "line-1", name: "Stone bead", sku: "JQ-BD-1", quantity: 2, amount: 80 },
+      {
+        id: "line-1",
+        name: "Stone bead",
+        sku: "JQ-BD-1",
+        quantity: 2,
+        amount: 80,
+      },
     ]);
     expect(
       formatCheckoutAddress({
@@ -294,10 +326,18 @@ describe("admin order view", () => {
         country: "United States",
         phone: "+1 512 555 0100",
         payment_method: "airwallex",
-      })
-    ).toEqual(["12 Market Street, 4", "Austin, Texas, United States", "+1 512 555 0100"]);
-    expect(paymentMethodLabel({ paymentProvider: "cod" })).toBe("Cash on delivery");
-    expect(paymentMethodLabel({ paymentMethod: "airwallex" })).toBe("Airwallex");
+      }),
+    ).toEqual([
+      "12 Market Street, 4",
+      "Austin, Texas, United States",
+      "+1 512 555 0100",
+    ]);
+    expect(paymentMethodLabel({ paymentProvider: "cod" })).toBe(
+      "Cash on delivery",
+    );
+    expect(paymentMethodLabel({ paymentMethod: "airwallex" })).toBe(
+      "Airwallex",
+    );
   });
 
   it("keeps the five tabs, the order panel sections, and the document locks", () => {
@@ -325,7 +365,9 @@ describe("admin order view", () => {
     expect(payment).toBeGreaterThan(shipping);
     expect(refund).toBeGreaterThan(payment);
 
-    expect(layout).toContain('title: { absolute: "Admin — Jewellery Quintessential" }');
+    expect(layout).toContain(
+      'title: { absolute: "Admin — Jewellery Quintessential" }',
+    );
     expect(layout).toContain("index: false");
     expect(layout).toContain("follow: false");
     expect(adminCss()).toContain("#010101");
@@ -348,22 +390,36 @@ describe("reset password check", () => {
     expect(meetsShownPasswordConditions("123456")).toBe(false);
     expect(meetsShownPasswordConditions("a-quiet-phrase")).toBe(true);
     expect(showPasswordRequirementCheck("a-quiet-phrase", null)).toBe(true);
-    expect(showPasswordRequirementCheck("a-quiet-phrase", PASSWORD_TOO_EASY)).toBe(false);
-    expect(showPasswordRequirementCheck("a-quiet-phrase", PASSWORD_BREACHED)).toBe(false);
+    expect(
+      showPasswordRequirementCheck("a-quiet-phrase", PASSWORD_TOO_EASY),
+    ).toBe(false);
+    expect(
+      showPasswordRequirementCheck("a-quiet-phrase", PASSWORD_BREACHED),
+    ).toBe(false);
     expect(showPasswordRequirementCheck("password", null)).toBe(false);
   });
 
   it("maps weak and breached auth replies and does not call a breach API", () => {
-    expect(plainAuthError(new Error("Password is known to be weak and easy to guess"), "fallback")).toBe(
-      PASSWORD_TOO_EASY
-    );
-    expect(plainAuthError(new Error("Password has appeared in a data breach"), "fallback")).toBe(
-      PASSWORD_BREACHED
-    );
+    expect(
+      plainAuthError(
+        new Error("Password is known to be weak and easy to guess"),
+        "fallback",
+      ),
+    ).toBe(PASSWORD_TOO_EASY);
+    expect(
+      plainAuthError(
+        new Error("Password has appeared in a data breach"),
+        "fallback",
+      ),
+    ).toBe(PASSWORD_BREACHED);
     expect(PASSWORD_TOO_SHORT).toBe("Password must be at least 6 characters.");
     expect(PASSWORDS_DO_NOT_MATCH).toBe("Passwords do not match.");
-    expect(PASSWORD_TOO_EASY).toBe("This password is too easy to guess. Choose a stronger one.");
-    expect(PASSWORD_BREACHED).toBe("This password has appeared in a data breach. Choose a different one.");
+    expect(PASSWORD_TOO_EASY).toBe(
+      "This password is too easy to guess. Choose a stronger one.",
+    );
+    expect(PASSWORD_BREACHED).toBe(
+      "This password has appeared in a data breach. Choose a different one.",
+    );
 
     const form = resetForm();
     const rules = passwordRules();

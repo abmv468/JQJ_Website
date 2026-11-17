@@ -8,7 +8,7 @@ vi.mock("react", async () => {
   const actual = await vi.importActual<typeof import("react")>("react");
   return {
     ...actual,
-    useState: (<T,>(initial: T) => {
+    useState: (<T>(initial: T) => {
       if (initial === "airwallex") return actual.useState("cod" as T);
       return actual.useState(initial);
     }) as typeof actual.useState,

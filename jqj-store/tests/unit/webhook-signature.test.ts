@@ -5,11 +5,16 @@ import { verifyAirwallexWebhookSignature } from "@/lib/payments/airwallex";
 const SECRET = "test_dummy_webhook_secret";
 
 function sign(timestamp: string, body: string, secret = SECRET) {
-  return createHmac("sha256", secret).update(`${timestamp}${body}`).digest("hex");
+  return createHmac("sha256", secret)
+    .update(`${timestamp}${body}`)
+    .digest("hex");
 }
 
 describe("verifyAirwallexWebhookSignature", () => {
-  const body = JSON.stringify({ id: "evt_1", name: "payment_intent.succeeded" });
+  const body = JSON.stringify({
+    id: "evt_1",
+    name: "payment_intent.succeeded",
+  });
   const timestamp = String(Math.floor(Date.now() / 1000));
 
   it("accepts a valid signature", () => {
@@ -19,7 +24,7 @@ describe("verifyAirwallexWebhookSignature", () => {
         signature: sign(timestamp, body),
         timestamp,
         secret: SECRET,
-      })
+      }),
     ).toEqual({ ok: true });
   });
 
@@ -30,7 +35,7 @@ describe("verifyAirwallexWebhookSignature", () => {
         signature: sign(timestamp, body),
         timestamp,
         secret: SECRET,
-      }).ok
+      }).ok,
     ).toBe(false);
 
     expect(
@@ -39,7 +44,7 @@ describe("verifyAirwallexWebhookSignature", () => {
         signature: "deadbeef",
         timestamp,
         secret: SECRET,
-      }).error
+      }).error,
     ).toMatch(/mismatch/);
 
     expect(
@@ -48,7 +53,7 @@ describe("verifyAirwallexWebhookSignature", () => {
         signature: null,
         timestamp,
         secret: SECRET,
-      }).error
+      }).error,
     ).toMatch(/Missing/);
   });
 

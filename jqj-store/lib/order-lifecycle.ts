@@ -1,9 +1,17 @@
-export const ORDER_PIPELINE_STATUSES = ["paid", "packed", "shipped", "delivered"] as const;
+export const ORDER_PIPELINE_STATUSES = [
+  "paid",
+  "packed",
+  "shipped",
+  "delivered",
+] as const;
 
 export type OrderPipelineStatus = (typeof ORDER_PIPELINE_STATUSES)[number];
 export type OrderStatus = OrderPipelineStatus | "refunded";
 
-const ORDER_STATUS_SET = new Set<OrderStatus>([...ORDER_PIPELINE_STATUSES, "refunded"]);
+const ORDER_STATUS_SET = new Set<OrderStatus>([
+  ...ORDER_PIPELINE_STATUSES,
+  "refunded",
+]);
 const LEGACY_ORDER_STATUS_MAP: Record<string, OrderStatus> = {
   pending: "paid",
   processing: "paid",
@@ -11,7 +19,12 @@ const LEGACY_ORDER_STATUS_MAP: Record<string, OrderStatus> = {
 };
 
 const INVENTORY_EXCEPTION_STATUS = "inventory_exception";
-const INVENTORY_EXCEPTION_NEXT = new Set(["paid", "processing", "cancelled", "refunded"]);
+const INVENTORY_EXCEPTION_NEXT = new Set([
+  "paid",
+  "processing",
+  "cancelled",
+  "refunded",
+]);
 
 export function isInventoryExceptionStatus(value: string) {
   return value.trim().toLowerCase() === INVENTORY_EXCEPTION_STATUS;
@@ -21,7 +34,8 @@ export function isSucceededPaymentStatus(value: string | null | undefined) {
   return (value ?? "").trim().toLowerCase() === "succeeded";
 }
 
-export type AdminStatusOption = OrderStatus | "processing" | "cancelled" | "inventory_exception";
+export type AdminStatusOption =
+  OrderStatus | "processing" | "cancelled" | "inventory_exception";
 
 export function canLeaveInventoryException(next: string) {
   return INVENTORY_EXCEPTION_NEXT.has(next.trim().toLowerCase());
@@ -29,7 +43,11 @@ export function canLeaveInventoryException(next: string) {
 
 export function isKnownAdminOrderStatus(value: string) {
   const normalized = value.trim().toLowerCase();
-  return isOrderStatus(normalized) || normalized === "processing" || normalized === "cancelled";
+  return (
+    isOrderStatus(normalized) ||
+    normalized === "processing" ||
+    normalized === "cancelled"
+  );
 }
 
 const NEXT_STATUS: Partial<Record<OrderPipelineStatus, OrderPipelineStatus>> = {
@@ -52,7 +70,7 @@ export function normalizeOrderStatus(value: string): OrderStatus | null {
 
 export function getOrderStatusOptions(
   current: string,
-  paymentStatus?: string | null
+  paymentStatus?: string | null,
 ): AdminStatusOption[] {
   if (isInventoryExceptionStatus(current)) {
     const next: AdminStatusOption[] = ["processing", "cancelled", "refunded"];
@@ -61,12 +79,16 @@ export function getOrderStatusOptions(
   }
   const normalized = normalizeOrderStatus(current);
   if (!normalized) return ["paid"];
-  if (normalized === "refunded" || normalized === "delivered") return [normalized];
+  if (normalized === "refunded" || normalized === "delivered")
+    return [normalized];
   const next = NEXT_STATUS[normalized];
   return next ? [normalized, next] : [normalized];
 }
 
-export function canTransitionOrderStatus(current: string, next: string): boolean {
+export function canTransitionOrderStatus(
+  current: string,
+  next: string,
+): boolean {
   if (!isOrderStatus(next)) return false;
   const normalized = normalizeOrderStatus(current);
   if (!normalized) return next === "paid";
@@ -75,20 +97,31 @@ export function canTransitionOrderStatus(current: string, next: string): boolean
   return NEXT_STATUS[normalized] === next;
 }
 
-export function isFullyRefunded(totalAmount: number, refundedAmount: number): boolean {
+export function isFullyRefunded(
+  totalAmount: number,
+  refundedAmount: number,
+): boolean {
   return totalAmount > 0 && refundedAmount + REFUND_EPSILON >= totalAmount;
 }
 
-export function hasPartialRefund(totalAmount: number, refundedAmount: number): boolean {
+export function hasPartialRefund(
+  totalAmount: number,
+  refundedAmount: number,
+): boolean {
   return refundedAmount > 0 && !isFullyRefunded(totalAmount, refundedAmount);
 }
 
-export function formatOrderStatusLabel(status: string, paymentStatus?: string | null): string {
+export function formatOrderStatusLabel(
+  status: string,
+  paymentStatus?: string | null,
+): string {
   if (isInventoryExceptionStatus(status)) return "Inventory exception";
   const raw = status.trim().toLowerCase();
   if (!raw) return "Unknown";
   if (raw === "paid") {
-    return paymentStatus != null && !isSucceededPaymentStatus(paymentStatus) ? "Unpaid" : "Paid";
+    return paymentStatus != null && !isSucceededPaymentStatus(paymentStatus)
+      ? "Unpaid"
+      : "Paid";
   }
   if (raw === "pending") return "Pending";
   if (raw === "processing") return "Processing";
@@ -119,18 +152,21 @@ const CUSTOMER_STATUS_LABELS: Record<string, string> = {
  */
 export function formatCustomerOrderStatusLabel(
   status: string | null | undefined,
-  paymentStatus?: string | null
+  paymentStatus?: string | null,
 ): string {
   const raw = (status ?? "").trim().toLowerCase();
   if (!raw) return "Unknown";
   if (raw === "paid") {
-    return paymentStatus != null && !isSucceededPaymentStatus(paymentStatus) ? "Unpaid" : "Paid";
+    return paymentStatus != null && !isSucceededPaymentStatus(paymentStatus)
+      ? "Unpaid"
+      : "Paid";
   }
   return CUSTOMER_STATUS_LABELS[raw] ?? CUSTOMER_ORDER_STATUS_FALLBACK;
 }
 
 /** Shown only when payment_status is succeeded. Fulfillment status never supplies this word. */
-export const INVENTORY_EXCEPTION_LABEL = "Paid \u2013 stock issue (action needed)";
+export const INVENTORY_EXCEPTION_LABEL =
+  "Paid \u2013 stock issue (action needed)";
 
 /**
  * Same attention treatment as the product-card low-stock badge
@@ -171,7 +207,9 @@ export function formatInventoryExceptionLabel(paymentStatus: string): string {
   return `Stock issue \u2013 payment ${raw} (action needed)`;
 }
 
-export function getOrderStatusPresentation(status: string): OrderStatusPresentation {
+export function getOrderStatusPresentation(
+  status: string,
+): OrderStatusPresentation {
   if (!normalizeOrderStatus(status)) {
     return {
       label: status,
@@ -189,16 +227,20 @@ export function getOrderStatusPresentation(status: string): OrderStatusPresentat
 }
 
 export function getAdminOrderStatusPresentation(
-  input: AdminOrderStatusInput
+  input: AdminOrderStatusInput,
 ): AdminOrderStatusPresentation {
   const status = input.status ?? "";
   const fulfillmentStatus = input.fulfillmentStatus ?? "";
-  const exceptionSource = [status, fulfillmentStatus].find((value) => isInventoryExceptionStatus(value));
+  const exceptionSource = [status, fulfillmentStatus].find((value) =>
+    isInventoryExceptionStatus(value),
+  );
 
   if (exceptionSource) {
     const rawPayment = (input.paymentStatus ?? "").trim();
     return {
-      label: formatInventoryExceptionLabel(rawPayment.length > 0 ? rawPayment : "unknown"),
+      label: formatInventoryExceptionLabel(
+        rawPayment.length > 0 ? rawPayment : "unknown",
+      ),
       flagged: true,
       treatment: "attention",
       className: ORDER_STATUS_ATTENTION_CLASS,

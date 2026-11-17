@@ -22,7 +22,11 @@ export interface DbWrite {
 }
 
 type Row = Record<string, unknown>;
-type FailWhen = (table: string, op: string, filters: QueryFilter[]) => DbError | null;
+type FailWhen = (
+  table: string,
+  op: string,
+  filters: QueryFilter[],
+) => DbError | null;
 
 interface QueryResult {
   data: unknown;
@@ -61,12 +65,23 @@ function asDbError(error: unknown): DbError {
     "message" in error &&
     typeof (error as { message?: unknown }).message === "string"
   ) {
-    const record = error as { message: string; code?: unknown; details?: unknown; hint?: unknown };
+    const record = error as {
+      message: string;
+      code?: unknown;
+      details?: unknown;
+      hint?: unknown;
+    };
     return {
       message: record.message,
       code: typeof record.code === "string" ? record.code : undefined,
-      details: record.details === null || typeof record.details === "string" ? record.details : null,
-      hint: record.hint === null || typeof record.hint === "string" ? record.hint : null,
+      details:
+        record.details === null || typeof record.details === "string"
+          ? record.details
+          : null,
+      hint:
+        record.hint === null || typeof record.hint === "string"
+          ? record.hint
+          : null,
     };
   }
   if (error instanceof Error) {
@@ -86,15 +101,24 @@ export class MemoryDb {
   readonly rpcCalls: { fn: string; args: Record<string, unknown> }[] = [];
   readonly writes: DbWrite[] = [];
   readonly limits: { table: string; count: number }[] = [];
-  readonly orders: { table: string; column: string; referencedTable?: string }[] = [];
+  readonly orders: {
+    table: string;
+    column: string;
+    referencedTable?: string;
+  }[] = [];
   failWhen: FailWhen | null = null;
 
   constructor(schema: StoreSchema = loadStoreSchema()) {
     this.schema = schema;
     this.columns = Object.fromEntries(
-      Object.entries(schema.tables).map(([table, cols]) => [table, new Set(cols)])
+      Object.entries(schema.tables).map(([table, cols]) => [
+        table,
+        new Set(cols),
+      ]),
     );
-    this.rows = Object.fromEntries(Object.keys(schema.tables).map((table) => [table, []]));
+    this.rows = Object.fromEntries(
+      Object.keys(schema.tables).map((table) => [table, []]),
+    );
   }
 
   rowsOf(table: string) {
@@ -112,7 +136,7 @@ export class MemoryDb {
       ) {
         throw dbError(
           `new row for relation "orders" violates check constraint "orders_status_check"`,
-          "23514"
+          "23514",
         );
       }
       stored.push({ ...row });
@@ -134,11 +158,17 @@ export class MemoryDb {
       }
       if (fn === "reserve_inventory") {
         this.applyStock(asItems(args.order_items), -1);
-        return { data: [{ success: true, message: "Stock reserved" }], error: null };
+        return {
+          data: [{ success: true, message: "Stock reserved" }],
+          error: null,
+        };
       }
       if (fn === "restore_inventory") {
         this.applyStock(asItems(args.order_items), 1);
-        return { data: [{ success: true, message: "Stock restored" }], error: null };
+        return {
+          data: [{ success: true, message: "Stock restored" }],
+          error: null,
+        };
       }
       return {
         data: null,
@@ -157,7 +187,10 @@ export class MemoryDb {
             ? error.message
             : String(error);
       const code =
-        error && typeof error === "object" && "code" in error && typeof error.code === "string"
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        typeof error.code === "string"
           ? error.code
           : "P0001";
       return {
@@ -188,22 +221,38 @@ export class MemoryDb {
     const order = this.orderForUpdate(args.p_order_id);
     if (!order) throw dbError("Order not found while reserving inventory");
     if (order.inventory_reserved === true) {
-      return [{ success: true, already_reserved: true, message: "Inventory already reserved" }];
+      return [
+        {
+          success: true,
+          already_reserved: true,
+          message: "Inventory already reserved",
+        },
+      ];
     }
     this.applyStock(asItems(args.order_items), -1);
     order.inventory_reserved = true;
-    return [{ success: true, already_reserved: false, message: "Inventory reserved" }];
+    return [
+      { success: true, already_reserved: false, message: "Inventory reserved" },
+    ];
   }
 
   private restoreOrder(args: Record<string, unknown>) {
     const order = this.orderForUpdate(args.p_order_id);
     if (!order) throw dbError("Order not found while restoring inventory");
     if (order.inventory_reserved !== true) {
-      return [{ success: true, was_reserved: false, message: "Inventory already restored" }];
+      return [
+        {
+          success: true,
+          was_reserved: false,
+          message: "Inventory already restored",
+        },
+      ];
     }
     this.applyStock(asItems(args.order_items), 1);
     order.inventory_reserved = false;
-    return [{ success: true, was_reserved: true, message: "Inventory restored" }];
+    return [
+      { success: true, was_reserved: true, message: "Inventory restored" },
+    ];
   }
 
   private orderForUpdate(orderId: unknown) {
@@ -217,14 +266,16 @@ export class MemoryDb {
     for (const item of items) {
       if (item.variant_id) {
         const variant = variants.find((row) => row.id === item.variant_id);
-        if (!variant) throw dbError("Variant not found while adjusting inventory");
+        if (!variant)
+          throw dbError("Variant not found while adjusting inventory");
         const next = Number(variant.stock_count) + direction * item.quantity;
         if (direction < 0 && (variant.stock_count == null || next < 0)) {
           throw dbError("Variant stock unavailable");
         }
       } else {
         const product = products.find((row) => row.id === item.product_id);
-        if (!product) throw dbError("Product not found while adjusting inventory");
+        if (!product)
+          throw dbError("Product not found while adjusting inventory");
         const next = Number(product.stock_count) + direction * item.quantity;
         if (direction < 0 && (product.stock_count == null || next < 0)) {
           throw dbError("Product stock unavailable");
@@ -237,7 +288,8 @@ export class MemoryDb {
       if (item.variant_id) {
         const variant = variants.find((row) => row.id === item.variant_id);
         if (!variant) continue;
-        variant.stock_count = Number(variant.stock_count) + direction * item.quantity;
+        variant.stock_count =
+          Number(variant.stock_count) + direction * item.quantity;
         touchedProducts.add(String(item.product_id));
       } else {
         const product = products.find((row) => row.id === item.product_id);
@@ -287,21 +339,26 @@ interface SelectField {
 }
 
 class Query implements PromiseLike<QueryResult> {
-  private operation: "select" | "insert" | "update" | "upsert" | "delete" = "select";
+  private operation: "select" | "insert" | "update" | "upsert" | "delete" =
+    "select";
   private selectList = "*";
   private payload: Row | Row[] | null = null;
   private onConflict: string[] = [];
   private filters: QueryFilter[] = [];
   private foreignOrs: { table: string; filters: QueryFilter[] }[] = [];
   private limitN: number | null = null;
-  private orderBy: { column: string; ascending: boolean; referencedTable?: string } | null = null;
+  private orderBy: {
+    column: string;
+    ascending: boolean;
+    referencedTable?: string;
+  } | null = null;
   private mode: "many" | "single" | "maybe" = "many";
   private head = false;
   private counted = false;
 
   constructor(
     private readonly db: MemoryDb,
-    private readonly table: string
+    private readonly table: string,
   ) {}
 
   select(columns: string, options?: { count?: string; head?: boolean }) {
@@ -348,7 +405,10 @@ class Query implements PromiseLike<QueryResult> {
     return this;
   }
 
-  or(filters: string, options?: { referencedTable?: string; foreignTable?: string }) {
+  or(
+    filters: string,
+    options?: { referencedTable?: string; foreignTable?: string },
+  ) {
     const referencedTable = options?.referencedTable ?? options?.foreignTable;
     const parsed = parseOrFilters(filters);
     if (referencedTable) {
@@ -387,7 +447,11 @@ class Query implements PromiseLike<QueryResult> {
 
   order(
     column: string,
-    options?: { ascending?: boolean; referencedTable?: string; foreignTable?: string }
+    options?: {
+      ascending?: boolean;
+      referencedTable?: string;
+      foreignTable?: string;
+    },
   ) {
     const referencedTable = options?.referencedTable ?? options?.foreignTable;
     this.orderBy = {
@@ -396,7 +460,9 @@ class Query implements PromiseLike<QueryResult> {
       referencedTable,
     };
     this.db.orders.push(
-      referencedTable ? { table: this.table, column, referencedTable } : { table: this.table, column }
+      referencedTable
+        ? { table: this.table, column, referencedTable }
+        : { table: this.table, column },
     );
     return this;
   }
@@ -412,15 +478,20 @@ class Query implements PromiseLike<QueryResult> {
   }
 
   then<TResult1 = QueryResult, TResult2 = never>(
-    onfulfilled?: ((value: QueryResult) => TResult1 | PromiseLike<TResult1>) | null,
-    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
+    onfulfilled?:
+      ((value: QueryResult) => TResult1 | PromiseLike<TResult1>) | null,
+    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
   ) {
     return this.execute().then(onfulfilled, onrejected);
   }
 
   private async execute(): Promise<QueryResult> {
     try {
-      const injected = this.db.failWhen?.(this.table, this.operation, this.filters);
+      const injected = this.db.failWhen?.(
+        this.table,
+        this.operation,
+        this.filters,
+      );
       if (injected) return { data: null, error: injected, count: null };
       if (this.operation === "select") return this.runSelect();
       if (this.operation === "insert") return this.runInsert();
@@ -439,34 +510,47 @@ class Query implements PromiseLike<QueryResult> {
   private runSelect(): QueryResult {
     const fields = parseSelect(this.selectList);
     this.assertFields(fields);
-    let rows = this.db.requireTable(this.table).filter((row) => matches(row, this.filters));
+    let rows = this.db
+      .requireTable(this.table)
+      .filter((row) => matches(row, this.filters));
     const innerFields = fields.filter((field) => field.inner);
     if (innerFields.length > 0) {
-      rows = rows.filter((row) => innerFields.every((field) => this.innerMatch(row, field)));
+      rows = rows.filter((row) =>
+        innerFields.every((field) => this.innerMatch(row, field)),
+      );
     }
     if (this.orderBy?.referencedTable) {
       const { column, ascending, referencedTable } = this.orderBy;
       rows = [...rows].sort((left, right) => {
-        const compared = String(this.referencedValue(left, referencedTable, column) ?? "").localeCompare(
-          String(this.referencedValue(right, referencedTable, column) ?? "")
+        const compared = String(
+          this.referencedValue(left, referencedTable, column) ?? "",
+        ).localeCompare(
+          String(this.referencedValue(right, referencedTable, column) ?? ""),
         );
         return ascending ? compared : -compared;
       });
     } else if (this.orderBy) {
       const { column, ascending } = this.orderBy;
       rows = [...rows].sort((left, right) => {
-        const compared = String(left[column] ?? "").localeCompare(String(right[column] ?? ""));
+        const compared = String(left[column] ?? "").localeCompare(
+          String(right[column] ?? ""),
+        );
         return ascending ? compared : -compared;
       });
     }
     if (this.limitN != null) rows = rows.slice(0, this.limitN);
     const count = this.counted ? rows.length : null;
     if (this.head) return { data: null, error: null, count };
-    return this.finish(rows.map((row) => this.project(row, fields)), count);
+    return this.finish(
+      rows.map((row) => this.project(row, fields)),
+      count,
+    );
   }
 
   private runInsert(): QueryResult {
-    const incoming = Array.isArray(this.payload) ? this.payload : [this.payload ?? {}];
+    const incoming = Array.isArray(this.payload)
+      ? this.payload
+      : [this.payload ?? {}];
     const stored = this.db.requireTable(this.table);
     const inserted: Row[] = [];
     for (const row of incoming) {
@@ -478,29 +562,45 @@ class Query implements PromiseLike<QueryResult> {
       inserted.push(next);
     }
     this.record("insert", this.payload, inserted.length);
-    if (this.selectList === "*" && this.operation === "insert" && this.mode === "many" && !this.counted) {
+    if (
+      this.selectList === "*" &&
+      this.operation === "insert" &&
+      this.mode === "many" &&
+      !this.counted
+    ) {
       // Insert without a following select still records rows. Callers only read `error`.
     }
     if (!this.selected()) return { data: null, error: null, count: null };
     const fields = parseSelect(this.selectList);
     this.assertFields(fields);
-    return this.finish(inserted.map((row) => this.project(row, fields)), inserted.length);
+    return this.finish(
+      inserted.map((row) => this.project(row, fields)),
+      inserted.length,
+    );
   }
 
   private runUpdate(): QueryResult {
     const patch = (this.payload ?? {}) as Row;
     this.db.assertKnownColumns(this.table, patch);
-    const rows = this.db.requireTable(this.table).filter((row) => matches(row, this.filters));
+    const rows = this.db
+      .requireTable(this.table)
+      .filter((row) => matches(row, this.filters));
     this.record("update", patch, rows.length);
     for (const row of rows) {
-      const nextStatus = Object.prototype.hasOwnProperty.call(patch, "status") ? patch.status : row.status;
+      const nextStatus = Object.prototype.hasOwnProperty.call(patch, "status")
+        ? patch.status
+        : row.status;
       this.assertStatus(nextStatus);
       Object.assign(row, patch);
     }
-    if (!this.selected()) return { data: null, error: null, count: rows.length };
+    if (!this.selected())
+      return { data: null, error: null, count: rows.length };
     const fields = parseSelect(this.selectList);
     this.assertFields(fields);
-    return this.finish(rows.map((row) => this.project(row, fields)), rows.length);
+    return this.finish(
+      rows.map((row) => this.project(row, fields)),
+      rows.length,
+    );
   }
 
   private runUpsert(): QueryResult {
@@ -509,7 +609,7 @@ class Query implements PromiseLike<QueryResult> {
     this.assertStatus(patch.status);
     const stored = this.db.requireTable(this.table);
     const existing = stored.find((row) =>
-      this.onConflict.every((column) => row[column] === patch[column])
+      this.onConflict.every((column) => row[column] === patch[column]),
     );
     let saved: Row;
     if (existing) {
@@ -536,7 +636,11 @@ class Query implements PromiseLike<QueryResult> {
     return { data: null, error: null, count: removed };
   }
 
-  private record(op: DbWrite["op"], payload: Row | Row[] | null, matched: number) {
+  private record(
+    op: DbWrite["op"],
+    payload: Row | Row[] | null,
+    matched: number,
+  ) {
     this.db.writes.push({
       table: this.table,
       op,
@@ -556,7 +660,10 @@ class Query implements PromiseLike<QueryResult> {
       if (this.mode === "maybe") return { data: null, error: null, count };
       return {
         data: null,
-        error: dbError("JSON object requested, multiple (or no) rows returned", "PGRST116"),
+        error: dbError(
+          "JSON object requested, multiple (or no) rows returned",
+          "PGRST116",
+        ),
         count,
       };
     }
@@ -565,7 +672,8 @@ class Query implements PromiseLike<QueryResult> {
 
   private assertFields(fields: SelectField[]) {
     const columns = this.db.schema.tables[this.table];
-    if (!columns) throw dbError(`relation "${this.table}" does not exist`, "42P01");
+    if (!columns)
+      throw dbError(`relation "${this.table}" does not exist`, "42P01");
     for (const field of fields) {
       if (field.nested) {
         const childColumns = this.db.schema.tables[field.name];
@@ -575,19 +683,26 @@ class Query implements PromiseLike<QueryResult> {
         for (const child of parseSelect(field.nested)) {
           if (child.nested || child.name === "*") continue;
           if (!childColumns.includes(child.name)) {
-            throw dbError(`column ${field.name}.${child.name} does not exist`, "42703");
+            throw dbError(
+              `column ${field.name}.${child.name} does not exist`,
+              "42703",
+            );
           }
         }
         continue;
       }
       if (field.name !== "*" && !columns.includes(field.name)) {
-        throw dbError(`column ${this.table}.${field.name} does not exist`, "42703");
+        throw dbError(
+          `column ${this.table}.${field.name} does not exist`,
+          "42703",
+        );
       }
     }
   }
 
   private project(row: Row, fields: SelectField[]) {
-    if (fields.length === 1 && fields[0].name === "*" && !fields[0].nested) return { ...row };
+    if (fields.length === 1 && fields[0].name === "*" && !fields[0].nested)
+      return { ...row };
     const projected: Row = {};
     for (const field of fields) {
       if (field.nested) {
@@ -601,11 +716,15 @@ class Query implements PromiseLike<QueryResult> {
 
   private innerMatch(row: Row, field: SelectField) {
     if (this.table === "payments" && field.name === "orders") {
-      const parent = this.db.rowsOf("orders").find((order) => order.id === row.order_id);
+      const parent = this.db
+        .rowsOf("orders")
+        .find((order) => order.id === row.order_id);
       if (!parent) return false;
       return this.foreignOrs
         .filter((group) => group.table === "orders")
-        .every((group) => matches(parent, [{ op: "or", column: "", value: group.filters }]));
+        .every((group) =>
+          matches(parent, [{ op: "or", column: "", value: group.filters }]),
+        );
     }
     const embedded = this.embed(row, field);
     return Array.isArray(embedded) ? embedded.length > 0 : embedded != null;
@@ -613,7 +732,9 @@ class Query implements PromiseLike<QueryResult> {
 
   private referencedValue(row: Row, table: string | undefined, column: string) {
     if (this.table === "payments" && table === "orders") {
-      const parent = this.db.rowsOf("orders").find((order) => order.id === row.order_id);
+      const parent = this.db
+        .rowsOf("orders")
+        .find((order) => order.id === row.order_id);
       return parent?.[column];
     }
     return row[column];
@@ -621,7 +742,9 @@ class Query implements PromiseLike<QueryResult> {
 
   private embed(row: Row, field: SelectField): Row | Row[] | null {
     if (this.table === "payments" && field.name === "orders") {
-      const parent = this.db.rowsOf("orders").find((order) => order.id === row.order_id);
+      const parent = this.db
+        .rowsOf("orders")
+        .find((order) => order.id === row.order_id);
       if (!parent) return null;
       return this.projectColumns(parent, field.nested ?? "*");
     }
@@ -629,17 +752,26 @@ class Query implements PromiseLike<QueryResult> {
       this.table === "products" && field.name === "product_variants"
         ? "product_id"
         : ORDER_FK[field.name];
-    const children = (this.db.rowsOf(field.name) ?? []).filter((child) => child[fk] === row.id);
-    return children.map((child) => this.projectColumns(child, field.nested ?? "*"));
+    const children = (this.db.rowsOf(field.name) ?? []).filter(
+      (child) => child[fk] === row.id,
+    );
+    return children.map((child) =>
+      this.projectColumns(child, field.nested ?? "*"),
+    );
   }
 
   private projectColumns(row: Row, nested: string) {
     const nestedFields = parseSelect(nested);
-    if (nestedFields.length === 1 && nestedFields[0].name === "*" && !nestedFields[0].nested) {
+    if (
+      nestedFields.length === 1 &&
+      nestedFields[0].name === "*" &&
+      !nestedFields[0].nested
+    ) {
       return { ...row };
     }
     const projected: Row = {};
-    for (const nestedField of nestedFields) projected[nestedField.name] = row[nestedField.name];
+    for (const nestedField of nestedFields)
+      projected[nestedField.name] = row[nestedField.name];
     return projected;
   }
 
@@ -648,16 +780,25 @@ class Query implements PromiseLike<QueryResult> {
     if (!this.db.schema.orderStatuses.includes(String(status))) {
       throw dbError(
         `new row for relation "orders" violates check constraint "orders_status_check"`,
-        "23514"
+        "23514",
       );
     }
   }
 
   private assertUnique(row: Row, ignore: Row | null) {
-    const stored = this.db.requireTable(this.table).filter((candidate) => candidate !== ignore);
+    const stored = this.db
+      .requireTable(this.table)
+      .filter((candidate) => candidate !== ignore);
     if (this.table === "orders" && row.stripe_session_id) {
-      if (stored.some((candidate) => candidate.stripe_session_id === row.stripe_session_id)) {
-        throw dbError("duplicate key value violates unique constraint", "23505");
+      if (
+        stored.some(
+          (candidate) => candidate.stripe_session_id === row.stripe_session_id,
+        )
+      ) {
+        throw dbError(
+          "duplicate key value violates unique constraint",
+          "23505",
+        );
       }
     }
     if (this.table === "payments") {
@@ -665,10 +806,14 @@ class Query implements PromiseLike<QueryResult> {
         stored.some(
           (candidate) =>
             candidate.provider === row.provider &&
-            candidate.provider_payment_intent_id === row.provider_payment_intent_id
+            candidate.provider_payment_intent_id ===
+              row.provider_payment_intent_id,
         )
       ) {
-        throw dbError("duplicate key value violates unique constraint", "23505");
+        throw dbError(
+          "duplicate key value violates unique constraint",
+          "23505",
+        );
       }
     }
     if (this.table === "payment_webhook_events") {
@@ -676,10 +821,13 @@ class Query implements PromiseLike<QueryResult> {
         stored.some(
           (candidate) =>
             candidate.provider === row.provider &&
-            candidate.provider_event_id === row.provider_event_id
+            candidate.provider_event_id === row.provider_event_id,
         )
       ) {
-        throw dbError("duplicate key value violates unique constraint", "23505");
+        throw dbError(
+          "duplicate key value violates unique constraint",
+          "23505",
+        );
       }
     }
   }
@@ -689,11 +837,14 @@ class Query implements PromiseLike<QueryResult> {
     if (next.id == null) next.id = crypto.randomUUID();
     const columns = this.db.schema.tables[this.table] ?? [];
     const now = new Date().toISOString();
-    if (columns.includes("created_at") && next.created_at == null) next.created_at = now;
-    if (columns.includes("updated_at") && next.updated_at == null) next.updated_at = now;
+    if (columns.includes("created_at") && next.created_at == null)
+      next.created_at = now;
+    if (columns.includes("updated_at") && next.updated_at == null)
+      next.updated_at = now;
     if (this.table === "orders") {
       if (next.inventory_reserved == null) next.inventory_reserved = false;
-      if (next.verification_completed == null) next.verification_completed = false;
+      if (next.verification_completed == null)
+        next.verification_completed = false;
       if (next.status == null) next.status = "pending";
     }
     return next;
@@ -701,7 +852,8 @@ class Query implements PromiseLike<QueryResult> {
 }
 
 function parseSelect(input: string): SelectField[] {
-  if (!input || input.trim() === "*") return [{ name: "*", nested: null, inner: false }];
+  if (!input || input.trim() === "*")
+    return [{ name: "*", nested: null, inner: false }];
   const parts: string[] = [];
   let current = "";
   let depth = 0;
@@ -717,9 +869,15 @@ function parseSelect(input: string): SelectField[] {
   }
   if (current.trim()) parts.push(current.trim());
   return parts.map((part) => {
-    const nested = part.match(/^([a-z_][a-z0-9_]*)(?:!(inner|left))?\((.*)\)$/i);
+    const nested = part.match(
+      /^([a-z_][a-z0-9_]*)(?:!(inner|left))?\((.*)\)$/i,
+    );
     if (nested) {
-      return { name: nested[1], nested: nested[3], inner: nested[2]?.toLowerCase() === "inner" };
+      return {
+        name: nested[1],
+        nested: nested[3],
+        inner: nested[2]?.toLowerCase() === "inner",
+      };
     }
     return { name: part, nested: null, inner: false };
   });
@@ -731,7 +889,9 @@ function parseOrFilters(filters: string): QueryFilter[] {
     .map((part) => part.trim())
     .filter(Boolean)
     .map((part) => {
-      const match = part.match(/^([a-z_][a-z0-9_]*)\.(eq|neq|is|lt|ilike)\.(.*)$/i);
+      const match = part.match(
+        /^([a-z_][a-z0-9_]*)\.(eq|neq|is|lt|ilike)\.(.*)$/i,
+      );
       if (!match) {
         throw dbError(`unsupported or filter "${part}"`);
       }
@@ -748,22 +908,30 @@ function parseOrFilters(filters: string): QueryFilter[] {
 function ilikeMatch(value: unknown, pattern: unknown) {
   const source = String(value ?? "");
   const raw = String(pattern ?? "");
-  const escaped = raw.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/%/g, ".*");
+  const escaped = raw
+    .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
+    .replace(/\*/g, ".*")
+    .replace(/%/g, ".*");
   return new RegExp(`^${escaped}$`, "i").test(source);
 }
 
 function matches(row: Row, filters: QueryFilter[]): boolean {
   return filters.every((filter) => {
     if (filter.op === "or") {
-      const group = Array.isArray(filter.value) ? (filter.value as QueryFilter[]) : [];
+      const group = Array.isArray(filter.value)
+        ? (filter.value as QueryFilter[])
+        : [];
       return group.some((inner) => matches(row, [inner]));
     }
     const value = row[filter.column];
     if (filter.op === "eq") return value === filter.value;
     if (filter.op === "neq") return value != null && value !== filter.value;
-    if (filter.op === "in") return Array.isArray(filter.value) && filter.value.includes(value);
-    if (filter.op === "is") return value === filter.value || (filter.value === null && value == null);
-    if (filter.op === "lt") return String(value ?? "") < String(filter.value ?? "");
+    if (filter.op === "in")
+      return Array.isArray(filter.value) && filter.value.includes(value);
+    if (filter.op === "is")
+      return value === filter.value || (filter.value === null && value == null);
+    if (filter.op === "lt")
+      return String(value ?? "") < String(filter.value ?? "");
     if (filter.op === "ilike") return ilikeMatch(value, filter.value);
     return false;
   });

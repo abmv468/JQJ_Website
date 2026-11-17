@@ -6,15 +6,14 @@ import {
   checkoutCustomer,
   checkoutItem,
   createCheckoutDb,
-  dbError,
   setActiveDb,
   type MemoryDb,
 } from "../helpers/memory-db";
 
 vi.mock("@/lib/payments/airwallex", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/payments/airwallex")>(
-    "@/lib/payments/airwallex"
-  );
+  const actual = await vi.importActual<
+    typeof import("@/lib/payments/airwallex")
+  >("@/lib/payments/airwallex");
   return {
     ...actual,
     createAirwallexPaymentIntent: vi.fn(),
@@ -68,7 +67,7 @@ describe("combined reservation reaper", () => {
       "fetch",
       vi.fn(async () => {
         throw new Error("unexpected network call");
-      })
+      }),
     );
   });
 
@@ -84,7 +83,9 @@ describe("combined reservation reaper", () => {
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
     expect(held.inventory_reserved).toBe(true);
 
-    vi.mocked(createAirwallexPaymentIntent).mockRejectedValueOnce(new Error("intent create failed"));
+    vi.mocked(createAirwallexPaymentIntent).mockRejectedValueOnce(
+      new Error("intent create failed"),
+    );
     const retry = await POST(request());
 
     expect(retry.status).toBe(500);
@@ -98,7 +99,10 @@ describe("combined reservation reaper", () => {
     const original = db.rpc.bind(db);
     db.rpc = async (fn, args) => {
       if (fn === "restore_order_inventory") {
-        return { data: null, error: { message: "driver-restore-secret", code: "XX000" } };
+        return {
+          data: null,
+          error: { message: "driver-restore-secret", code: "XX000" },
+        };
       }
       return original(fn, args ?? {});
     };
@@ -106,7 +110,9 @@ describe("combined reservation reaper", () => {
     const spy = vi.spyOn(console, "error").mockImplementation((...args) => {
       errors.push(args);
     });
-    vi.mocked(createAirwallexPaymentIntent).mockRejectedValueOnce(new Error("intent create failed"));
+    vi.mocked(createAirwallexPaymentIntent).mockRejectedValueOnce(
+      new Error("intent create failed"),
+    );
 
     const response = await POST(request());
     const body = await response.json();
@@ -126,8 +132,8 @@ describe("combined reservation reaper", () => {
       errors.some(
         (call) =>
           call[0] === "[airwallex-checkout] reservation release failed" &&
-          JSON.stringify(call[1]).includes(orderId)
-      )
+          JSON.stringify(call[1]).includes(orderId),
+      ),
     ).toBe(true);
 
     await releaseExpiredAirwallexReservations(db as never);
@@ -221,8 +227,10 @@ describe("combined reservation reaper", () => {
           id,
           status: kind === "pending" ? "pending" : "failed",
           payment_provider: "airwallex",
-          payment_status: kind === "pending" ? "requires_payment_method" : "failed",
-          fulfillment_status: kind === "pending" ? "pending_payment" : "payment_failed",
+          payment_status:
+            kind === "pending" ? "requires_payment_method" : "failed",
+          fulfillment_status:
+            kind === "pending" ? "pending_payment" : "payment_failed",
           inventory_reserved: true,
           total_amount: 115,
           created_at: hoursAgo(40 - i),
@@ -243,14 +251,17 @@ describe("combined reservation reaper", () => {
     await releaseExpiredAirwallexReservations(db as never);
 
     const reserved = (id: string) =>
-      db.rowsOf("orders").find((row) => row.id === id)?.inventory_reserved === true;
+      db.rowsOf("orders").find((row) => row.id === id)?.inventory_reserved ===
+      true;
     expect(reserved("pending-0")).toBe(false);
     expect(reserved("pending-24")).toBe(false);
     expect(reserved("pending-25")).toBe(true);
     expect(reserved("failed-0")).toBe(false);
     expect(reserved("failed-24")).toBe(false);
     expect(reserved("failed-25")).toBe(true);
-    expect(db.rowsOf("orders").filter((row) => row.inventory_reserved === false)).toHaveLength(50);
+    expect(
+      db.rowsOf("orders").filter((row) => row.inventory_reserved === false),
+    ).toHaveLength(50);
   });
 
   it("continues the batch when one order throws and logs only that order id", async () => {
@@ -297,8 +308,14 @@ describe("combined reservation reaper", () => {
     db.rowsOf("products")[0].stock_count = 0;
     const original = db.rpc.bind(db);
     db.rpc = async (fn, args) => {
-      if (fn === "restore_order_inventory" && args?.p_order_id === "order-bad") {
-        return { data: null, error: { message: "driver-secret-xyz", code: "XX000" } };
+      if (
+        fn === "restore_order_inventory" &&
+        args?.p_order_id === "order-bad"
+      ) {
+        return {
+          data: null,
+          error: { message: "driver-secret-xyz", code: "XX000" },
+        };
       }
       return original(fn, args ?? {});
     };
@@ -310,8 +327,14 @@ describe("combined reservation reaper", () => {
     await releaseExpiredAirwallexReservations(db as never);
     spy.mockRestore();
 
-    expect(db.rowsOf("orders").find((row) => row.id === "order-ok")?.inventory_reserved).toBe(false);
-    expect(db.rowsOf("orders").find((row) => row.id === "order-bad")?.inventory_reserved).toBe(true);
+    expect(
+      db.rowsOf("orders").find((row) => row.id === "order-ok")
+        ?.inventory_reserved,
+    ).toBe(false);
+    expect(
+      db.rowsOf("orders").find((row) => row.id === "order-bad")
+        ?.inventory_reserved,
+    ).toBe(true);
     expect(db.rowsOf("products")[0].stock_count).toBe(1);
     const logged = errors.filter((call) => call[0] === "[reservation-release]");
     expect(logged).toEqual([["[reservation-release]", "order-bad"]]);
@@ -367,9 +390,13 @@ describe("combined reservation reaper", () => {
 
     await releaseExpiredAirwallexReservations(db as never);
 
-    const released = db.rowsOf("orders").filter((row) => row.inventory_reserved === false);
+    const released = db
+      .rowsOf("orders")
+      .filter((row) => row.inventory_reserved === false);
     expect(released).toHaveLength(50);
-    expect(db.rowsOf("orders").filter((row) => row.inventory_reserved === true)).toHaveLength(70);
+    expect(
+      db.rowsOf("orders").filter((row) => row.inventory_reserved === true),
+    ).toHaveLength(70);
     expect(restores(db)).toHaveLength(50);
     expect(db.rowsOf("products")[0].stock_count).toBe(50);
   });

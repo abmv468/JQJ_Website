@@ -2,7 +2,12 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { AUTH_EMAIL_FROM_NAME, BRAND_EN, BRAND_ZH, SUPPORT_EMAIL } from "@/lib/auth/brand";
+import {
+  AUTH_EMAIL_FROM_NAME,
+  BRAND_EN,
+  BRAND_ZH,
+  SUPPORT_EMAIL,
+} from "@/lib/auth/brand";
 import { loginStatusMessage, readNoticeEmail } from "@/lib/auth/notice";
 import { PASSWORDS_DO_NOT_MATCH, plainAuthError } from "@/lib/auth/plain-error";
 import { authRedirectUrl } from "@/lib/auth/redirect-url";
@@ -13,7 +18,10 @@ import {
   reviewEmailInput,
 } from "@/lib/auth/transactional-email";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const root = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../..",
+);
 
 const AUTH_SOURCES = [
   "app/(auth)/auth",
@@ -49,7 +57,9 @@ function walk(relative: string): string[] {
   const absolute = path.join(root, relative);
   const stat = statSync(absolute);
   if (stat.isFile()) return [relative];
-  return readdirSync(absolute).flatMap((entry) => walk(path.join(relative, entry)));
+  return readdirSync(absolute).flatMap((entry) =>
+    walk(path.join(relative, entry)),
+  );
 }
 
 function source(relative: string): string {
@@ -68,7 +78,7 @@ describe("auth typeset lock", () => {
 
   it("keeps banned words and the wrong house name off these surfaces", () => {
     const files = AUTH_SOURCES.flatMap((entry) => walk(entry)).filter((file) =>
-      /\.(ts|tsx|css|html|txt)$/.test(file)
+      /\.(ts|tsx|css|html|txt)$/.test(file),
     );
     expect(files.length).toBeGreaterThan(8);
     for (const file of files) {
@@ -87,31 +97,39 @@ describe("auth typeset lock", () => {
     expect(email).not.toContain("Reset your password");
     expect(email).not.toContain("\u6975");
     expect(source("lib/auth/transactional-email.ts")).not.toContain("resend");
-    expect(source("lib/auth/transactional-email.ts")).not.toContain("sendOrderEmails");
+    expect(source("lib/auth/transactional-email.ts")).not.toContain(
+      "sendOrderEmails",
+    );
   });
 });
 
 describe("auth contracts", () => {
   it("keeps the redirect base and the existing confirm and reset paths", () => {
     expect(authRedirectUrl("/auth/confirm", "http://127.0.0.1:3000")).toBe(
-      "http://localhost:3000/auth/confirm"
+      "http://localhost:3000/auth/confirm",
     );
-    expect(authRedirectUrl("/auth/reset-password", "http://127.0.0.1:3000")).toBe(
-      "http://localhost:3000/auth/reset-password"
-    );
+    expect(
+      authRedirectUrl("/auth/reset-password", "http://127.0.0.1:3000"),
+    ).toBe("http://localhost:3000/auth/reset-password");
   });
 
   it("reads only the inbox notices and the two existing login statuses", () => {
     expect(readNoticeEmail("confirm", "alex.wong@example.com", "confirm")).toBe(
-      "alex.wong@example.com"
+      "alex.wong@example.com",
     );
     expect(readNoticeEmail("confirm", "not-an-email", "confirm")).toBeNull();
-    expect(readNoticeEmail("reset", "alex.wong@example.com", "confirm")).toBeNull();
-    expect(readNoticeEmail("reset", "ada@example.com", "reset")).toBe("ada@example.com");
-    expect(loginStatusMessage("password-updated")).toBe(
-      "Password updated. Sign in with your new password."
+    expect(
+      readNoticeEmail("reset", "alex.wong@example.com", "confirm"),
+    ).toBeNull();
+    expect(readNoticeEmail("reset", "ada@example.com", "reset")).toBe(
+      "ada@example.com",
     );
-    expect(loginStatusMessage("email-verified")).toBe("Email verified. You can now sign in.");
+    expect(loginStatusMessage("password-updated")).toBe(
+      "Password updated. Sign in with your new password.",
+    );
+    expect(loginStatusMessage("email-verified")).toBe(
+      "Email verified. You can now sign in.",
+    );
     expect(loginStatusMessage("<script>alert(1)</script>")).toBeNull();
     expect(loginStatusMessage("error")).toBeNull();
   });
@@ -122,21 +140,26 @@ describe("auth contracts", () => {
     expect(message).toBe("That email or password is incorrect.");
     expect(message).not.toContain(raw);
 
-    expect(plainAuthError(new Error("User already registered"), "fallback")).toBe(
-      "An account with this email already exists. Sign in instead."
-    );
-    expect(plainAuthError(new Error("Email not confirmed"), "fallback")).toContain("Confirm your email");
-    expect(plainAuthError(new Error("sqlstate 23505 duplicate"), "We couldn\u2019t sign you in.")).toBe(
-      "We couldn\u2019t sign you in."
-    );
+    expect(
+      plainAuthError(new Error("User already registered"), "fallback"),
+    ).toBe("An account with this email already exists. Sign in instead.");
+    expect(
+      plainAuthError(new Error("Email not confirmed"), "fallback"),
+    ).toContain("Confirm your email");
+    expect(
+      plainAuthError(
+        new Error("sqlstate 23505 duplicate"),
+        "We couldn\u2019t sign you in.",
+      ),
+    ).toBe("We couldn\u2019t sign you in.");
     expect(PASSWORDS_DO_NOT_MATCH).toBe("Passwords do not match.");
   });
 
   it("keeps sign-in, confirmation, and reset behaviour on the existing routes", () => {
     const login = source("app/(auth)/auth/login/login-form.tsx");
     expect(login).toContain("sanitizeNextPath");
-    expect(login).toContain('router.push(nextPath)');
-    expect(login).toContain('authRedirectUrl("/auth/confirm"');
+    expect(login).toContain("router.push(nextPath)");
+    expect(login).toMatch(/authRedirectUrl\(\s*"\/auth\/confirm"/);
     expect(login).toContain("signInWithPassword");
     expect(login).toContain("signUp");
     expect(login).toContain('type: "signup"');
@@ -158,7 +181,7 @@ describe("auth contracts", () => {
 
     const forgot = source("app/(auth)/auth/forgot-password/forgot-form.tsx");
     expect(forgot).toContain("resetPasswordForEmail");
-    expect(forgot).toContain('authRedirectUrl("/auth/reset-password"');
+    expect(forgot).toMatch(/authRedirectUrl\(\s*"\/auth\/reset-password"/);
     expect(forgot).toContain("Send reset link");
     expect(forgot).toContain("We sent a reset link to");
 
@@ -171,21 +194,32 @@ describe("auth contracts", () => {
     expect(reset).not.toContain("decodeURIComponent");
     expect(reset).not.toContain("urlError");
 
-    expect(statSync(path.join(root, "app/(store)/layout.tsx")).isFile()).toBe(true);
-    expect(() => statSync(path.join(root, "app/(store)/auth/login/page.tsx"))).toThrow();
+    expect(statSync(path.join(root, "app/(store)/layout.tsx")).isFile()).toBe(
+      true,
+    );
+    expect(() =>
+      statSync(path.join(root, "app/(store)/auth/login/page.tsx")),
+    ).toThrow();
   });
 });
 
 describe("auth email review html", () => {
   it("matches the locked confirm and reset copy, and the files in the repo", () => {
-    expect(authEmailSubject("confirm")).toBe("Confirm your Jewellery Quintessential account");
-    expect(authEmailSubject("reset")).toBe("Reset your Jewellery Quintessential password");
+    expect(authEmailSubject("confirm")).toBe(
+      "Confirm your Jewellery Quintessential account",
+    );
+    expect(authEmailSubject("reset")).toBe(
+      "Reset your Jewellery Quintessential password",
+    );
     expect(authEmailActionLabel("confirm")).toBe("Confirm your email");
     expect(authEmailActionLabel("reset")).toBe("Reset your password");
 
     for (const kind of ["confirm", "reset"] as const) {
       const html = renderAuthEmailReviewHtml(reviewEmailInput(kind));
-      const file = kind === "confirm" ? "emails/auth/confirm-account.html" : "emails/auth/reset-password.html";
+      const file =
+        kind === "confirm"
+          ? "emails/auth/confirm-account.html"
+          : "emails/auth/reset-password.html";
       expect(html).toBe(source(file));
       expect(html).toContain("\u6975\u6C23");
       expect(html).not.toContain("\u6977");
@@ -199,16 +233,22 @@ describe("auth email review html", () => {
     }
 
     const confirm = renderAuthEmailReviewHtml(reviewEmailInput("confirm"));
-    expect(confirm).toContain("Please confirm your email to finish creating your Jewellery Quintessential account.");
-    expect(confirm).toContain("If you didn\u2019t create this account, you can ignore this email.");
+    expect(confirm).toContain(
+      "Please confirm your email to finish creating your Jewellery Quintessential account.",
+    );
+    expect(confirm).toContain(
+      "If you didn\u2019t create this account, you can ignore this email.",
+    );
     expect(confirm).toContain("https://jqd.app/auth/confirm");
     expect(confirm).toContain(">Confirm your email<");
 
     const reset = renderAuthEmailReviewHtml(reviewEmailInput("reset"));
     expect(reset).toContain(
-      "Please use the button below to choose a new password for your Jewellery Quintessential account."
+      "Please use the button below to choose a new password for your Jewellery Quintessential account.",
     );
-    expect(reset).toContain("If you didn\u2019t ask to reset your password, you can ignore this email.");
+    expect(reset).toContain(
+      "If you didn\u2019t ask to reset your password, you can ignore this email.",
+    );
     expect(reset).toContain(">Reset your password<");
   });
 

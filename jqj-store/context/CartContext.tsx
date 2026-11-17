@@ -22,13 +22,18 @@ export type CartItem = StoredCartItem;
 interface CartContextValue {
   items: CartItem[];
   addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
-  removeItem: (id: string, sku?: string, size?: string, material?: string) => void;
+  removeItem: (
+    id: string,
+    sku?: string,
+    size?: string,
+    material?: string,
+  ) => void;
   updateQuantity: (
     id: string,
     sku: string | undefined,
     size: string | undefined,
     material: string | undefined,
-    quantity: number
+    quantity: number,
   ) => void;
   clearCart: () => void;
   itemCount: number;
@@ -89,12 +94,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
     emptyWriteAllowed.current = true;
     setItems((prev) => {
       const key = lineKey(item.id, item.sku, item.size, item.material);
-      const existing = prev.find((p) => lineKey(p.id, p.sku, p.size, p.material) === key);
+      const existing = prev.find(
+        (p) => lineKey(p.id, p.sku, p.size, p.material) === key,
+      );
       if (existing) {
         return prev.map((p) =>
           lineKey(p.id, p.sku, p.size, p.material) === key
             ? { ...p, quantity: p.quantity + quantity }
-            : p
+            : p,
         );
       }
       return [...prev, { ...item, quantity }];
@@ -102,10 +109,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setOpen(true);
   }
 
-  function removeItem(id: string, sku?: string, size?: string, material?: string) {
+  function removeItem(
+    id: string,
+    sku?: string,
+    size?: string,
+    material?: string,
+  ) {
     emptyWriteAllowed.current = true;
     const key = lineKey(id, sku, size, material);
-    setItems((prev) => prev.filter((p) => lineKey(p.id, p.sku, p.size, p.material) !== key));
+    setItems((prev) =>
+      prev.filter((p) => lineKey(p.id, p.sku, p.size, p.material) !== key),
+    );
   }
 
   function updateQuantity(
@@ -113,7 +127,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     sku: string | undefined,
     size: string | undefined,
     material: string | undefined,
-    quantity: number
+    quantity: number,
   ) {
     emptyWriteAllowed.current = true;
     const key = lineKey(id, sku, size, material);
@@ -122,9 +136,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
         .map((p) =>
           lineKey(p.id, p.sku, p.size, p.material) === key
             ? { ...p, quantity: Math.max(0, quantity) }
-            : p
+            : p,
         )
-        .filter((p) => p.quantity > 0)
+        .filter((p) => p.quantity > 0),
     );
   }
 
@@ -135,11 +149,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const itemCount = useMemo(
     () => items.reduce((n, i) => n + i.quantity, 0),
-    [items]
+    [items],
   );
   const subtotal = useMemo(
     () => items.reduce((sum, i) => sum + i.price * i.quantity, 0),
-    [items]
+    [items],
   );
 
   const value: CartContextValue = {

@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { validateCheckoutItems, reserveStockForOrder, restoreStockForOrder } from "@/lib/inventory";
+import {
+  validateCheckoutItems,
+  reserveStockForOrder,
+  restoreStockForOrder,
+} from "@/lib/inventory";
 import { releaseExpiredAirwallexReservations } from "@/lib/payments/airwallex-orders";
-import { checkoutItem, createCheckoutDb, type MemoryDb } from "../helpers/memory-db";
+import {
+  checkoutItem,
+  createCheckoutDb,
+  type MemoryDb,
+} from "../helpers/memory-db";
 
 function readyOrder(db: MemoryDb, id = "order-1") {
   db.seed("orders", [
@@ -17,9 +25,12 @@ function readyOrder(db: MemoryDb, id = "order-1") {
     },
   ]);
   const inventory = new Map(
-    db.rowsOf("products").map((product) => [String(product.slug), product])
+    db.rowsOf("products").map((product) => [String(product.slug), product]),
   );
-  const validation = validateCheckoutItems([checkoutItem()], inventory as never);
+  const validation = validateCheckoutItems(
+    [checkoutItem()],
+    inventory as never,
+  );
   expect(validation.ok).toBe(true);
   return validation.resolved;
 }
@@ -35,7 +46,9 @@ describe("inventory reserve and restore", () => {
 
     await reserveStockForOrder(db as never, "order-1", resolved);
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
-    expect(db.rpcCalls.filter((call) => call.fn === "reserve_order_inventory")).toHaveLength(2);
+    expect(
+      db.rpcCalls.filter((call) => call.fn === "reserve_order_inventory"),
+    ).toHaveLength(2);
 
     await restoreStockForOrder(db as never, "order-1", resolved);
     expect(db.rowsOf("products")[0].stock_count).toBe(5);
@@ -95,22 +108,40 @@ describe("inventory reserve and restore", () => {
             .rowsOf("product_variants")
             .filter((variant) => variant.product_id === product.id),
         },
-      ])
+      ]),
     );
     const validation = validateCheckoutItems(
-      [checkoutItem({ slug: "jasper-bracelet", name: "Jasper Bracelet", sku: "SKU-S" })],
-      inventory as never
+      [
+        checkoutItem({
+          slug: "jasper-bracelet",
+          name: "Jasper Bracelet",
+          sku: "SKU-S",
+        }),
+      ],
+      inventory as never,
     );
     expect(validation.ok).toBe(true);
 
     await reserveStockForOrder(db as never, "order-var", validation.resolved);
-    expect(db.rowsOf("product_variants").find((row) => row.id === "var-s")?.stock_count).toBe(3);
-    expect(db.rowsOf("products").find((row) => row.id === "prod-jasper")?.stock_count).toBe(5);
+    expect(
+      db.rowsOf("product_variants").find((row) => row.id === "var-s")
+        ?.stock_count,
+    ).toBe(3);
+    expect(
+      db.rowsOf("products").find((row) => row.id === "prod-jasper")
+        ?.stock_count,
+    ).toBe(5);
 
     await restoreStockForOrder(db as never, "order-var", validation.resolved);
     await restoreStockForOrder(db as never, "order-var", validation.resolved);
-    expect(db.rowsOf("product_variants").find((row) => row.id === "var-s")?.stock_count).toBe(4);
-    expect(db.rowsOf("products").find((row) => row.id === "prod-jasper")?.stock_count).toBe(6);
+    expect(
+      db.rowsOf("product_variants").find((row) => row.id === "var-s")
+        ?.stock_count,
+    ).toBe(4);
+    expect(
+      db.rowsOf("products").find((row) => row.id === "prod-jasper")
+        ?.stock_count,
+    ).toBe(6);
   });
 
   it("releases only stale Airwallex holds and does not restore them again", async () => {
@@ -160,13 +191,19 @@ describe("inventory reserve and restore", () => {
     await releaseExpiredAirwallexReservations(db as never);
 
     expect(db.rowsOf("products")[0].stock_count).toBe(5);
-    expect(db.rowsOf("orders").find((row) => row.id === "stale")).toMatchObject({
-      inventory_reserved: false,
-      payment_status: "abandoned",
-      status: "failed",
-    });
-    expect(db.rowsOf("orders").find((row) => row.id === "fresh")?.inventory_reserved).toBe(true);
-    expect(db.rowsOf("orders").find((row) => row.id === "cod")?.inventory_reserved).toBe(true);
+    expect(db.rowsOf("orders").find((row) => row.id === "stale")).toMatchObject(
+      {
+        inventory_reserved: false,
+        payment_status: "abandoned",
+        status: "failed",
+      },
+    );
+    expect(
+      db.rowsOf("orders").find((row) => row.id === "fresh")?.inventory_reserved,
+    ).toBe(true);
+    expect(
+      db.rowsOf("orders").find((row) => row.id === "cod")?.inventory_reserved,
+    ).toBe(true);
 
     await releaseExpiredAirwallexReservations(db as never);
     expect(db.rowsOf("products")[0].stock_count).toBe(5);
@@ -211,13 +248,17 @@ describe("inventory reserve and restore", () => {
 
     await releaseExpiredAirwallexReservations(db as never);
 
-    expect(db.rowsOf("orders").find((row) => row.id === "racing")).toMatchObject({
+    expect(
+      db.rowsOf("orders").find((row) => row.id === "racing"),
+    ).toMatchObject({
       payment_status: "succeeded",
       status: "paid",
       fulfillment_status: "paid",
       inventory_reserved: true,
     });
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
-    expect(db.rpcCalls.filter((call) => call.fn === "restore_order_inventory")).toHaveLength(0);
+    expect(
+      db.rpcCalls.filter((call) => call.fn === "restore_order_inventory"),
+    ).toHaveLength(0);
   });
 });

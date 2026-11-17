@@ -5,21 +5,28 @@ import { inflateSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const root = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../..",
+);
 
 const PLATE = "public/header/marble-dark-nav-plate-2x.png";
 const MONOGRAM = "public/header/monogram-jq.png";
 
 /** Locked to the Owner-approved implement pack. Do not swap in a generated stone or a different mark. */
-const PLATE_SHA256 = "53162e2f7fd48b8264ef078ce9511e40d95007c92b1b9513a5c44cc606216641";
-const MONOGRAM_SHA256 = "bdca2fae5f4e4c65a8f84900d57602fb08c12657118ff0b847a46e6fdfa81ffb";
+const PLATE_SHA256 =
+  "53162e2f7fd48b8264ef078ce9511e40d95007c92b1b9513a5c44cc606216641";
+const MONOGRAM_SHA256 =
+  "bdca2fae5f4e4c65a8f84900d57602fb08c12657118ff0b847a46e6fdfa81ffb";
 
 function source(relative: string): string {
   return readFileSync(path.join(root, relative), "utf8");
 }
 
 function sha256(relative: string): string {
-  return createHash("sha256").update(readFileSync(path.join(root, relative))).digest("hex");
+  return createHash("sha256")
+    .update(readFileSync(path.join(root, relative)))
+    .digest("hex");
 }
 
 type DecodedPng = {
@@ -85,7 +92,8 @@ function decodePng(buf: Buffer): DecodedPng {
       if (filter === 0) out[i] = value;
       else if (filter === 1) out[i] = (value + left) & 255;
       else if (filter === 2) out[i] = (value + up) & 255;
-      else if (filter === 3) out[i] = (value + Math.floor((left + up) / 2)) & 255;
+      else if (filter === 3)
+        out[i] = (value + Math.floor((left + up) / 2)) & 255;
       else if (filter === 4) {
         const paeth = left + up - ul;
         const pa = Math.abs(paeth - left);
@@ -121,8 +129,18 @@ describe("storefront header nav marble", () => {
   it("ships the approved plate and monogram bytes", () => {
     expect(sha256(PLATE)).toBe(PLATE_SHA256);
     expect(sha256(MONOGRAM)).toBe(MONOGRAM_SHA256);
-    expect(plate).toMatchObject({ width: 2880, height: 152, colorType: 2, channels: 3 });
-    expect(monogram).toMatchObject({ width: 1401, height: 1401, colorType: 6, channels: 4 });
+    expect(plate).toMatchObject({
+      width: 2880,
+      height: 152,
+      colorType: 2,
+      channels: 3,
+    });
+    expect(monogram).toMatchObject({
+      width: 1401,
+      height: 1401,
+      colorType: 6,
+      channels: 4,
+    });
   });
 
   it("keeps the monogram ground and Q counter open", () => {
@@ -153,17 +171,27 @@ describe("storefront header nav marble", () => {
   });
 
   it("paints the full nav bar with the plate at native vein scale", () => {
-    expect(header).toContain('className="store-nav-stone pointer-events-none absolute inset-x-0 top-0 h-[4.75rem]"');
-    expect(header).toContain('className="container-site relative flex h-[4.75rem] items-center justify-between gap-4"');
+    expect(header).toContain(
+      'className="store-nav-stone pointer-events-none absolute inset-x-0 top-0 h-[4.75rem]"',
+    );
+    expect(header).toContain(
+      'className="container-site relative flex h-[4.75rem] items-center justify-between gap-4"',
+    );
     expect(css).toContain('url("/header/marble-dark-nav-plate-2x.png")');
     expect(css).toContain("background-repeat: repeat-x;");
     expect(css).toContain("background-size: 1440px 76px;");
     expect(css).toContain("background-position: top center;");
     expect(css).not.toContain("background-size: 1440px 152px;");
-    const stoneRule = css.slice(css.indexOf(".store-nav-stone"), css.indexOf(".store-nav-stone") + 400);
+    const stoneRule = css.slice(
+      css.indexOf(".store-nav-stone"),
+      css.indexOf(".store-nav-stone") + 400,
+    );
     expect(stoneRule).not.toContain("linear-gradient");
 
-    const headerBar = header.slice(header.indexOf("<header"), header.indexOf("store-nav-stone"));
+    const headerBar = header.slice(
+      header.indexOf("<header"),
+      header.indexOf("store-nav-stone"),
+    );
     expect(headerBar).not.toContain("bg-black/");
     expect(headerBar).not.toContain("backdrop-blur");
     expect(header).toContain('className="absolute inset-0 bg-black/72"');
@@ -191,15 +219,25 @@ describe("storefront header nav marble", () => {
     expect(announcement).not.toContain("marble");
     expect(announcement).not.toContain("monogram-jq");
     expect(announcement).toContain("Free worldwide shipping on orders over");
-    expect(announcement).toContain("Premium natural gemstones, selected for character");
-    expect(announcement).not.toContain("Handcrafted with premium natural gemstones");
+    expect(announcement).toContain(
+      "Premium natural gemstones, selected for character",
+    );
+    expect(announcement).not.toContain(
+      "Handcrafted with premium natural gemstones",
+    );
     expect(announcement).toContain("Free resizing for new customers");
 
     expect(header).toContain("from-transparent via-white/30 to-transparent");
     expect(header).toContain("border-white/6");
     expect(header).toContain("border-white/10");
 
-    for (const label of ["New", "Limited Edition", "Bracelets", "Necklaces", "Sign In"]) {
+    for (const label of [
+      "New",
+      "Limited Edition",
+      "Bracelets",
+      "Necklaces",
+      "Sign In",
+    ]) {
       expect(header).toContain(label);
     }
     expect(header).toContain('href: "/new"');

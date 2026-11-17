@@ -82,7 +82,9 @@ function findVariant(product: InventoryProduct, item: CheckoutItemInput) {
   const targetMaterial = normalize(item.material);
   if (targetSize || targetMaterial) {
     const byAttributes = variants.find((variant) => {
-      const sizeMatch = targetSize ? normalize(variant.size) === targetSize : true;
+      const sizeMatch = targetSize
+        ? normalize(variant.size) === targetSize
+        : true;
       const materialMatch = targetMaterial
         ? normalize(variant.material) === targetMaterial
         : true;
@@ -96,25 +98,27 @@ function findVariant(product: InventoryProduct, item: CheckoutItemInput) {
 
 export async function fetchInventoryBySlugs(
   supabase: SupabaseClient,
-  slugs: string[]
+  slugs: string[],
 ): Promise<Map<string, InventoryProduct>> {
   if (!slugs.length) return new Map();
 
   const { data, error } = await supabase
     .from("products")
     .select(
-      "id, slug, name, price, stock_count, in_stock, low_stock_threshold, sku, product_variants(id, product_id, size, material, sku, stock_count)"
+      "id, slug, name, price, stock_count, in_stock, low_stock_threshold, sku, product_variants(id, product_id, size, material, sku, stock_count)",
     )
     .in("slug", slugs);
 
   if (error) throw error;
 
-  return new Map((data ?? []).map((product) => [product.slug, product as InventoryProduct]));
+  return new Map(
+    (data ?? []).map((product) => [product.slug, product as InventoryProduct]),
+  );
 }
 
 export function validateCheckoutItems(
   items: CheckoutItemInput[],
-  inventoryBySlug: Map<string, InventoryProduct>
+  inventoryBySlug: Map<string, InventoryProduct>,
 ): StockValidationResult {
   const errors: string[] = [];
   const resolved: ResolvedCheckoutItem[] = [];
@@ -127,7 +131,11 @@ export function validateCheckoutItems(
     // fetchInventoryBySlugs returns whatever products row matches the slug.
     // Refuse the hidden payment-test listing before stock or variant checks,
     // even when that row is in stock and looks sellable.
-    if (!product || isHiddenPaymentTestListing(slug) || isHiddenPaymentTestListing(product.slug)) {
+    if (
+      !product ||
+      isHiddenPaymentTestListing(slug) ||
+      isHiddenPaymentTestListing(product.slug)
+    ) {
       errors.push(`Product "${item.name}" is unavailable.`);
       continue;
     }
@@ -152,7 +160,7 @@ export function validateCheckoutItems(
       errors.push(
         availableQuantity > 0
           ? `"${product.name}" only has ${availableQuantity} item(s) left.`
-          : `"${product.name}" is out of stock.`
+          : `"${product.name}" is out of stock.`,
       );
       continue;
     }
@@ -175,7 +183,7 @@ export function validateCheckoutItems(
 
 export async function reserveStock(
   supabase: SupabaseClient,
-  resolvedItems: ResolvedCheckoutItem[]
+  resolvedItems: ResolvedCheckoutItem[],
 ) {
   const reservations = buildReservations(resolvedItems);
 
@@ -193,7 +201,10 @@ export async function reserveStock(
     }
     return;
   } catch (err) {
-    if (err instanceof Error && (err.message.includes("stock") || err.message.includes("Stock"))) {
+    if (
+      err instanceof Error &&
+      (err.message.includes("stock") || err.message.includes("Stock"))
+    ) {
       throw err;
     }
     throw new Error("Inventory reservation failed. Please retry checkout.");
@@ -202,7 +213,7 @@ export async function reserveStock(
 
 export async function restoreStock(
   supabase: SupabaseClient,
-  resolvedItems: ResolvedCheckoutItem[]
+  resolvedItems: ResolvedCheckoutItem[],
 ) {
   const reservations = buildReservations(resolvedItems);
   const { data, error } = await supabase.rpc("restore_inventory", {
@@ -247,7 +258,7 @@ export async function reserveOrderInventory(
     product_id: string;
     variant_id: string | null;
     quantity: number;
-  }>
+  }>,
 ) {
   const { data, error } = await supabase.rpc("reserve_order_inventory", {
     p_order_id: orderId,
@@ -255,7 +266,11 @@ export async function reserveOrderInventory(
   });
   if (error) throw error;
 
-  const result = (data ?? []) as { success: boolean; already_reserved: boolean; message: string }[];
+  const result = (data ?? []) as {
+    success: boolean;
+    already_reserved: boolean;
+    message: string;
+  }[];
   const failed = result.find((row) => !row.success);
   if (failed) {
     throw new Error(failed.message || "Inventory reservation failed");
@@ -265,15 +280,19 @@ export async function reserveOrderInventory(
 export async function reserveStockForOrder(
   supabase: SupabaseClient,
   orderId: string,
-  resolvedItems: ResolvedCheckoutItem[]
+  resolvedItems: ResolvedCheckoutItem[],
 ) {
-  await reserveOrderInventory(supabase, orderId, buildReservations(resolvedItems));
+  await reserveOrderInventory(
+    supabase,
+    orderId,
+    buildReservations(resolvedItems),
+  );
 }
 
 export async function restoreStockForOrder(
   supabase: SupabaseClient,
   orderId: string,
-  resolvedItems: ResolvedCheckoutItem[]
+  resolvedItems: ResolvedCheckoutItem[],
 ) {
   const reservations = buildReservations(resolvedItems);
   const { data, error } = await supabase.rpc("restore_order_inventory", {
@@ -282,7 +301,11 @@ export async function restoreStockForOrder(
   });
   if (error) throw error;
 
-  const result = (data ?? []) as { success: boolean; was_reserved: boolean; message: string }[];
+  const result = (data ?? []) as {
+    success: boolean;
+    was_reserved: boolean;
+    message: string;
+  }[];
   const failed = result.find((row) => !row.success);
   if (failed) {
     throw new Error(failed.message || "Inventory restore failed");

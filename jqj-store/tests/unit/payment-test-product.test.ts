@@ -20,7 +20,11 @@ const SUPPORTED_CATEGORIES: CategorySlug[] = [
   "earrings",
 ];
 
-function isPaymentTest(product: { id: string; slug: string; sku?: string }): boolean {
+function isPaymentTest(product: {
+  id: string;
+  slug: string;
+  sku?: string;
+}): boolean {
   return product.id === SLUG || product.slug === SLUG || product.sku === SKU;
 }
 

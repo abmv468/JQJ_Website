@@ -1,6 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
-import type { JournalBlock, JournalPost, JournalRelatedLink } from "@/data/journal";
+import type {
+  JournalBlock,
+  JournalPost,
+  JournalRelatedLink,
+} from "@/data/journal";
 
 function ArticleBlock({ block }: { block: JournalBlock }) {
   switch (block.type) {

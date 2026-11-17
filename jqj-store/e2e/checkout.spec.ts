@@ -48,15 +48,22 @@ test("card checkout under the free-shipping announcement matches the server tota
 }, testInfo) => {
   const quote = quoteCheckout(
     [{ unitPriceUsd: catalogUnitPrice(UNDER_THRESHOLD_SLUG), quantity: 1 }],
-    "airwallex"
+    "airwallex",
   );
-  expect(toCents(quote.subtotal)).toBeLessThan(toCents(FREE_SHIPPING_THRESHOLD_USD));
+  expect(toCents(quote.subtotal)).toBeLessThan(
+    toCents(FREE_SHIPPING_THRESHOLD_USD),
+  );
   expect(toCents(quote.shipping)).toBeGreaterThan(0);
 
   await addProductToCart(page, UNDER_THRESHOLD_SLUG);
   await page.goto("/checkout");
   await fillCheckout(page);
-  const result = await submitAndAssertParity(page, testInfo, "airwallex", "order-e2e-under");
+  const result = await submitAndAssertParity(
+    page,
+    testInfo,
+    "airwallex",
+    "order-e2e-under",
+  );
 
   expect(toCents(result.ui.shipping)).toBe(toCents(quote.shipping));
   expect(toCents(result.ui.total)).toBe(toCents(quote.total));
@@ -72,15 +79,22 @@ test("card checkout at or over the free-shipping announcement redirects through 
 }, testInfo) => {
   const quote = quoteCheckout(
     [{ unitPriceUsd: catalogUnitPrice(OVER_THRESHOLD_SLUG), quantity: 1 }],
-    "airwallex"
+    "airwallex",
   );
-  expect(toCents(quote.subtotal)).toBeGreaterThanOrEqual(toCents(FREE_SHIPPING_THRESHOLD_USD));
+  expect(toCents(quote.subtotal)).toBeGreaterThanOrEqual(
+    toCents(FREE_SHIPPING_THRESHOLD_USD),
+  );
   expect(toCents(quote.shipping)).toBe(0);
 
   await addProductToCart(page, OVER_THRESHOLD_SLUG);
   await page.goto("/checkout");
   await fillCheckout(page);
-  const result = await submitAndAssertParity(page, testInfo, "airwallex", "order-e2e-1");
+  const result = await submitAndAssertParity(
+    page,
+    testInfo,
+    "airwallex",
+    "order-e2e-1",
+  );
 
   expect(toCents(result.ui.shipping)).toBe(toCents(quote.shipping));
   expect(toCents(result.ui.codFee)).toBe(0);
@@ -91,16 +105,20 @@ test("card checkout at or over the free-shipping announcement redirects through 
   await assertCurrentConfirmation(page, "order-e2e-1", "airwallex");
   await expectCartCleared(page);
 
-  const calls = await page.evaluate(() => JSON.parse(sessionStorage.getItem("aw-calls") ?? "[]"));
+  const calls = await page.evaluate(() =>
+    JSON.parse(sessionStorage.getItem("aw-calls") ?? "[]"),
+  );
   expect(calls).toEqual(
     expect.arrayContaining([
       { type: "init", env: "demo" },
       { type: "redirect", intent_id: "int_e2e" },
-    ])
+    ]),
   );
 });
 
-test("a failed Airwallex return keeps the cart and shows support copy", async ({ page }) => {
+test("a failed Airwallex return keeps the cart and shows support copy", async ({
+  page,
+}) => {
   await page.addInitScript((key) => {
     localStorage.setItem(
       key,
@@ -113,7 +131,7 @@ test("a failed Airwallex return keeps the cart and shows support copy", async ({
           image: "/products/amethyst-bracelet-xv-1.jpg",
           quantity: 1,
         },
-      ])
+      ]),
     );
   }, CART_KEY);
   await page.route(/\/api\/checkout\/airwallex\/verify$/, (route) =>
@@ -127,14 +145,22 @@ test("a failed Airwallex return keeps the cart and shows support copy", async ({
         failed: true,
         pending: false,
       }),
-    })
+    }),
   );
 
-  await page.goto("/order-confirmation?provider=airwallex&order_id=order-e2e-1&state=failed");
-  await expect(page.getByRole("heading", { name: "Payment was not completed" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "support@jqdgroup.com" })).toBeVisible();
+  await page.goto(
+    "/order-confirmation?provider=airwallex&order_id=order-e2e-1&state=failed",
+  );
+  await expect(
+    page.getByRole("heading", { name: "Payment was not completed" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "support@jqdgroup.com" }),
+  ).toBeVisible();
   await expect
-    .poll(async () => page.evaluate((key) => localStorage.getItem(key), CART_KEY))
+    .poll(async () =>
+      page.evaluate((key) => localStorage.getItem(key), CART_KEY),
+    )
     .toContain("amethyst-bracelet-xv");
 });
 
@@ -143,10 +169,12 @@ test("cash on delivery matches the server total without a fee row", async ({
 }, testInfo) => {
   const quote = quoteCheckout(
     [{ unitPriceUsd: catalogUnitPrice(OVER_THRESHOLD_SLUG), quantity: 1 }],
-    "cod"
+    "cod",
   );
   expect(quote.codFee).toBe(COD_FEE);
-  expect(toCents(quote.subtotal)).toBeGreaterThanOrEqual(toCents(FREE_SHIPPING_THRESHOLD_USD));
+  expect(toCents(quote.subtotal)).toBeGreaterThanOrEqual(
+    toCents(FREE_SHIPPING_THRESHOLD_USD),
+  );
   expect(toCents(quote.shipping)).toBe(0);
 
   await addProductToCart(page, OVER_THRESHOLD_SLUG);
@@ -154,11 +182,18 @@ test("cash on delivery matches the server total without a fee row", async ({
   await fillCheckout(page);
   await page.getByText(codFeeDisplay(), { exact: true }).click();
   if (toCents(COD_FEE) === 0) {
-    await expect(page.getByText("Cash on delivery", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText("Cash on delivery", { exact: true }),
+    ).toBeVisible();
     await expect(page.getByText("Cash on Delivery fee")).toHaveCount(0);
     await expect(page.getByText("+$0.00")).toHaveCount(0);
   }
-  const result = await submitAndAssertParity(page, testInfo, "cod", "order-cod-1");
+  const result = await submitAndAssertParity(
+    page,
+    testInfo,
+    "cod",
+    "order-cod-1",
+  );
 
   expect(toCents(result.ui.codFee)).toBe(toCents(quote.codFee));
   expect(toCents(result.ui.total)).toBe(toCents(quote.total));

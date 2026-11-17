@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from "crypto";
 
-export type CronAuthResult = { ok: true } | { ok: false; reason: "missing_secret" | "mismatch" };
+export type CronAuthResult =
+  { ok: true } | { ok: false; reason: "missing_secret" | "mismatch" };
 
 function secretsMatch(left: string, right: string) {
   const leftDigest = createHash("sha256").update(left).digest();
@@ -13,7 +14,10 @@ function secretsMatch(left: string, right: string) {
  * An empty or whitespace-only secret is rejected before that comparison.
  * Neither side is trimmed.
  */
-export function authorizeCronRequest(header: string | null, secret: string | undefined): CronAuthResult {
+export function authorizeCronRequest(
+  header: string | null,
+  secret: string | undefined,
+): CronAuthResult {
   if (secret == null || secret.trim() === "") {
     return { ok: false, reason: "missing_secret" };
   }

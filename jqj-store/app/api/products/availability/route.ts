@@ -35,7 +35,9 @@ function buildFallbackProduct(slug: string) {
   };
 }
 
-async function getInventory(slugs: string[]): Promise<Map<string, InventoryProduct>> {
+async function getInventory(
+  slugs: string[],
+): Promise<Map<string, InventoryProduct>> {
   try {
     const supabase = createAdminClient();
     return await fetchInventoryBySlugs(supabase, slugs);
@@ -44,7 +46,7 @@ async function getInventory(slugs: string[]): Promise<Map<string, InventoryProdu
       slugs
         .map((slug) => buildFallbackProduct(slug))
         .filter(Boolean)
-        .map((product) => [product!.slug, product! as InventoryProduct])
+        .map((product) => [product!.slug, product! as InventoryProduct]),
     );
   }
 }
@@ -105,7 +107,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, items: [], errors: [] });
   }
 
-  const slugs = Array.from(new Set(items.map((item) => item.slug).filter(Boolean) as string[]));
+  const slugs = Array.from(
+    new Set(items.map((item) => item.slug).filter(Boolean) as string[]),
+  );
   const inventory = await getInventory(slugs);
   const validated = validateCheckoutItems(items, inventory);
 
@@ -121,7 +125,9 @@ export async function POST(req: Request) {
       size: line.variant?.size ?? line.item.size ?? null,
       material: line.variant?.material ?? line.item.material ?? null,
       variantId: line.variant?.id ?? null,
-      lowStock: line.availableQuantity <= Math.max(1, Number(line.product.low_stock_threshold ?? 5)),
+      lowStock:
+        line.availableQuantity <=
+        Math.max(1, Number(line.product.low_stock_threshold ?? 5)),
     })),
   });
 }

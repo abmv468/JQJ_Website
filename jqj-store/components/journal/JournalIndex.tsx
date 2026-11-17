@@ -19,7 +19,10 @@ type JournalIndexProps = {
   initialQuery: string;
 };
 
-export default function JournalIndex({ category, initialQuery }: JournalIndexProps) {
+export default function JournalIndex({
+  category,
+  initialQuery,
+}: JournalIndexProps) {
   const router = useRouter();
   const [query, setQuery] = useState(initialQuery);
   const trimmed = query.trim();
@@ -29,10 +32,13 @@ export default function JournalIndex({ category, initialQuery }: JournalIndexPro
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const params = new URLSearchParams();
-    if (category !== "all" && category !== "unknown") params.set("category", category);
+    if (category !== "all" && category !== "unknown")
+      params.set("category", category);
     if (trimmed) params.set("q", trimmed);
     const search = params.toString();
-    router.replace(search ? `/journal?${search}` : "/journal", { scroll: false });
+    router.replace(search ? `/journal?${search}` : "/journal", {
+      scroll: false,
+    });
   }
 
   return (
@@ -82,17 +88,26 @@ export default function JournalIndex({ category, initialQuery }: JournalIndexPro
 
         <section className="journal-list" aria-label="Journal notes">
           {notes.length === 0 ? (
-            <p className="journal-empty">{journalEmptyMessage(category, trimmed)}</p>
+            <p className="journal-empty">
+              {journalEmptyMessage(category, trimmed)}
+            </p>
           ) : (
             notes.map((post, index) => {
               const featured = index === 0;
               const href = `/journal/${post.slug}`;
               return (
-                <article key={post.slug} className={featured ? "journal-featured" : "journal-row"}>
+                <article
+                  key={post.slug}
+                  className={featured ? "journal-featured" : "journal-row"}
+                >
                   <p className="journal-date">
                     <time dateTime={post.dateTime}>{post.displayDate}</time>
                   </p>
-                  <h2 className={featured ? "journal-featured-title" : "journal-row-title"}>
+                  <h2
+                    className={
+                      featured ? "journal-featured-title" : "journal-row-title"
+                    }
+                  >
                     <Link href={href}>{post.title}</Link>
                   </h2>
                   <p className="journal-dek">{post.dek}</p>

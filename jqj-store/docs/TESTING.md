@@ -81,9 +81,9 @@ Shipping is not copied into the harness. `quoteCheckout` calls `computeShippingU
 
 `.github/workflows/ci.yml` runs on pull requests and on pushes to `main`.
 
-| Job | What it runs |
-|---|---|
-| `ci / verify` | `npm ci`, lint, `tsc --noEmit`, Vitest, `next build` with no secrets |
+| Job                 | What it runs                                                                                          |
+| ------------------- | ----------------------------------------------------------------------------------------------------- |
+| `ci / verify`       | `npm ci`, lint, `tsc --noEmit`, Vitest, `next build` with no secrets                                  |
 | `ci / e2e-checkout` | rebuild with the fake public env above, then Playwright on Desktop Chrome and Pixel 7 (Chromium only) |
 
 The build in `verify` proves production compilation needs no secrets. The e2e job repeats the build because `NEXT_PUBLIC_*` values are baked into the browser bundle.

@@ -7,7 +7,9 @@ export function generateMetadata({
 }: {
   searchParams: { stone?: string; tag?: string; q?: string };
 }): Metadata {
-  const isFiltered = Boolean(searchParams.stone || searchParams.tag || searchParams.q);
+  const isFiltered = Boolean(
+    searchParams.stone || searchParams.tag || searchParams.q,
+  );
 
   return {
     title: "Gemstone Necklaces",

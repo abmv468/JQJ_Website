@@ -3,7 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST as webhook } from "@/app/api/webhooks/airwallex/route";
 import { sendOrderEmails } from "@/lib/email";
 import { PAYMENT_AFTER_EXPIRY_UNFULFILLED_EVENT } from "@/lib/payments/airwallex-orders";
-import { createCheckoutDb, setActiveDb, type MemoryDb } from "../helpers/memory-db";
+import {
+  createCheckoutDb,
+  setActiveDb,
+  type MemoryDb,
+} from "../helpers/memory-db";
 
 vi.mock("@/lib/email", () => ({
   sendOrderEmails: vi.fn(async () => undefined),
@@ -13,7 +17,9 @@ const SECRET = "test_dummy_webhook_secret";
 const ALERT = "jqd_alert";
 
 function sign(timestamp: string, body: string) {
-  return createHmac("sha256", SECRET).update(`${timestamp}${body}`).digest("hex");
+  return createHmac("sha256", SECRET)
+    .update(`${timestamp}${body}`)
+    .digest("hex");
 }
 
 function signedWebhook(body: unknown) {
@@ -30,7 +36,11 @@ function signedWebhook(body: unknown) {
   });
 }
 
-function successEvent(eventId: string, intentId = "int_expired", orderId = "order-expired") {
+function successEvent(
+  eventId: string,
+  intentId = "int_expired",
+  orderId = "order-expired",
+) {
   return {
     id: eventId,
     name: "payment_intent.succeeded",
@@ -64,7 +74,7 @@ function seedPayment(db: MemoryDb, orderId: string, intentId: string) {
 
 function seedLine(
   db: MemoryDb,
-  line: { id: string; orderId: string; productId: string; quantity: number }
+  line: { id: string; orderId: string; productId: string; quantity: number },
 ) {
   db.seed("order_items", [
     {
@@ -120,8 +130,14 @@ function unstructuredIntentLogs(calls: unknown[][]) {
 function alertCalls(spy: { mock: { calls: unknown[][] } }) {
   return spy.mock.calls
     .map((call) => call[0])
-    .filter((value): value is string => typeof value === "string" && value.includes(ALERT))
-    .map((value) => JSON.parse(value) as { tag: string; event: string; orderId: string });
+    .filter(
+      (value): value is string =>
+        typeof value === "string" && value.includes(ALERT),
+    )
+    .map(
+      (value) =>
+        JSON.parse(value) as { tag: string; event: string; orderId: string },
+    );
 }
 
 describe("payment succeeds after the reservation expired", () => {
@@ -146,7 +162,12 @@ describe("payment succeeds after the reservation expired", () => {
     // inventory_reserved false and stock still at 5, and this test goes red.
     db.rowsOf("products")[0].stock_count = 5;
     seedExpiredOrder(db);
-    seedLine(db, { id: "item-1", orderId: "order-expired", productId: "prod-amethyst", quantity: 1 });
+    seedLine(db, {
+      id: "item-1",
+      orderId: "order-expired",
+      productId: "prod-amethyst",
+      quantity: 1,
+    });
     seedPayment(db, "order-expired", "int_expired");
 
     const response = await webhook(signedWebhook(successEvent("evt_rehold")));
@@ -167,14 +188,24 @@ describe("payment succeeds after the reservation expired", () => {
   it("flags an expired order when the released stock cannot be re-reserved", async () => {
     db.rowsOf("products")[0].stock_count = 0;
     seedExpiredOrder(db);
-    seedLine(db, { id: "item-1", orderId: "order-expired", productId: "prod-amethyst", quantity: 1 });
+    seedLine(db, {
+      id: "item-1",
+      orderId: "order-expired",
+      productId: "prod-amethyst",
+      quantity: 1,
+    });
     seedPayment(db, "order-expired", "int_expired");
 
     const probe = await db.rpc("reserve_order_inventory", {
       p_order_id: "order-expired",
-      order_items: [{ product_id: "prod-amethyst", variant_id: null, quantity: 1 }],
+      order_items: [
+        { product_id: "prod-amethyst", variant_id: null, quantity: 1 },
+      ],
     });
-    expect(probe.error).toEqual({ message: "Product stock unavailable", code: "P0001" });
+    expect(probe.error).toEqual({
+      message: "Product stock unavailable",
+      code: "P0001",
+    });
     expect(probe.error instanceof Error).toBe(false);
 
     const response = await webhook(signedWebhook(successEvent("evt_short")));
@@ -194,7 +225,9 @@ describe("payment succeeds after the reservation expired", () => {
     expect(db.rowsOf("order_refunds")).toHaveLength(0);
     expect(db.rowsOf("payment_refunds")).toHaveLength(0);
     expect(sendOrderEmails).not.toHaveBeenCalled();
-    expect(db.rowsOf("orders")[0].confirmation_email_sent_at ?? null).toBeNull();
+    expect(
+      db.rowsOf("orders")[0].confirmation_email_sent_at ?? null,
+    ).toBeNull();
 
     const alerts = alertCalls(errorSpy);
     expect(alerts).toHaveLength(1);
@@ -224,8 +257,18 @@ describe("payment succeeds after the reservation expired", () => {
       },
     ]);
     seedExpiredOrder(db);
-    seedLine(db, { id: "item-a", orderId: "order-expired", productId: "prod-amethyst", quantity: 1 });
-    seedLine(db, { id: "item-b", orderId: "order-expired", productId: "prod-jasper", quantity: 2 });
+    seedLine(db, {
+      id: "item-a",
+      orderId: "order-expired",
+      productId: "prod-amethyst",
+      quantity: 1,
+    });
+    seedLine(db, {
+      id: "item-b",
+      orderId: "order-expired",
+      productId: "prod-jasper",
+      quantity: 2,
+    });
     seedPayment(db, "order-expired", "int_expired");
 
     const response = await webhook(signedWebhook(successEvent("evt_partial")));
@@ -236,10 +279,18 @@ describe("payment succeeds after the reservation expired", () => {
       fulfillment_status: "payment_failed",
       inventory_reserved: false,
     });
-    expect(db.rowsOf("products").find((row) => row.id === "prod-amethyst")?.stock_count).toBe(5);
-    expect(db.rowsOf("products").find((row) => row.id === "prod-jasper")?.stock_count).toBe(0);
+    expect(
+      db.rowsOf("products").find((row) => row.id === "prod-amethyst")
+        ?.stock_count,
+    ).toBe(5);
+    expect(
+      db.rowsOf("products").find((row) => row.id === "prod-jasper")
+        ?.stock_count,
+    ).toBe(0);
     expect(reserves(db)).toHaveLength(1);
-    expect(JSON.stringify(alertCalls(errorSpy))).not.toContain("paymentIntentId");
+    expect(JSON.stringify(alertCalls(errorSpy))).not.toContain(
+      "paymentIntentId",
+    );
     expect(JSON.stringify(alertCalls(errorSpy))).not.toContain("int_expired");
     expect(sendOrderEmails).not.toHaveBeenCalled();
   });
@@ -247,7 +298,12 @@ describe("payment succeeds after the reservation expired", () => {
   it("does not reserve or flag again when the same succeeded payment is delivered twice", async () => {
     db.rowsOf("products")[0].stock_count = 5;
     seedExpiredOrder(db);
-    seedLine(db, { id: "item-1", orderId: "order-expired", productId: "prod-amethyst", quantity: 1 });
+    seedLine(db, {
+      id: "item-1",
+      orderId: "order-expired",
+      productId: "prod-amethyst",
+      quantity: 1,
+    });
     seedPayment(db, "order-expired", "int_expired");
 
     const first = await webhook(signedWebhook(successEvent("evt_dup_1")));
@@ -268,11 +324,20 @@ describe("payment succeeds after the reservation expired", () => {
   it("does not double-flag a second success after the stock shortfall was recorded", async () => {
     db.rowsOf("products")[0].stock_count = 0;
     seedExpiredOrder(db, "order-short");
-    seedLine(db, { id: "item-s", orderId: "order-short", productId: "prod-amethyst", quantity: 1 });
+    seedLine(db, {
+      id: "item-s",
+      orderId: "order-short",
+      productId: "prod-amethyst",
+      quantity: 1,
+    });
     seedPayment(db, "order-short", "int_short");
 
-    const first = await webhook(signedWebhook(successEvent("evt_flag_1", "int_short", "order-short")));
-    const second = await webhook(signedWebhook(successEvent("evt_flag_2", "int_short", "order-short")));
+    const first = await webhook(
+      signedWebhook(successEvent("evt_flag_1", "int_short", "order-short")),
+    );
+    const second = await webhook(
+      signedWebhook(successEvent("evt_flag_2", "int_short", "order-short")),
+    );
 
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
@@ -292,10 +357,17 @@ describe("payment succeeds after the reservation expired", () => {
     db.rowsOf("products")[0].stock_count = 5;
     seedExpiredOrder(db);
     db.rowsOf("orders")[0].payment_status = "failed";
-    seedLine(db, { id: "item-1", orderId: "order-expired", productId: "prod-amethyst", quantity: 1 });
+    seedLine(db, {
+      id: "item-1",
+      orderId: "order-expired",
+      productId: "prod-amethyst",
+      quantity: 1,
+    });
     seedPayment(db, "order-expired", "int_expired");
 
-    const response = await webhook(signedWebhook(successEvent("evt_failed_hold")));
+    const response = await webhook(
+      signedWebhook(successEvent("evt_failed_hold")),
+    );
 
     expect(response.status).toBe(200);
     expect(db.rowsOf("orders")[0]).toMatchObject({
@@ -312,10 +384,17 @@ describe("payment succeeds after the reservation expired", () => {
     db.rowsOf("products")[0].stock_count = 0;
     seedExpiredOrder(db);
     db.rowsOf("orders")[0].payment_status = "failed";
-    seedLine(db, { id: "item-1", orderId: "order-expired", productId: "prod-amethyst", quantity: 1 });
+    seedLine(db, {
+      id: "item-1",
+      orderId: "order-expired",
+      productId: "prod-amethyst",
+      quantity: 1,
+    });
     seedPayment(db, "order-expired", "int_expired");
 
-    const response = await webhook(signedWebhook(successEvent("evt_failed_short")));
+    const response = await webhook(
+      signedWebhook(successEvent("evt_failed_short")),
+    );
 
     expect(response.status).toBe(200);
     expect(db.rowsOf("orders")[0]).toMatchObject({
@@ -344,10 +423,17 @@ describe("payment succeeds after the reservation expired", () => {
         customer_name: "Ada Lovelace",
       },
     ]);
-    seedLine(db, { id: "item-held", orderId: "order-held", productId: "prod-amethyst", quantity: 1 });
+    seedLine(db, {
+      id: "item-held",
+      orderId: "order-held",
+      productId: "prod-amethyst",
+      quantity: 1,
+    });
     seedPayment(db, "order-held", "int_held");
 
-    const response = await webhook(signedWebhook(successEvent("evt_held", "int_held", "order-held")));
+    const response = await webhook(
+      signedWebhook(successEvent("evt_held", "int_held", "order-held")),
+    );
 
     expect(response.status).toBe(200);
     expect(db.rowsOf("orders")[0]).toMatchObject({

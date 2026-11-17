@@ -23,7 +23,8 @@ export type InternalPaymentStatus =
   | "abandoned"
   | "unknown";
 
-export type InternalRefundStatus = "received" | "accepted" | "settled" | "failed" | "pending";
+export type InternalRefundStatus =
+  "received" | "accepted" | "settled" | "failed" | "pending";
 
 export interface AirwallexPaymentIntent {
   id: string;
@@ -122,14 +123,16 @@ export function getAirwallexEnvironment(): AirwallexEnvironment {
   if (env === "sandbox" || env === "production") {
     return env;
   }
-  throw new Error(`Unsupported AIRWALLEX_ENV "${env}". Expected "sandbox" or "production".`);
+  throw new Error(
+    `Unsupported AIRWALLEX_ENV "${env}". Expected "sandbox" or "production".`,
+  );
 }
 
 function assertProductionAllowed(env: AirwallexEnvironment) {
   if (env !== "production") return;
   if (process.env.AIRWALLEX_PRODUCTION_ENABLED !== "true") {
     throw new Error(
-      "Airwallex production mode is disabled. Set AIRWALLEX_PRODUCTION_ENABLED=true only after explicit approval."
+      "Airwallex production mode is disabled. Set AIRWALLEX_PRODUCTION_ENABLED=true only after explicit approval.",
     );
   }
 }
@@ -141,7 +144,9 @@ export function getAirwallexSdkEnvironment(): AirwallexSdkEnvironment {
 function getAirwallexApiBaseUrl() {
   const env = getAirwallexEnvironment();
   assertProductionAllowed(env);
-  return env === "production" ? AIRWALLEX_PRODUCTION_API_BASE : AIRWALLEX_SANDBOX_API_BASE;
+  return env === "production"
+    ? AIRWALLEX_PRODUCTION_API_BASE
+    : AIRWALLEX_SANDBOX_API_BASE;
 }
 
 function getBackoffMs(attempt: number) {
@@ -154,7 +159,11 @@ async function sleep(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number) {
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -167,7 +176,11 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
   }
 }
 
-async function fetchWithRetry(url: string, init: RequestInit, options?: RequestOptions) {
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  options?: RequestOptions,
+) {
   const maxRetries = options?.maxRetries ?? DEFAULT_MAX_RETRIES;
   const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
@@ -189,7 +202,9 @@ async function fetchWithRetry(url: string, init: RequestInit, options?: RequestO
   }
 
   if (lastError instanceof Error) {
-    throw new Error(`Airwallex request failed after retries: ${lastError.message}`);
+    throw new Error(
+      `Airwallex request failed after retries: ${lastError.message}`,
+    );
   }
   throw new Error("Airwallex request failed after retries");
 }
@@ -229,16 +244,21 @@ async function fetchAccessToken(): Promise<string> {
         "x-api-key": apiKey,
       },
     },
-    { maxRetries: DEFAULT_MAX_RETRIES }
+    { maxRetries: DEFAULT_MAX_RETRIES },
   );
 
-  const payload = (await parseJsonSafely(response)) as AirwallexTokenResponse | ApiErrorPayload | null;
-  if (!response.ok || !payload || typeof (payload as AirwallexTokenResponse).token !== "string") {
+  const payload = (await parseJsonSafely(response)) as
+    AirwallexTokenResponse | ApiErrorPayload | null;
+  if (
+    !response.ok ||
+    !payload ||
+    typeof (payload as AirwallexTokenResponse).token !== "string"
+  ) {
     const errorPayload = (payload ?? {}) as ApiErrorPayload;
     throw new AirwallexApiError(
       errorPayload.message || "Failed to authenticate with Airwallex",
       response.status,
-      errorPayload
+      errorPayload,
     );
   }
 
@@ -251,7 +271,11 @@ async function fetchAccessToken(): Promise<string> {
 }
 
 async function getAccessToken(forceRefresh = false): Promise<string> {
-  if (!forceRefresh && cachedToken && cachedToken.expiresAtMs - TOKEN_REFRESH_BUFFER_MS > Date.now()) {
+  if (
+    !forceRefresh &&
+    cachedToken &&
+    cachedToken.expiresAtMs - TOKEN_REFRESH_BUFFER_MS > Date.now()
+  ) {
     return cachedToken.token;
   }
 
@@ -266,7 +290,7 @@ async function getAccessToken(forceRefresh = false): Promise<string> {
 async function airwallexRequest<T>(
   path: string,
   init: RequestInit,
-  options?: RequestOptions
+  options?: RequestOptions,
 ): Promise<T> {
   const accessToken = await getAccessToken(options?.forceRefreshToken ?? false);
   const headers = new Headers(init.headers);
@@ -281,7 +305,7 @@ async function airwallexRequest<T>(
       ...init,
       headers,
     },
-    options
+    options,
   );
 
   if (response.status === 401 && !options?.forceRefreshToken) {
@@ -292,13 +316,15 @@ async function airwallexRequest<T>(
     });
   }
 
-  const payload = (await parseJsonSafely(response)) as T | ApiErrorPayload | null;
+  const payload = (await parseJsonSafely(response)) as
+    T | ApiErrorPayload | null;
   if (!response.ok) {
     const errorPayload = (payload ?? {}) as ApiErrorPayload;
     throw new AirwallexApiError(
-      errorPayload.message || `Airwallex API request failed (${response.status})`,
+      errorPayload.message ||
+        `Airwallex API request failed (${response.status})`,
       response.status,
-      errorPayload
+      errorPayload,
     );
   }
 
@@ -320,7 +346,9 @@ export interface CreateAirwallexPaymentIntentInput {
   metadata?: Record<string, string>;
 }
 
-export async function createAirwallexPaymentIntent(input: CreateAirwallexPaymentIntentInput) {
+export async function createAirwallexPaymentIntent(
+  input: CreateAirwallexPaymentIntentInput,
+) {
   const customer: Record<string, string> = {};
   if (input.customer?.email) customer.email = input.customer.email;
   if (input.customer?.firstName) customer.first_name = input.customer.firstName;
@@ -350,7 +378,7 @@ export async function createAirwallexPaymentIntent(input: CreateAirwallexPayment
     },
     {
       maxRetries: DEFAULT_MAX_RETRIES,
-    }
+    },
   );
 }
 
@@ -362,7 +390,7 @@ export async function retrieveAirwallexPaymentIntent(paymentIntentId: string) {
     },
     {
       maxRetries: DEFAULT_MAX_RETRIES,
-    }
+    },
   );
 }
 
@@ -397,7 +425,7 @@ export async function createAirwallexRefund(input: CreateAirwallexRefundInput) {
     },
     {
       maxRetries: DEFAULT_MAX_RETRIES,
-    }
+    },
   );
 }
 
@@ -409,17 +437,21 @@ export async function retrieveAirwallexRefund(refundId: string) {
     },
     {
       maxRetries: DEFAULT_MAX_RETRIES,
-    }
+    },
   );
 }
 
-export function normalizeAirwallexPaymentStatus(status: string | null | undefined): InternalPaymentStatus {
+export function normalizeAirwallexPaymentStatus(
+  status: string | null | undefined,
+): InternalPaymentStatus {
   if (!status) return "unknown";
   const normalized = status.trim().toUpperCase();
   return PAYMENT_STATUS_MAP[normalized] ?? "unknown";
 }
 
-export function normalizeAirwallexRefundStatus(status: string | null | undefined): InternalRefundStatus {
+export function normalizeAirwallexRefundStatus(
+  status: string | null | undefined,
+): InternalRefundStatus {
   if (!status) return "pending";
   const normalized = status.trim().toUpperCase();
   return REFUND_STATUS_MAP[normalized] ?? "pending";
@@ -455,7 +487,7 @@ export interface VerifyWebhookSignatureResult {
 }
 
 export function verifyAirwallexWebhookSignature(
-  input: VerifyWebhookSignatureInput
+  input: VerifyWebhookSignatureInput,
 ): VerifyWebhookSignatureResult {
   if (!input.signature || !input.timestamp) {
     return { ok: false, error: "Missing x-signature or x-timestamp header" };
@@ -469,7 +501,10 @@ export function verifyAirwallexWebhookSignature(
   const maxSkewSeconds = input.maxSkewSeconds ?? 300;
   const nowSeconds = Math.floor(Date.now() / 1000);
   if (Math.abs(nowSeconds - timestampSeconds) > maxSkewSeconds) {
-    return { ok: false, error: "Webhook timestamp is outside the allowed window" };
+    return {
+      ok: false,
+      error: "Webhook timestamp is outside the allowed window",
+    };
   }
 
   const expectedSignature = createHmac("sha256", input.secret)
@@ -496,10 +531,11 @@ export function isPendingPaymentStatus(status: InternalPaymentStatus) {
 }
 
 export function isTerminalFailedPaymentStatus(status: InternalPaymentStatus) {
-  return status === "failed" || status === "cancelled" || status === "abandoned";
+  return (
+    status === "failed" || status === "cancelled" || status === "abandoned"
+  );
 }
 
 export function isSuccessfulPaymentStatus(status: InternalPaymentStatus) {
   return status === "succeeded";
 }
-

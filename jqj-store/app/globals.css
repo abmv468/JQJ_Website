@@ -28,7 +28,11 @@ body {
   background-color: #010101;
   background-image:
     radial-gradient(circle at top, rgba(24, 76, 82, 0.2), transparent 34%),
-    radial-gradient(circle at 85% 18%, rgba(187, 157, 123, 0.12), transparent 24%),
+    radial-gradient(
+      circle at 85% 18%,
+      rgba(187, 157, 123, 0.12),
+      transparent 24%
+    ),
     linear-gradient(180deg, #010101 0%, #050606 38%, #010101 100%);
   color: #f3f0ea;
   font-family: var(--font-body);
@@ -117,7 +121,11 @@ select {
     @apply relative overflow-hidden rounded-[2rem] border px-5 py-8 sm:px-8 sm:py-10 lg:px-10 lg:py-12;
     border-color: rgba(255, 255, 255, 0.1);
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)),
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.04),
+        rgba(255, 255, 255, 0.02)
+      ),
       rgba(10, 10, 10, 0.78);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.06),
@@ -165,7 +173,11 @@ select {
   inset: 0 auto auto 0;
   height: 1px;
   width: 100%;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.22),
+    rgba(255, 255, 255, 0)
+  );
   pointer-events: none;
 }
 
@@ -175,7 +187,12 @@ select {
   bottom: 0.15rem;
   height: 1px;
   width: 100%;
-  background: linear-gradient(90deg, rgba(187, 157, 123, 0), rgba(187, 157, 123, 0.9), rgba(187, 157, 123, 0));
+  background: linear-gradient(
+    90deg,
+    rgba(187, 157, 123, 0),
+    rgba(187, 157, 123, 0.9),
+    rgba(187, 157, 123, 0)
+  );
   opacity: 0;
   transform: scaleX(0.75);
   transform-origin: center;
@@ -257,7 +274,7 @@ input[type="number"]::-webkit-outer-spin-button {
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #BB9D7B;
+  background: #bb9d7b;
 }
 
 /* 2880×152 plate is a 2× full-width 1440×76 bar. Draw it at that CSS size;
@@ -402,7 +419,12 @@ input[type="number"]::-webkit-outer-spin-button {
   bottom: 0.15rem;
   height: 1px;
   width: 100%;
-  background: linear-gradient(90deg, rgba(187, 157, 123, 0), rgba(187, 157, 123, 0.9), rgba(187, 157, 123, 0));
+  background: linear-gradient(
+    90deg,
+    rgba(187, 157, 123, 0),
+    rgba(187, 157, 123, 0.9),
+    rgba(187, 157, 123, 0)
+  );
   opacity: 0;
   transform: scaleX(0.75);
   transform-origin: center;

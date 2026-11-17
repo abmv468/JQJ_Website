@@ -15,11 +15,16 @@ export async function GET(req: Request) {
       .select("*")
       .order("name");
     if (error) throw error;
-    return NextResponse.json({ categories: data }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(
+      { categories: data },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to load categories" },
-      { status: 500 }
+      {
+        error: err instanceof Error ? err.message : "Failed to load categories",
+      },
+      { status: 500 },
     );
   }
 }

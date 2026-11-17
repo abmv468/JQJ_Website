@@ -34,7 +34,11 @@ interface OrderPaymentSnapshot {
 
 function getTerminalResponseStatus(paymentStatus: string) {
   if (paymentStatus === "succeeded") return 200;
-  if (paymentStatus === "failed" || paymentStatus === "cancelled" || paymentStatus === "abandoned") {
+  if (
+    paymentStatus === "failed" ||
+    paymentStatus === "cancelled" ||
+    paymentStatus === "abandoned"
+  ) {
     return 402;
   }
   return 202;
@@ -42,23 +46,31 @@ function getTerminalResponseStatus(paymentStatus: string) {
 
 export async function POST(req: Request) {
   try {
-    const { orderId, paymentIntentId, refresh = true } = (await req.json()) as {
+    const {
+      orderId,
+      paymentIntentId,
+      refresh = true,
+    } = (await req.json()) as {
       orderId?: string;
       paymentIntentId?: string;
       refresh?: boolean;
     };
 
     const supabase = createAdminClient();
-    const requestedIntentId = typeof paymentIntentId === "string" ? paymentIntentId.trim() : "";
+    const requestedIntentId =
+      typeof paymentIntentId === "string" ? paymentIntentId.trim() : "";
     if (requestedIntentId && !orderId) {
       return NextResponse.json({ error: "Missing order id" }, { status: 400 });
     }
     if (requestedIntentId && orderId) {
-      const paymentForIntent = await findAirwallexPaymentByIntent(supabase, requestedIntentId);
+      const paymentForIntent = await findAirwallexPaymentByIntent(
+        supabase,
+        requestedIntentId,
+      );
       if (!paymentForIntent || paymentForIntent.order_id !== orderId) {
         return NextResponse.json(
           { error: "No Airwallex payment found for this order" },
-          { status: 404 }
+          { status: 404 },
         );
       }
     }
@@ -70,36 +82,41 @@ export async function POST(req: Request) {
     const { data: orderData, error: orderError } = await supabase
       .from("orders")
       .select(
-        "id, status, sales_channel, payment_status, fulfillment_status, inventory_reserved, payments(id, provider, provider_payment_intent_id, status, provider_request_id)"
+        "id, status, sales_channel, payment_status, fulfillment_status, inventory_reserved, payments(id, provider, provider_payment_intent_id, status, provider_request_id)",
       )
       .eq("id", orderId)
       .single();
     if (orderError) throw orderError;
 
     const order = orderData as unknown as OrderPaymentSnapshot;
-    const payment = (order.payments ?? []).find((entry) => entry.provider === "airwallex");
+    const payment = (order.payments ?? []).find(
+      (entry) => entry.provider === "airwallex",
+    );
     if (payment?.provider_payment_intent_id) {
       const canonical = await findAirwallexPaymentByIntent(
         supabase,
-        payment.provider_payment_intent_id
+        payment.provider_payment_intent_id,
       );
       if (!canonical || canonical.order_id !== order.id) {
         return NextResponse.json(
           { error: "No Airwallex payment found for this order" },
-          { status: 404 }
+          { status: 404 },
         );
       }
     }
-    if (requestedIntentId && payment?.provider_payment_intent_id !== requestedIntentId) {
+    if (
+      requestedIntentId &&
+      payment?.provider_payment_intent_id !== requestedIntentId
+    ) {
       return NextResponse.json(
         { error: "No Airwallex payment found for this order" },
-        { status: 404 }
+        { status: 404 },
       );
     }
     if (!payment) {
       return NextResponse.json(
         { error: "No Airwallex payment found for this order" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -110,12 +127,17 @@ export async function POST(req: Request) {
       !isSuccessfulPaymentStatus(effectiveStatus) &&
       !isTerminalFailedPaymentStatus(effectiveStatus)
     ) {
-      const intent = await retrieveAirwallexPaymentIntent(payment.provider_payment_intent_id);
+      const intent = await retrieveAirwallexPaymentIntent(
+        payment.provider_payment_intent_id,
+      );
 
       if (!isProtectedOrder(order)) {
         await upsertAirwallexPaymentIntent(supabase, {
           orderId: order.id,
-          requestId: intent.request_id ?? payment.provider_request_id ?? `verify-${order.id}`,
+          requestId:
+            intent.request_id ??
+            payment.provider_request_id ??
+            `verify-${order.id}`,
           intent,
         });
       }
@@ -130,11 +152,14 @@ export async function POST(req: Request) {
       effectiveStatus = normalizeAirwallexPaymentStatus(intent.status);
     }
 
-    const { data: refreshedOrderData, error: refreshedOrderError } = await supabase
-      .from("orders")
-      .select("id, status, payment_status, fulfillment_status, inventory_reserved, paid_at")
-      .eq("id", order.id)
-      .single();
+    const { data: refreshedOrderData, error: refreshedOrderError } =
+      await supabase
+        .from("orders")
+        .select(
+          "id, status, payment_status, fulfillment_status, inventory_reserved, paid_at",
+        )
+        .eq("id", order.id)
+        .single();
     if (refreshedOrderError) throw refreshedOrderError;
 
     const refreshedOrder = refreshedOrderData as {
@@ -147,7 +172,7 @@ export async function POST(req: Request) {
     };
 
     const normalizedOrderPaymentStatus = normalizeAirwallexPaymentStatus(
-      refreshedOrder.payment_status ?? effectiveStatus
+      refreshedOrder.payment_status ?? effectiveStatus,
     );
 
     return NextResponse.json(
@@ -165,14 +190,18 @@ export async function POST(req: Request) {
       {
         status: getTerminalResponseStatus(normalizedOrderPaymentStatus),
         headers: { "Cache-Control": "no-store" },
-      }
+      },
     );
   } catch (error) {
     console.error("[airwallex-verify]", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to verify payment status" },
-      { status: 500 }
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to verify payment status",
+      },
+      { status: 500 },
     );
   }
 }
-

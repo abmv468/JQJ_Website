@@ -52,7 +52,9 @@ function usdToCents(amountUsd: number | string): number {
   return sign * cents;
 }
 
-function merchandiseCents(merchandise: number | string | readonly MerchandiseLine[]): number {
+function merchandiseCents(
+  merchandise: number | string | readonly MerchandiseLine[],
+): number {
   if (typeof merchandise === "number" || typeof merchandise === "string") {
     return usdToCents(merchandise);
   }
@@ -70,7 +72,7 @@ function merchandiseCents(merchandise: number | string | readonly MerchandiseLin
  */
 export function computeShippingUsd(
   merchandise: number | string | readonly MerchandiseLine[],
-  discountUsd: number | string = 0
+  discountUsd: number | string = 0,
 ): number {
   const discountCents = usdToCents(discountUsd);
   if (discountCents < 0) fail("Discount must be zero or positive");

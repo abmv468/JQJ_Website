@@ -1,4 +1,11 @@
-import { AUTH_EMAIL_FROM_NAME, BRAND_EN, BRAND_MARK, BRAND_ZH, LEGAL_ENTITY, SUPPORT_EMAIL } from "./brand";
+import {
+  AUTH_EMAIL_FROM_NAME,
+  BRAND_EN,
+  BRAND_MARK,
+  BRAND_ZH,
+  LEGAL_ENTITY,
+  SUPPORT_EMAIL,
+} from "./brand";
 
 /**
  * Review HTML for the account-confirmation and password-reset emails.
@@ -39,7 +46,8 @@ export function escapeHtml(value: string): string {
 function safeHttpUrl(value: string): string {
   try {
     const url = new URL(value);
-    if (url.protocol === "https:" || url.protocol === "http:") return url.toString();
+    if (url.protocol === "https:" || url.protocol === "http:")
+      return url.toString();
   } catch {
     /* reject anything that is not an http(s) URL */
   }
@@ -71,7 +79,8 @@ function authEmailQuiet(kind: AuthEmailKind): string {
 }
 
 export function reviewEmailInput(kind: AuthEmailKind): AuthEmailReviewInput {
-  const actionPath = kind === "confirm" ? "/auth/confirm" : "/auth/reset-password";
+  const actionPath =
+    kind === "confirm" ? "/auth/confirm" : "/auth/reset-password";
   return {
     kind,
     actionUrl: `${AUTH_EMAIL_REVIEW_SITE}${actionPath}`,

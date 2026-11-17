@@ -12,9 +12,9 @@ import {
 import { quoteCheckout } from "../shared/checkout-expectations";
 
 vi.mock("@/lib/payments/airwallex", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/payments/airwallex")>(
-    "@/lib/payments/airwallex"
-  );
+  const actual = await vi.importActual<
+    typeof import("@/lib/payments/airwallex")
+  >("@/lib/payments/airwallex");
   return {
     ...actual,
     createAirwallexPaymentIntent: vi.fn(),
@@ -42,7 +42,7 @@ describe("POST /api/checkout/airwallex", () => {
       "fetch",
       vi.fn(async () => {
         throw new Error("unexpected network call");
-      })
+      }),
     );
     vi.mocked(createAirwallexPaymentIntent).mockReset();
     vi.mocked(createAirwallexPaymentIntent).mockResolvedValue({
@@ -57,11 +57,17 @@ describe("POST /api/checkout/airwallex", () => {
   });
 
   it("rejects an empty cart and a non-USD charge before touching stock", async () => {
-    const empty = await POST(request({ items: [], customer: checkoutCustomer }));
+    const empty = await POST(
+      request({ items: [], customer: checkoutCustomer }),
+    );
     expect(empty.status).toBe(400);
 
     const eur = await POST(
-      request({ items: [checkoutItem()], customer: checkoutCustomer, currency: "EUR" })
+      request({
+        items: [checkoutItem()],
+        customer: checkoutCustomer,
+        currency: "EUR",
+      }),
     );
     expect(eur.status).toBe(400);
     expect(db.rowsOf("orders")).toHaveLength(0);
@@ -75,7 +81,7 @@ describe("POST /api/checkout/airwallex", () => {
         items: [checkoutItem({ quantity: 6 })],
         customer: checkoutCustomer,
         idempotencyKey: REQUEST_ID,
-      })
+      }),
     );
     expect(response.status).toBe(409);
     const body = await response.json();
@@ -93,14 +99,14 @@ describe("POST /api/checkout/airwallex", () => {
         customer: checkoutCustomer,
         currency: "USD",
         idempotencyKey: REQUEST_ID,
-      })
+      }),
     );
 
     expect(response.status).toBe(200);
     const body = await response.json();
     const quote = quoteCheckout(
       [{ unitPriceUsd: Number(db.rowsOf("products")[0].price), quantity: 2 }],
-      "airwallex"
+      "airwallex",
     );
     expect(body).toMatchObject({
       intentId: "int_test",
@@ -123,46 +129,50 @@ describe("POST /api/checkout/airwallex", () => {
       quantity: 2,
       price_at_purchase: 100,
     });
-    expect(db.rpcCalls.filter((call) => call.fn === "reserve_order_inventory")).toHaveLength(1);
+    expect(
+      db.rpcCalls.filter((call) => call.fn === "reserve_order_inventory"),
+    ).toHaveLength(1);
     expect(fetch).not.toHaveBeenCalled();
   });
 
   it("restores the reservation when Airwallex fails and does not restore it twice", async () => {
-    vi.mocked(createAirwallexPaymentIntent).mockRejectedValue(new Error("Airwallex unavailable"));
+    vi.mocked(createAirwallexPaymentIntent).mockRejectedValue(
+      new Error("Airwallex unavailable"),
+    );
 
     const response = await POST(
       request({
         items: [checkoutItem()],
         customer: checkoutCustomer,
         idempotencyKey: REQUEST_ID,
-      })
+      }),
     );
 
     expect(response.status).toBe(500);
-    expect(await response.json()).toMatchObject({ error: "Airwallex unavailable" });
+    expect(await response.json()).toMatchObject({
+      error: "Airwallex unavailable",
+    });
     expect(db.rowsOf("products")[0].stock_count).toBe(5);
     expect(db.rowsOf("orders")[0]).toMatchObject({
       status: "failed",
       payment_status: "failed",
       inventory_reserved: false,
     });
-    expect(db.rpcCalls.filter((call) => call.fn === "restore_order_inventory")).toHaveLength(1);
+    expect(
+      db.rpcCalls.filter((call) => call.fn === "restore_order_inventory"),
+    ).toHaveLength(1);
 
     await POST(
       request({
         items: [checkoutItem()],
         customer: checkoutCustomer,
         idempotencyKey: REQUEST_ID,
-      })
+      }),
     );
     expect(db.rowsOf("products")[0].stock_count).toBe(5);
   });
 
-  it.each([
-    { usd: 249.99 },
-    { usd: 250 },
-    { usd: 499.98 },
-  ])(
+  it.each([{ usd: 249.99 }, { usd: 250 }, { usd: 499.98 }])(
     "sends Airwallex subtotal + helper shipping for a USD $usd catalog price and ignores the client total",
     async ({ usd }) => {
       db.rowsOf("products")[0].price = usd;
@@ -176,14 +186,14 @@ describe("POST /api/checkout/airwallex", () => {
           shipping: 0,
           total: 1,
           idempotencyKey: REQUEST_ID,
-        })
+        }),
       );
 
       expect(response.status).toBe(200);
       expect(shipping).toBe(usd >= 250 ? 0 : 15);
       const amount = usd + shipping;
       expect(createAirwallexPaymentIntent).toHaveBeenCalledWith(
-        expect.objectContaining({ amount, currency: "USD" })
+        expect.objectContaining({ amount, currency: "USD" }),
       );
       expect(db.rowsOf("orders")[0]).toMatchObject({
         subtotal_amount: usd,
@@ -191,6 +201,6 @@ describe("POST /api/checkout/airwallex", () => {
         total_amount: amount,
         currency: "USD",
       });
-    }
+    },
   );
 });

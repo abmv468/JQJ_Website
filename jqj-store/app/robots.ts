@@ -18,7 +18,9 @@ export default function robots(): MetadataRoute.Robots {
         "/auth",
         "/account",
         "/admin",
-        paymentTest ? `/products/${paymentTest.slug}` : "/products/payment-test-do-not-ship",
+        paymentTest
+          ? `/products/${paymentTest.slug}`
+          : "/products/payment-test-do-not-ship",
       ],
     },
     sitemap: absoluteUrl("/sitemap.xml"),
