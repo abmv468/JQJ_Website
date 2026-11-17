@@ -4,7 +4,11 @@ import sitemap from "@/app/sitemap";
 import { metadata as notFoundMetadata } from "@/app/not-found";
 import { metadata as journalMetadata } from "@/app/(store)/journal/page";
 import { generateMetadata as journalArticleMetadata } from "@/app/(store)/journal/[slug]/page";
-import { paymentTestListingHidden } from "@/data/products";
+import { metadata as cartMetadata } from "@/app/(store)/cart/layout";
+import { metadata as checkoutMetadata } from "@/app/(store)/checkout/layout";
+import { productPageMetadata } from "@/lib/product-page-metadata";
+import { JOURNAL_INTRO, getJournalPost } from "@/data/journal";
+import { getProductBySlug, paymentTestListingHidden, products } from "@/data/products";
 
 const PUBLISHED_JOURNAL_SLUGS = [
   "how-to-clean-a-crystal",
@@ -32,6 +36,11 @@ const NOINDEX = {
   follow: false,
   googleBot: { index: false, follow: false },
 };
+
+const NOINDEX_FOLLOW = { index: false, follow: true };
+
+const HOMEPAGE_TITLE =
+  "Jewellery Quintessential · 極氣 | Natural Stone Jewellery with Cultural Craft";
 
 describe("technical SEO preview", () => {
   it("disallows private routes and the payment-test listing", () => {
@@ -97,5 +106,83 @@ describe("technical SEO preview", () => {
       googleBot: { index: false, follow: false },
     });
     expect(notFoundMetadata.alternates).toEqual({ canonical: null });
+  });
+
+  it("keeps unresolved product metadata noindex, nofollow, with no product canonical", () => {
+    expect(paymentTestListingHidden).toBe(true);
+    const slugs = ["payment-test-do-not-ship", "not-a-catalog-piece"];
+
+    for (const slug of slugs) {
+      expect(getProductBySlug(slug)).toBeUndefined();
+      const metadata = productPageMetadata(slug);
+      expect(metadata.title).not.toBe("Product");
+      expect(metadata.title).toEqual({ absolute: "Page not found — Jewellery Quintessential" });
+      expect(metadata.robots).toEqual(NOINDEX);
+      expect(metadata.alternates).toEqual({ canonical: null });
+      expect(metadata.openGraph).toBeUndefined();
+      expect(metadata.twitter).toBeUndefined();
+      expect(JSON.stringify(metadata)).not.toContain(`/products/${slug}`);
+    }
+
+    const listed = products[0];
+    const listedMetadata = productPageMetadata(listed.slug);
+    expect(listedMetadata.title).toBe(listed.name);
+    expect(listedMetadata.alternates).toEqual({ canonical: `/products/${listed.slug}` });
+    expect(listedMetadata).not.toHaveProperty("robots");
+  });
+
+  it("gives the journal index and published notes their own social titles", () => {
+    expect(journalMetadata.robots).toMatchObject(INDEX_FOLLOW);
+    expect(journalMetadata.title).toEqual({ absolute: "Journal — Jewellery Quintessential" });
+    expect(journalMetadata.description).toBe(JOURNAL_INTRO.dek);
+    expect(journalMetadata.alternates).toEqual({ canonical: "/journal" });
+    expect(journalMetadata.openGraph).toMatchObject({
+      title: "Journal — Jewellery Quintessential",
+      description: JOURNAL_INTRO.dek,
+      url: "/journal",
+    });
+    expect(journalMetadata.twitter).toMatchObject({
+      title: "Journal — Jewellery Quintessential",
+      description: JOURNAL_INTRO.dek,
+    });
+    expect(journalMetadata.openGraph?.title).not.toBe(HOMEPAGE_TITLE);
+    expect(journalMetadata.twitter?.title).not.toBe(HOMEPAGE_TITLE);
+
+    for (const slug of PUBLISHED_JOURNAL_SLUGS) {
+      const post = getJournalPost(slug);
+      const metadata = journalArticleMetadata({ params: { slug } });
+      expect(post?.metaTitle).toBeTruthy();
+      expect(post?.metaDescription).toBeTruthy();
+      expect(metadata.robots).toMatchObject(INDEX_FOLLOW);
+      expect(metadata.alternates).toEqual({ canonical: `/journal/${slug}` });
+      expect(metadata.openGraph).toMatchObject({
+        title: post?.metaTitle,
+        description: post?.metaDescription,
+        url: `/journal/${slug}`,
+      });
+      expect(metadata.twitter).toMatchObject({
+        title: post?.metaTitle,
+        description: post?.metaDescription,
+      });
+      expect(post?.metaTitle).not.toBe(HOMEPAGE_TITLE);
+    }
+
+    for (const slug of RETIRED_JOURNAL_SLUGS) {
+      const metadata = journalArticleMetadata({ params: { slug } });
+      expect(metadata.robots).toMatchObject(NOINDEX);
+      expect(metadata.alternates).toEqual({ canonical: null });
+    }
+  });
+
+  it("gives cart and checkout their own titles and non-homepage canonicals", () => {
+    expect(cartMetadata.title).toEqual({ absolute: "Cart — Jewellery Quintessential" });
+    expect(cartMetadata.alternates).toEqual({ canonical: "/cart" });
+    expect(cartMetadata.robots).toEqual(NOINDEX_FOLLOW);
+    expect(cartMetadata.alternates?.canonical).not.toBe("/");
+
+    expect(checkoutMetadata.title).toEqual({ absolute: "Checkout — Jewellery Quintessential" });
+    expect(checkoutMetadata.alternates).toEqual({ canonical: "/checkout" });
+    expect(checkoutMetadata.robots).toEqual(NOINDEX_FOLLOW);
+    expect(checkoutMetadata.alternates?.canonical).not.toBe("/");
   });
 });

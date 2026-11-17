@@ -307,6 +307,15 @@ describe("journal catalogue", () => {
           follow: true,
           googleBot: { index: true, follow: true },
         },
+        openGraph: {
+          title: note.metaTitle,
+          description: note.metaDescription,
+          url: `/journal/${note.slug}`,
+        },
+        twitter: {
+          title: note.metaTitle,
+          description: note.metaDescription,
+        },
       });
     }
 
@@ -317,6 +326,7 @@ describe("journal catalogue", () => {
         follow: false,
         googleBot: { index: false, follow: false },
       },
+      alternates: { canonical: null },
     });
     expect(articlePage).toContain("post.metaTitle");
     expect(articlePage).toContain("post.metaDescription");
