@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { paymentTestListingHidden } from "@/data/products";
 import {
   validateCheckoutItems,
   type CheckoutItemInput,
   type InventoryProduct,
 } from "@/lib/inventory";
+
+const PAYMENT_TEST_SLUG = "payment-test-do-not-ship";
 
 const product: InventoryProduct = {
   id: "prod-1",
@@ -93,5 +96,67 @@ describe("validateCheckoutItems", () => {
         inventory
       ).ok
     ).toBe(false);
+  });
+
+  it("rejects the hidden payment-test slug even when its products row looks sellable", () => {
+    expect(paymentTestListingHidden).toBe(true);
+
+    const paymentTest: InventoryProduct = {
+      id: PAYMENT_TEST_SLUG,
+      slug: PAYMENT_TEST_SLUG,
+      name: "Payment test — do not ship",
+      price: 1,
+      stock_count: 8,
+      in_stock: true,
+      low_stock_threshold: 1,
+      sku: "JQJ-PAYTEST-001",
+      product_variants: [
+        {
+          id: "paytest-var",
+          product_id: PAYMENT_TEST_SLUG,
+          size: null,
+          material: null,
+          sku: "JQJ-PAYTEST-001",
+          stock_count: 8,
+        },
+      ],
+    };
+    const inventory = new Map<string, InventoryProduct>([
+      [paymentTest.slug, paymentTest],
+      [product.slug, product],
+    ]);
+
+    const hidden = validateCheckoutItems(
+      [
+        item({
+          slug: `  ${PAYMENT_TEST_SLUG}  `,
+          name: paymentTest.name,
+          price: paymentTest.price,
+          quantity: 1,
+          sku: paymentTest.sku ?? undefined,
+        }),
+      ],
+      inventory
+    );
+    expect(hidden.ok).toBe(false);
+    expect(hidden.resolved).toEqual([]);
+    expect(hidden.errors).toEqual([`Product "${paymentTest.name}" is unavailable.`]);
+
+    const mixed = validateCheckoutItems(
+      [
+        item({ quantity: 1, price: 1 }),
+        item({
+          slug: PAYMENT_TEST_SLUG,
+          name: paymentTest.name,
+          price: paymentTest.price,
+          quantity: 2,
+          sku: paymentTest.sku ?? undefined,
+        }),
+      ],
+      inventory
+    );
+    expect(mixed.ok).toBe(false);
+    expect(mixed.resolved.map((line) => line.product.slug)).toEqual([product.slug]);
+    expect(mixed.errors).toEqual([`Product "${paymentTest.name}" is unavailable.`]);
   });
 });
