@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { products } from "@/data/products";
 import {
   fetchInventoryBySlugs,
+  isHiddenPaymentTestListing,
   type CheckoutItemInput,
   type InventoryProduct,
   validateCheckoutItems,
@@ -58,9 +59,15 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Missing slug" }, { status: 400 });
   }
 
+  // Same hide as checkout. A live products row must not report stock for the
+  // payment-test listing while paymentTestListingHidden stays on.
+  if (isHiddenPaymentTestListing(slug)) {
+    return NextResponse.json({ error: "Product not found" }, { status: 404 });
+  }
+
   const inventory = await getInventory([slug]);
   const product = inventory.get(slug);
-  if (!product) {
+  if (!product || isHiddenPaymentTestListing(product.slug)) {
     return NextResponse.json({ error: "Product not found" }, { status: 404 });
   }
 

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/checkout/airwallex/route";
+import { PAYMENT_TEST_SLUG } from "@/data/products";
 import { createAirwallexPaymentIntent } from "@/lib/payments/airwallex";
 import { computeShippingUsd } from "@/lib/shipping";
 import {
@@ -203,4 +204,242 @@ describe("POST /api/checkout/airwallex", () => {
       });
     },
   );
+
+  it("returns 409 instead of continuing a reused unpaid order that fails current validation", async () => {
+    db.seed("products", [
+      {
+        id: PAYMENT_TEST_SLUG,
+        slug: PAYMENT_TEST_SLUG,
+        name: "Payment test — do not ship",
+        price: 1,
+        stock_count: 8,
+        in_stock: true,
+        low_stock_threshold: 1,
+        sku: "JQJ-PAYTEST-001",
+      },
+    ]);
+    db.seed("orders", [
+      {
+        id: "order-paytest",
+        status: "pending",
+        payment_provider: "airwallex",
+        payment_status: "requires_payment_method",
+        fulfillment_status: "pending_payment",
+        inventory_reserved: false,
+        total_amount: 16,
+        subtotal_amount: 1,
+        shipping_amount: 15,
+        currency: "USD",
+        customer_email: checkoutCustomer.email,
+        customer_name: "Ada Lovelace",
+        payment_reference: "int_old",
+      },
+    ]);
+    db.seed("order_items", [
+      {
+        id: "item-paytest",
+        order_id: "order-paytest",
+        product_id: PAYMENT_TEST_SLUG,
+        variant_id: null,
+        quantity: 1,
+        product_name: "Payment test — do not ship",
+        price_at_purchase: 1,
+      },
+    ]);
+    db.seed("payments", [
+      {
+        id: "pay-paytest",
+        order_id: "order-paytest",
+        provider: "airwallex",
+        provider_payment_intent_id: "int_old",
+        provider_request_id: REQUEST_ID,
+        status: "requires_payment_method",
+        amount: 16,
+        currency: "USD",
+      },
+    ]);
+
+    const response = await POST(
+      request({
+        items: [
+          checkoutItem({
+            id: PAYMENT_TEST_SLUG,
+            slug: PAYMENT_TEST_SLUG,
+            name: "Payment test — do not ship",
+            price: 1,
+            quantity: 1,
+            sku: "JQJ-PAYTEST-001",
+          }),
+        ],
+        customer: checkoutCustomer,
+        idempotencyKey: REQUEST_ID,
+        paymentIntentId: "int_old",
+      }),
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: 'Product "Payment test — do not ship" is unavailable.',
+    });
+    expect(createAirwallexPaymentIntent).not.toHaveBeenCalled();
+    expect(db.rowsOf("orders")).toHaveLength(1);
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      id: "order-paytest",
+      status: "pending",
+      payment_status: "requires_payment_method",
+      payment_reference: "int_old",
+      inventory_reserved: false,
+    });
+    expect(
+      db.rowsOf("products").find((row) => row.slug === PAYMENT_TEST_SLUG),
+    ).toMatchObject({ stock_count: 8, in_stock: true });
+    expect(db.rowsOf("payments")).toHaveLength(1);
+    expect(db.rpcCalls).toHaveLength(0);
+  });
+
+  it("returns 409 instead of continuing a reused unpaid order that is out of stock", async () => {
+    db.rowsOf("products")[0].stock_count = 0;
+    db.rowsOf("products")[0].in_stock = false;
+    db.seed("orders", [
+      {
+        id: "order-short",
+        status: "pending",
+        payment_provider: "airwallex",
+        payment_status: "requires_payment_method",
+        fulfillment_status: "pending_payment",
+        inventory_reserved: false,
+        total_amount: 115,
+        currency: "USD",
+        customer_email: checkoutCustomer.email,
+        payment_reference: "int_short",
+      },
+    ]);
+    db.seed("order_items", [
+      {
+        id: "item-short",
+        order_id: "order-short",
+        product_id: "prod-amethyst",
+        variant_id: null,
+        quantity: 1,
+        product_name: "Amethyst Bracelet XV (5mm)",
+        price_at_purchase: 100,
+      },
+    ]);
+    db.seed("payments", [
+      {
+        id: "pay-short",
+        order_id: "order-short",
+        provider: "airwallex",
+        provider_payment_intent_id: "int_short",
+        provider_request_id: REQUEST_ID,
+        status: "requires_payment_method",
+        amount: 115,
+        currency: "USD",
+      },
+    ]);
+
+    const response = await POST(
+      request({
+        items: [checkoutItem()],
+        customer: checkoutCustomer,
+        idempotencyKey: REQUEST_ID,
+        paymentIntentId: "int_short",
+      }),
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: '"Amethyst Bracelet XV (5mm)" is out of stock.',
+    });
+    expect(createAirwallexPaymentIntent).not.toHaveBeenCalled();
+    expect(db.rowsOf("orders")).toHaveLength(1);
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      id: "order-short",
+      payment_status: "requires_payment_method",
+      payment_reference: "int_short",
+    });
+    expect(db.rowsOf("products")[0].stock_count).toBe(0);
+    expect(db.rpcCalls).toHaveLength(0);
+  });
+
+  it("still reports an already-paid reused order when current validation fails", async () => {
+    db.seed("products", [
+      {
+        id: PAYMENT_TEST_SLUG,
+        slug: PAYMENT_TEST_SLUG,
+        name: "Payment test — do not ship",
+        price: 1,
+        stock_count: 8,
+        in_stock: true,
+        low_stock_threshold: 1,
+        sku: "JQJ-PAYTEST-001",
+      },
+    ]);
+    db.seed("orders", [
+      {
+        id: "order-paid-paytest",
+        status: "paid",
+        payment_provider: "airwallex",
+        payment_status: "succeeded",
+        fulfillment_status: "paid",
+        inventory_reserved: true,
+        total_amount: 16,
+        currency: "USD",
+        customer_email: checkoutCustomer.email,
+      },
+    ]);
+    db.seed("order_items", [
+      {
+        id: "item-paid-paytest",
+        order_id: "order-paid-paytest",
+        product_id: PAYMENT_TEST_SLUG,
+        variant_id: null,
+        quantity: 1,
+        product_name: "Payment test — do not ship",
+        price_at_purchase: 1,
+      },
+    ]);
+    db.seed("payments", [
+      {
+        id: "pay-paid-paytest",
+        order_id: "order-paid-paytest",
+        provider: "airwallex",
+        provider_payment_intent_id: "int_paid_old",
+        provider_request_id: REQUEST_ID,
+        status: "succeeded",
+        amount: 16,
+        currency: "USD",
+      },
+    ]);
+
+    const response = await POST(
+      request({
+        items: [
+          checkoutItem({
+            id: PAYMENT_TEST_SLUG,
+            slug: PAYMENT_TEST_SLUG,
+            name: "Payment test — do not ship",
+            price: 1,
+            quantity: 1,
+          }),
+        ],
+        customer: checkoutCustomer,
+        idempotencyKey: REQUEST_ID,
+        paymentIntentId: "int_paid_old",
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      orderId: "order-paid-paytest",
+      intentId: "int_paid_old",
+      alreadyPaid: true,
+    });
+    expect(createAirwallexPaymentIntent).not.toHaveBeenCalled();
+    expect(db.rowsOf("orders")).toHaveLength(1);
+    expect(db.rowsOf("orders")[0]).toMatchObject({
+      status: "paid",
+      payment_status: "succeeded",
+    });
+  });
 });

@@ -1,14 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { paymentTestListingHidden } from "@/data/products";
+import { PAYMENT_TEST_SLUG, paymentTestListingHidden } from "@/data/products";
 
 type Json = string | number | boolean | null | { [key: string]: Json } | Json[];
 
 // Same slug the PDP hide keeps out of getProductBySlug. A live products row
 // does not make it sellable while that hide stays on.
-const PAYMENT_TEST_SLUG = "payment-test-do-not-ship";
-
-function isHiddenPaymentTestListing(slug?: string | null) {
-  return paymentTestListingHidden && (slug ?? "") === PAYMENT_TEST_SLUG;
+export function isHiddenPaymentTestListing(slug?: string | null) {
+  return paymentTestListingHidden && (slug ?? "").trim() === PAYMENT_TEST_SLUG;
 }
 
 export interface CheckoutItemInput {

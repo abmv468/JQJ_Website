@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { paymentTestListingHidden } from "@/data/products";
 import {
+  getProductBySlug,
+  PAYMENT_TEST_SLUG,
+  paymentTestListingHidden,
+  unlistedProducts,
+} from "@/data/products";
+import {
+  isHiddenPaymentTestListing,
   validateCheckoutItems,
   type CheckoutItemInput,
   type InventoryProduct,
 } from "@/lib/inventory";
-
-const PAYMENT_TEST_SLUG = "payment-test-do-not-ship";
 
 const product: InventoryProduct = {
   id: "prod-1",
@@ -113,6 +117,14 @@ describe("validateCheckoutItems", () => {
 
   it("rejects the hidden payment-test slug even when its products row looks sellable", () => {
     expect(paymentTestListingHidden).toBe(true);
+    expect(PAYMENT_TEST_SLUG).toBe("payment-test-do-not-ship");
+    expect(unlistedProducts.map((product) => product.slug)).toContain(
+      PAYMENT_TEST_SLUG,
+    );
+    expect(getProductBySlug(PAYMENT_TEST_SLUG)).toBeUndefined();
+    expect(isHiddenPaymentTestListing(PAYMENT_TEST_SLUG)).toBe(true);
+    expect(isHiddenPaymentTestListing(`  ${PAYMENT_TEST_SLUG}  `)).toBe(true);
+    expect(isHiddenPaymentTestListing("amethyst-bracelet-xv")).toBe(false);
 
     const paymentTest: InventoryProduct = {
       id: PAYMENT_TEST_SLUG,

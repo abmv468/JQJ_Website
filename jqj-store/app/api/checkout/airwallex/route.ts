@@ -325,6 +325,13 @@ export async function POST(req: Request) {
           },
           { headers: { "Cache-Control": "no-store" } },
         );
+      } else if (!validation.ok) {
+        // The cart still has to pass current checks. Reusing an unpaid order
+        // must not open another payment attempt for a hidden or invalid cart.
+        return NextResponse.json(
+          { error: validation.errors[0] || "Insufficient stock" },
+          { status: 409 },
+        );
       } else if (existingOrder.total_amount != null) {
         chargeAmount = Number(existingOrder.total_amount);
       }
