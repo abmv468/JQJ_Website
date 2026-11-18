@@ -82,6 +82,7 @@ describe("journal catalogue", () => {
   it("pins the index and featured article routes", () => {
     expect(indexPage).toContain('canonical: "/journal"');
     expect(articlePage).toContain("notFound()");
+    expect(articlePage).toContain("export const dynamicParams = false");
     expect(articlePage).toContain("generateStaticParams");
     expect(getJournalPost("how-to-clean-a-crystal")?.title).toBe(
       "How to clean a crystal without damaging it",

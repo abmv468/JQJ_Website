@@ -3,6 +3,11 @@ import { notFound } from "next/navigation";
 import JournalArticle from "@/components/journal/JournalArticle";
 import { JOURNAL_POSTS, getJournalPost } from "@/data/journal";
 
+// Unknown slugs must stay unmatched. In production, notFound() inside a
+// matched dynamic segment is served as an empty __next_error__ document
+// instead of app/not-found.tsx. Every published note is known at build.
+export const dynamicParams = false;
+
 export function generateStaticParams() {
   return JOURNAL_POSTS.map((post) => ({ slug: post.slug }));
 }

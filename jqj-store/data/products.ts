@@ -365,6 +365,16 @@ export const unlistedProducts: Product[] = [
   },
 ];
 
+// Product pages set `dynamicParams = false`, so a slug is reachable only when
+// a build lists it. The hidden payment-test slug stays off that list.
+export function productStaticParams(
+  hidden: boolean = paymentTestListingHidden,
+): { slug: string }[] {
+  const params = products.map((product) => ({ slug: product.slug }));
+  if (!hidden) params.push({ slug: PAYMENT_TEST_SLUG });
+  return params;
+}
+
 export function getProductBySlug(
   slug: string,
   visibility?: { paymentTestListingHidden?: boolean },

@@ -2,15 +2,20 @@ import { notFound } from "next/navigation";
 import {
   getProductBySlug,
   getRelatedProducts,
-  products,
+  productStaticParams,
 } from "@/data/products";
 import ProductDetail from "@/components/product/ProductDetail";
 import type { Metadata } from "next";
 import { productPageMetadata } from "@/lib/product-page-metadata";
 import { absoluteUrl, jsonLd } from "@/lib/seo";
 
+// Unknown slugs must stay unmatched. In production, notFound() inside a
+// matched dynamic segment is served as an empty __next_error__ document
+// instead of app/not-found.tsx. Public product slugs are known at build.
+export const dynamicParams = false;
+
 export function generateStaticParams() {
-  return products.map((p) => ({ slug: p.slug }));
+  return productStaticParams();
 }
 
 export function generateMetadata({
