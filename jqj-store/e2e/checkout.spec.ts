@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { PAYMENT_TEST_SLUG } from "../data/products";
+import { PAYMENT_TEST_SLUG, paymentTestListingHidden } from "../data/products";
 import {
   COD_FEE,
   FREE_SHIPPING_THRESHOLD_USD,
@@ -33,6 +33,36 @@ test("availability GET hides a known payment-test slug and still returns catalog
   const hidden = await page.evaluate(async (slug) => {
     const response = await fetch(
       `/api/products/availability?slug=${encodeURIComponent(slug)}`,
+    );
+    return { status: response.status, body: await response.json() };
+  }, PAYMENT_TEST_SLUG);
+
+  expect(hidden.status).toBe(404);
+  expect(hidden.body).toEqual({ error: "Product not found" });
+  expect(JSON.stringify(hidden.body)).not.toMatch(/stockCount|inStock/);
+
+  const listed = await page.evaluate(async () => {
+    const response = await fetch(
+      "/api/products/availability?slug=amethyst-bracelet-xv",
+    );
+    return { status: response.status, body: await response.json() };
+  });
+
+  expect(listed.status).toBe(200);
+  expect(listed.body.product.slug).toBe("amethyst-bracelet-xv");
+  expect(listed.body.product.stockCount).toBeGreaterThan(0);
+  expect(JSON.stringify(listed.body)).not.toContain(PAYMENT_TEST_SLUG);
+});
+
+test("availability GET hides a padded payment-test slug and still returns catalog stock", async ({
+  page,
+}) => {
+  expect(paymentTestListingHidden).toBe(true);
+  await page.goto("/");
+
+  const hidden = await page.evaluate(async (slug) => {
+    const response = await fetch(
+      `/api/products/availability?slug=${encodeURIComponent(`  ${slug}  `)}`,
     );
     return { status: response.status, body: await response.json() };
   }, PAYMENT_TEST_SLUG);
