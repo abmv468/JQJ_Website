@@ -11,9 +11,12 @@ export default function VerifyPage({
 }: {
   searchParams: { [key: string]: string | string[] | undefined };
 }) {
-  const status = typeof searchParams.status === "string" ? searchParams.status : "";
+  const status =
+    typeof searchParams.status === "string" ? searchParams.status : "";
   const confirmed = status === "success";
-  const next = sanitizeNextPath(typeof searchParams.next === "string" ? searchParams.next : null);
+  const next = sanitizeNextPath(
+    typeof searchParams.next === "string" ? searchParams.next : null,
+  );
 
   if (confirmed) {
     return (
@@ -33,11 +36,15 @@ export default function VerifyPage({
     <main className="center-frame" data-auth-view="confirm-error">
       <div className="form-card fade-in">
         <h1 className="page-title">We couldn{"\u2019"}t confirm this link</h1>
-        <p className="page-lead">This confirmation link is invalid or has expired.</p>
+        <p className="page-lead">
+          This confirmation link is invalid or has expired.
+        </p>
         <Link href="/auth/login" className="btn-primary">
           Back to sign in
         </Link>
-        <p className="note">You can request a new confirmation email from the sign-in page.</p>
+        <p className="note">
+          You can request a new confirmation email from the sign-in page.
+        </p>
       </div>
     </main>
   );

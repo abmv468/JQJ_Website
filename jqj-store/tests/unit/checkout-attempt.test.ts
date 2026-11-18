@@ -51,7 +51,7 @@ describe("checkout attempt idempotency key", () => {
     const reordered = resolveCheckoutAttempt(
       [{ ...bracelet, material: null, size: "5mm" }],
       storage,
-      nextKey
+      nextKey,
     );
     const sameContents = resolveCheckoutAttempt([bracelet], storage, nextKey);
 
@@ -59,20 +59,34 @@ describe("checkout attempt idempotency key", () => {
     expect(reordered.rotated).toBe(false);
     expect(sameContents.rotated).toBe(false);
     expect(sameContents.idempotencyKey).toBe(first.idempotencyKey);
-    expect(cartFingerprint([bracelet])).toBe(cartFingerprint([{ ...bracelet }]));
+    expect(cartFingerprint([bracelet])).toBe(
+      cartFingerprint([{ ...bracelet }]),
+    );
 
-    const changed = resolveCheckoutAttempt([{ ...bracelet, quantity: 2 }], storage, nextKey);
+    const changed = resolveCheckoutAttempt(
+      [{ ...bracelet, quantity: 2 }],
+      storage,
+      nextKey,
+    );
     expect(changed.rotated).toBe(true);
     expect(changed.idempotencyKey).not.toBe(first.idempotencyKey);
 
-    const stillChanged = resolveCheckoutAttempt([{ ...bracelet, quantity: 2 }], storage, nextKey);
+    const stillChanged = resolveCheckoutAttempt(
+      [{ ...bracelet, quantity: 2 }],
+      storage,
+      nextKey,
+    );
     expect(stillChanged.rotated).toBe(false);
     expect(stillChanged.idempotencyKey).toBe(changed.idempotencyKey);
   });
 
   it("keeps the key after a pending or failed return and rotates it after terminal success", () => {
     const first = resolveCheckoutAttempt([bracelet], storage, nextKey);
-    const afterPendingOrFailed = resolveCheckoutAttempt([bracelet], storage, nextKey);
+    const afterPendingOrFailed = resolveCheckoutAttempt(
+      [bracelet],
+      storage,
+      nextKey,
+    );
     expect(afterPendingOrFailed.idempotencyKey).toBe(first.idempotencyKey);
     expect(afterPendingOrFailed.rotated).toBe(false);
 

@@ -28,7 +28,8 @@ export function loadStoreSchema(): StoreSchema {
   const tables: Record<string, Set<string>> = {};
   const duplicateCreateColumns: Record<string, string[]> = {};
 
-  const createRe = /create table if not exists (?:public\.)?([a-z_][a-z0-9_]*)\s*\(/gi;
+  const createRe =
+    /create table if not exists (?:public\.)?([a-z_][a-z0-9_]*)\s*\(/gi;
   let createMatch: RegExpExecArray | null;
   while ((createMatch = createRe.exec(sql))) {
     const name = createMatch[1];
@@ -38,7 +39,10 @@ export function loadStoreSchema(): StoreSchema {
     const seen = new Set<string>();
     for (const column of declared) {
       if (seen.has(column)) {
-        duplicateCreateColumns[name] = [...(duplicateCreateColumns[name] ?? []), column];
+        duplicateCreateColumns[name] = [
+          ...(duplicateCreateColumns[name] ?? []),
+          column,
+        ];
       }
       seen.add(column);
       columns.add(column);
@@ -46,7 +50,8 @@ export function loadStoreSchema(): StoreSchema {
     tables[name] = columns;
   }
 
-  const alterRe = /alter table (?:if exists )?(?:public\.)?([a-z_][a-z0-9_]*)\s+([\s\S]*?);/gi;
+  const alterRe =
+    /alter table (?:if exists )?(?:public\.)?([a-z_][a-z0-9_]*)\s+([\s\S]*?);/gi;
   let alterMatch: RegExpExecArray | null;
   while ((alterMatch = alterRe.exec(sql))) {
     const name = alterMatch[1];
@@ -59,21 +64,27 @@ export function loadStoreSchema(): StoreSchema {
   }
 
   const functions = new Set<string>();
-  const fnRe = /create or replace function (?:public\.)?([a-z_][a-z0-9_]*)\s*\(/gi;
+  const fnRe =
+    /create or replace function (?:public\.)?([a-z_][a-z0-9_]*)\s*\(/gi;
   let fnMatch: RegExpExecArray | null;
   while ((fnMatch = fnRe.exec(sql))) functions.add(fnMatch[1]);
 
   const statusBlocks = [
     ...sql.matchAll(
-      /orders_status_check[\s\S]*?check\s*\(\s*status\s+in\s*\(([\s\S]*?)\)\s*\)/gi
+      /orders_status_check[\s\S]*?check\s*\(\s*status\s+in\s*\(([\s\S]*?)\)\s*\)/gi,
     ),
   ];
   const statusSource = statusBlocks.at(-1)?.[1] ?? "";
-  const orderStatuses = [...statusSource.matchAll(/'([^']+)'/g)].map((match) => match[1]);
+  const orderStatuses = [...statusSource.matchAll(/'([^']+)'/g)].map(
+    (match) => match[1],
+  );
 
   cached = {
     tables: Object.fromEntries(
-      Object.entries(tables).map(([name, columns]) => [name, [...columns].sort()])
+      Object.entries(tables).map(([name, columns]) => [
+        name,
+        [...columns].sort(),
+      ]),
     ),
     duplicateCreateColumns,
     functions: [...functions].sort(),

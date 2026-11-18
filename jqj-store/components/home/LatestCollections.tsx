@@ -5,13 +5,48 @@ import CatalogImage from "@/components/product/CatalogImage";
 
 // Tile photos follow each product's default image. Held defaults stay until a later photo pass.
 const collections = [
-  { name: "Sodalite Signature", image: products[2].images[0], href: "/bracelets?stone=Sodalite", alt: "Sodalite natural stone bracelet" },
-  { name: "Raw Tourmaline", image: products[1].images[0], href: "/bracelets?stone=Tourmaline", alt: "Raw tourmaline natural stone bracelet" },
-  { name: "Jasper Heritage", image: products[0].images[0], href: "/bracelets?stone=Jasper", alt: "Red leopard skin jasper bracelet" },
-  { name: "Labradorite Light", image: products[5].images[0], href: "/bracelets?stone=Labradorite", alt: "Labradorite natural stone bracelet" },
-  { name: "Amethyst Studio", image: products[3].images[0], href: "/bracelets?stone=Amethyst", alt: "Amethyst natural stone bracelet" },
-  { name: "Silver Minimal", image: products[4].images[0], href: `/bracelets?stone=${encodeURIComponent("Hematite Silver")}`, alt: "Silver accent natural stone bracelet" },
-  { name: "Pearl Collection", image: products[8].images[0], href: "/necklaces?stone=Pearl", alt: "Pearl and silver necklace" },
+  {
+    name: "Sodalite Signature",
+    image: products[2].images[0],
+    href: "/bracelets?stone=Sodalite",
+    alt: "Sodalite natural stone bracelet",
+  },
+  {
+    name: "Raw Tourmaline",
+    image: products[1].images[0],
+    href: "/bracelets?stone=Tourmaline",
+    alt: "Raw tourmaline natural stone bracelet",
+  },
+  {
+    name: "Jasper Heritage",
+    image: products[0].images[0],
+    href: "/bracelets?stone=Jasper",
+    alt: "Red leopard skin jasper bracelet",
+  },
+  {
+    name: "Labradorite Light",
+    image: products[5].images[0],
+    href: "/bracelets?stone=Labradorite",
+    alt: "Labradorite natural stone bracelet",
+  },
+  {
+    name: "Amethyst Studio",
+    image: products[3].images[0],
+    href: "/bracelets?stone=Amethyst",
+    alt: "Amethyst natural stone bracelet",
+  },
+  {
+    name: "Silver Minimal",
+    image: products[4].images[0],
+    href: `/bracelets?stone=${encodeURIComponent("Hematite Silver")}`,
+    alt: "Silver accent natural stone bracelet",
+  },
+  {
+    name: "Pearl Collection",
+    image: products[8].images[0],
+    href: "/necklaces?stone=Pearl",
+    alt: "Pearl and silver necklace",
+  },
 ];
 
 export default function LatestCollections() {
@@ -22,7 +57,8 @@ export default function LatestCollections() {
           <p className="eyebrow">Curated edits</p>
           <h2 className="section-title">Latest Collections</h2>
           <p className="section-lead text-[13px] sm:text-sm md:text-[15px]">
-            From earthy neutrals to brighter mineral tones, each edit is composed to feel cohesive, collectible, and easy to wear.
+            From earthy neutrals to brighter mineral tones, each edit is
+            composed to feel cohesive, collectible, and easy to wear.
           </p>
         </div>
 
@@ -52,7 +88,9 @@ export default function LatestCollections() {
                   >
                     Collection
                   </p>
-                  <p className="mt-2 text-sm leading-6 text-white/86">{c.name}</p>
+                  <p className="mt-2 text-sm leading-6 text-white/86">
+                    {c.name}
+                  </p>
                 </div>
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-white/54 transition-colors duration-200 group-hover:text-white">
                   <ArrowUpRight className="h-4 w-4" />

@@ -14,9 +14,17 @@
  */
 
 import { COD_FEE, codPaymentLabel } from "../../lib/checkout-fees";
-import { computeShippingUsd, FREE_SHIPPING_THRESHOLD_USD } from "../../lib/shipping";
+import {
+  computeShippingUsd,
+  FREE_SHIPPING_THRESHOLD_USD,
+} from "../../lib/shipping";
 
-export { COD_FEE, codPaymentLabel, computeShippingUsd, FREE_SHIPPING_THRESHOLD_USD };
+export {
+  COD_FEE,
+  codPaymentLabel,
+  computeShippingUsd,
+  FREE_SHIPPING_THRESHOLD_USD,
+};
 
 export type CheckoutMethod = "airwallex" | "cod";
 
@@ -57,20 +65,23 @@ export function shippingUsd(subtotalUsd: number): number {
 export function quoteCheckout(
   lines: { unitPriceUsd: number; quantity: number }[],
   method: CheckoutMethod,
-  options?: { giftWrap?: boolean }
+  options?: { giftWrap?: boolean },
 ): { subtotal: number; shipping: number; codFee: number; total: number } {
   if (options?.giftWrap) {
     throw new Error(
-      "Gift wrap is not charged on main. Set checkoutExpectations.giftWrapUsd and thread it through quoteCheckout from the BE-013/WEB-013 tests."
+      "Gift wrap is not charged on main. Set checkoutExpectations.giftWrapUsd and thread it through quoteCheckout from the BE-013/WEB-013 tests.",
     );
   }
 
   const subtotalCents = lines.reduce(
     (sum, line) => sum + toCents(line.unitPriceUsd) * line.quantity,
-    0
+    0,
   );
   const shipping = computeShippingUsd(
-    lines.map((line) => ({ unitPriceUsd: line.unitPriceUsd, quantity: line.quantity }))
+    lines.map((line) => ({
+      unitPriceUsd: line.unitPriceUsd,
+      quantity: line.quantity,
+    })),
   );
   const shippingCents = toCents(shipping);
   const codFeeCents = method === "cod" ? toCents(COD_FEE) : 0;

@@ -32,5 +32,11 @@ export default function JournalPage({
   const category = parseJournalCategory(searchParams.category);
   const initialQuery = searchParams.q ?? "";
 
-  return <JournalIndex key={category} category={category} initialQuery={initialQuery} />;
+  return (
+    <JournalIndex
+      key={category}
+      category={category}
+      initialQuery={initialQuery}
+    />
+  );
 }

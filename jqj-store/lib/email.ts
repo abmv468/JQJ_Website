@@ -42,19 +42,28 @@ const HTML_ESCAPES: Record<string, string> = {
 // Order mail interpolates customer-controlled text. Escape it before it reaches HTML.
 function escapeHtml(value: unknown): string {
   if (value == null) return "";
-  return String(value).replace(/[&<>"']/g, (character) => HTML_ESCAPES[character]);
+  return String(value).replace(
+    /[&<>"']/g,
+    (character) => HTML_ESCAPES[character],
+  );
 }
 
-function itemsTable(items: OrderEmailItem[], currency: SupportedCurrency): string {
+function itemsTable(
+  items: OrderEmailItem[],
+  currency: SupportedCurrency,
+): string {
   return items
     .map(
       (i) => `
       <tr>
         <td style="padding:8px 0;border-bottom:1px solid #eee;">${escapeHtml(i.name)} × ${escapeHtml(i.quantity)}</td>
-        <td style="padding:8px 0;border-bottom:1px solid #eee;text-align:right;">${formatPrice(i.price * i.quantity, {
-          currency,
-        })}</td>
-      </tr>`
+        <td style="padding:8px 0;border-bottom:1px solid #eee;text-align:right;">${formatPrice(
+          i.price * i.quantity,
+          {
+            currency,
+          },
+        )}</td>
+      </tr>`,
     )
     .join("");
 }
@@ -79,22 +88,34 @@ function buildHtml(data: OrderEmailData, heading: string): string {
       <p>Payment method: <strong>${escapeHtml(paymentLabel)}</strong></p>
       <table style="width:100%;border-collapse:collapse;margin:16px 0;">
         ${itemsTable(data.items, data.currency)}
-        <tr><td style="padding:8px 0;">Subtotal</td><td style="padding:8px 0;text-align:right;">${formatPrice(data.subtotal, {
-          currency: data.currency,
-        })}</td></tr>
-        <tr><td style="padding:8px 0;">Shipping</td><td style="padding:8px 0;text-align:right;">${formatPrice(data.shipping, {
-          currency: data.currency,
-        })}</td></tr>
+        <tr><td style="padding:8px 0;">Subtotal</td><td style="padding:8px 0;text-align:right;">${formatPrice(
+          data.subtotal,
+          {
+            currency: data.currency,
+          },
+        )}</td></tr>
+        <tr><td style="padding:8px 0;">Shipping</td><td style="padding:8px 0;text-align:right;">${formatPrice(
+          data.shipping,
+          {
+            currency: data.currency,
+          },
+        )}</td></tr>
         ${
           data.codFee
-            ? `<tr><td style="padding:8px 0;">COD Fee</td><td style="padding:8px 0;text-align:right;">${formatPrice(data.codFee, {
-                currency: data.currency,
-              })}</td></tr>`
+            ? `<tr><td style="padding:8px 0;">COD Fee</td><td style="padding:8px 0;text-align:right;">${formatPrice(
+                data.codFee,
+                {
+                  currency: data.currency,
+                },
+              )}</td></tr>`
             : ""
         }
-        <tr><td style="padding:12px 0;font-weight:700;border-top:2px solid #111;">Total</td><td style="padding:12px 0;text-align:right;font-weight:700;border-top:2px solid #111;color:${GOLD};">${formatPrice(data.total, {
-    currency: data.currency,
-  })}</td></tr>
+        <tr><td style="padding:12px 0;font-weight:700;border-top:2px solid #111;">Total</td><td style="padding:12px 0;text-align:right;font-weight:700;border-top:2px solid #111;color:${GOLD};">${formatPrice(
+          data.total,
+          {
+            currency: data.currency,
+          },
+        )}</td></tr>
       </table>
       <h3 style="font-weight:500;">Shipping to</h3>
       <p style="color:#444;line-height:1.5;">

@@ -15,7 +15,8 @@ const ORIGINAL_FLAG = process.env.AIRWALLEX_PRODUCTION_ENABLED;
 afterEach(() => {
   if (ORIGINAL_ENV === undefined) delete process.env.AIRWALLEX_ENV;
   else process.env.AIRWALLEX_ENV = ORIGINAL_ENV;
-  if (ORIGINAL_FLAG === undefined) delete process.env.AIRWALLEX_PRODUCTION_ENABLED;
+  if (ORIGINAL_FLAG === undefined)
+    delete process.env.AIRWALLEX_PRODUCTION_ENABLED;
   else process.env.AIRWALLEX_PRODUCTION_ENABLED = ORIGINAL_FLAG;
 });
 
@@ -46,10 +47,12 @@ describe("Airwallex payment status", () => {
         currency: "USD",
         merchantOrderId: "order-1",
         returnUrl: "http://localhost:3000/order-confirmation",
-      })
+      }),
     ).rejects.toThrow(/production mode is disabled/);
 
     process.env.AIRWALLEX_ENV = "staging";
-    expect(() => getAirwallexEnvironment()).toThrow(/Unsupported AIRWALLEX_ENV/);
+    expect(() => getAirwallexEnvironment()).toThrow(
+      /Unsupported AIRWALLEX_ENV/,
+    );
   });
 });

@@ -64,9 +64,12 @@ describe("cart hydration regression", () => {
     const restored = readStoredCart(storage);
     expect(restored).toEqual([line]);
     expect(shouldShowEmptyCart(true, restored.length)).toBe(false);
-    expect(isCartBadgeHidden(true, restored.reduce((sum, item) => sum + item.quantity, 0))).toBe(
-      false,
-    );
+    expect(
+      isCartBadgeHidden(
+        true,
+        restored.reduce((sum, item) => sum + item.quantity, 0),
+      ),
+    ).toBe(false);
   });
 
   it("does not show an empty cart or hide the badge before hydration", () => {

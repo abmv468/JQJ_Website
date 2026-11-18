@@ -8,7 +8,11 @@ import { metadata as cartMetadata } from "@/app/(store)/cart/layout";
 import { metadata as checkoutMetadata } from "@/app/(store)/checkout/layout";
 import { productPageMetadata } from "@/lib/product-page-metadata";
 import { JOURNAL_INTRO, getJournalPost } from "@/data/journal";
-import { getProductBySlug, paymentTestListingHidden, products } from "@/data/products";
+import {
+  getProductBySlug,
+  paymentTestListingHidden,
+  products,
+} from "@/data/products";
 
 const PUBLISHED_JOURNAL_SLUGS = [
   "how-to-clean-a-crystal",
@@ -64,13 +68,21 @@ describe("technical SEO preview", () => {
 
   it("uses a real per-URL lastmod and keeps the payment-test listing out of the sitemap", () => {
     const entries = sitemap();
-    const stamps = entries.map((entry) => new Date(entry.lastModified ?? 0).toISOString());
+    const stamps = entries.map((entry) =>
+      new Date(entry.lastModified ?? 0).toISOString(),
+    );
     expect(new Set(stamps).size).toBeGreaterThan(1);
-    expect(entries.every((entry) => entry.lastModified instanceof Date)).toBe(true);
-    expect(entries.some((entry) => entry.url.includes("payment-test"))).toBe(false);
+    expect(entries.every((entry) => entry.lastModified instanceof Date)).toBe(
+      true,
+    );
+    expect(entries.some((entry) => entry.url.includes("payment-test"))).toBe(
+      false,
+    );
     const shipping = entries.find((entry) => entry.url.endsWith("/shipping"));
     const privacy = entries.find((entry) => entry.url.endsWith("/privacy"));
-    const home = entries.find((entry) => entry.url.endsWith("/") || entry.url.endsWith(".app/"));
+    const home = entries.find(
+      (entry) => entry.url.endsWith("/") || entry.url.endsWith(".app/"),
+    );
     expect(shipping?.lastModified).not.toEqual(privacy?.lastModified);
     expect(home?.lastModified).not.toEqual(privacy?.lastModified);
   });
@@ -82,20 +94,28 @@ describe("technical SEO preview", () => {
     const urls = entries.map((entry) => entry.url);
     expect(urls.some((url) => url.endsWith("/journal"))).toBe(true);
     for (const slug of PUBLISHED_JOURNAL_SLUGS) {
-      expect(journalArticleMetadata({ params: { slug } }).robots).toMatchObject(INDEX_FOLLOW);
+      expect(journalArticleMetadata({ params: { slug } }).robots).toMatchObject(
+        INDEX_FOLLOW,
+      );
       expect(urls.some((url) => url.endsWith(`/journal/${slug}`))).toBe(true);
-      const entry = entries.find((item) => item.url.endsWith(`/journal/${slug}`));
+      const entry = entries.find((item) =>
+        item.url.endsWith(`/journal/${slug}`),
+      );
       expect(entry?.lastModified).toBeInstanceOf(Date);
     }
     const indexEntry = entries.find((entry) => entry.url.endsWith("/journal"));
     expect(indexEntry?.lastModified).toBeInstanceOf(Date);
     expect(indexEntry?.lastModified).toEqual(
-      entries.find((entry) => entry.url.endsWith("/journal/how-to-clean-a-crystal"))?.lastModified
+      entries.find((entry) =>
+        entry.url.endsWith("/journal/how-to-clean-a-crystal"),
+      )?.lastModified,
     );
 
     for (const slug of RETIRED_JOURNAL_SLUGS) {
       expect(urls.some((url) => url.includes(slug))).toBe(false);
-      expect(journalArticleMetadata({ params: { slug } }).robots).toMatchObject(NOINDEX);
+      expect(journalArticleMetadata({ params: { slug } }).robots).toMatchObject(
+        NOINDEX,
+      );
     }
   });
 
@@ -116,7 +136,9 @@ describe("technical SEO preview", () => {
       expect(getProductBySlug(slug)).toBeUndefined();
       const metadata = productPageMetadata(slug);
       expect(metadata.title).not.toBe("Product");
-      expect(metadata.title).toEqual({ absolute: "Page not found — Jewellery Quintessential" });
+      expect(metadata.title).toEqual({
+        absolute: "Page not found — Jewellery Quintessential",
+      });
       expect(metadata.robots).toEqual(NOINDEX);
       expect(metadata.alternates).toEqual({ canonical: null });
       expect(metadata.openGraph).toBeUndefined();
@@ -127,13 +149,17 @@ describe("technical SEO preview", () => {
     const listed = products[0];
     const listedMetadata = productPageMetadata(listed.slug);
     expect(listedMetadata.title).toBe(listed.name);
-    expect(listedMetadata.alternates).toEqual({ canonical: `/products/${listed.slug}` });
+    expect(listedMetadata.alternates).toEqual({
+      canonical: `/products/${listed.slug}`,
+    });
     expect(listedMetadata).not.toHaveProperty("robots");
   });
 
   it("gives the journal index and published notes their own social titles", () => {
     expect(journalMetadata.robots).toMatchObject(INDEX_FOLLOW);
-    expect(journalMetadata.title).toEqual({ absolute: "Journal — Jewellery Quintessential" });
+    expect(journalMetadata.title).toEqual({
+      absolute: "Journal — Jewellery Quintessential",
+    });
     expect(journalMetadata.description).toBe(JOURNAL_INTRO.dek);
     expect(journalMetadata.alternates).toEqual({ canonical: "/journal" });
     expect(journalMetadata.openGraph).toMatchObject({
@@ -175,12 +201,16 @@ describe("technical SEO preview", () => {
   });
 
   it("gives cart and checkout their own titles and non-homepage canonicals", () => {
-    expect(cartMetadata.title).toEqual({ absolute: "Cart — Jewellery Quintessential" });
+    expect(cartMetadata.title).toEqual({
+      absolute: "Cart — Jewellery Quintessential",
+    });
     expect(cartMetadata.alternates).toEqual({ canonical: "/cart" });
     expect(cartMetadata.robots).toEqual(NOINDEX_FOLLOW);
     expect(cartMetadata.alternates?.canonical).not.toBe("/");
 
-    expect(checkoutMetadata.title).toEqual({ absolute: "Checkout — Jewellery Quintessential" });
+    expect(checkoutMetadata.title).toEqual({
+      absolute: "Checkout — Jewellery Quintessential",
+    });
     expect(checkoutMetadata.alternates).toEqual({ canonical: "/checkout" });
     expect(checkoutMetadata.robots).toEqual(NOINDEX_FOLLOW);
     expect(checkoutMetadata.alternates?.canonical).not.toBe("/");

@@ -43,14 +43,22 @@ const FORBIDDEN_CUSTOMER_LABELS = [
 describe("order status labels", () => {
   it("labels an inventory exception only when that is the raw status", () => {
     expect(normalizeOrderStatus("inventory_exception")).toBeNull();
-    expect(formatOrderStatusLabel("inventory_exception")).toBe("Inventory exception");
-    expect(formatOrderStatusLabel("inventory_exception", "succeeded")).toBe("Inventory exception");
-    expect(formatOrderStatusLabel("inventory_exception", "Succeeded ")).toBe("Inventory exception");
+    expect(formatOrderStatusLabel("inventory_exception")).toBe(
+      "Inventory exception",
+    );
+    expect(formatOrderStatusLabel("inventory_exception", "succeeded")).toBe(
+      "Inventory exception",
+    );
+    expect(formatOrderStatusLabel("inventory_exception", "Succeeded ")).toBe(
+      "Inventory exception",
+    );
     expect(formatOrderStatusLabel("paid", "succeeded")).toBe("Paid");
   });
 
   it("does not call an unpaid or legacy status an inventory exception or Paid", () => {
-    expect(formatOrderStatusLabel("paid", "requires_payment_method")).toBe("Unpaid");
+    expect(formatOrderStatusLabel("paid", "requires_payment_method")).toBe(
+      "Unpaid",
+    );
     expect(formatOrderStatusLabel("pending")).toBe("Pending");
     expect(formatOrderStatusLabel("processing")).toBe("Processing");
     expect(formatOrderStatusLabel("cancelled")).toBe("Cancelled");
@@ -79,7 +87,9 @@ describe("order status labels", () => {
       "cancelled",
       "refunded",
     ]);
-    expect(options.map((option) => formatOrderStatusLabel(option, "succeeded"))).toEqual([
+    expect(
+      options.map((option) => formatOrderStatusLabel(option, "succeeded")),
+    ).toEqual([
       "Inventory exception",
       "Paid",
       "Processing",
@@ -105,7 +115,10 @@ describe("admin inventory exception presentation", () => {
     expect(presentation.showDropdown).toBe(true);
     expect(presentation.selectStatus).toBe("inventory_exception");
 
-    const options = getOrderStatusOptions(presentation.selectStatus, "succeeded");
+    const options = getOrderStatusOptions(
+      presentation.selectStatus,
+      "succeeded",
+    );
     expect(options).toEqual([
       "inventory_exception",
       "paid",
@@ -114,7 +127,9 @@ describe("admin inventory exception presentation", () => {
       "refunded",
     ]);
     expect(options).not.toEqual(["paid"]);
-    const selected = options.find((option) => option === presentation.selectStatus) ?? options[0];
+    const selected =
+      options.find((option) => option === presentation.selectStatus) ??
+      options[0];
     expect(selected).toBe("inventory_exception");
     expect(formatOrderStatusLabel(selected)).toBe("Inventory exception");
   });
@@ -125,12 +140,19 @@ describe("admin inventory exception presentation", () => {
       fulfillmentStatus: "paid",
       paymentStatus: "succeeded",
     });
-    const options = getOrderStatusOptions(presentation.selectStatus, "succeeded");
-    const selected = options.find((option) => option === presentation.selectStatus) ?? options[0];
+    const options = getOrderStatusOptions(
+      presentation.selectStatus,
+      "succeeded",
+    );
+    const selected =
+      options.find((option) => option === presentation.selectStatus) ??
+      options[0];
 
     expect(presentation.selectStatus).toBe("inventory_exception");
     expect(selected).toBe("inventory_exception");
-    expect(formatOrderStatusLabel(selected, "succeeded")).toBe("Inventory exception");
+    expect(formatOrderStatusLabel(selected, "succeeded")).toBe(
+      "Inventory exception",
+    );
     expect(presentation.label).toBe("Paid \u2013 stock issue (action needed)");
     expect(options).toEqual([
       "inventory_exception",
@@ -147,15 +169,25 @@ describe("admin inventory exception presentation", () => {
       fulfillmentStatus: "paid",
       paymentStatus: "payment_failed",
     });
-    const options = getOrderStatusOptions(presentation.selectStatus, "payment_failed");
+    const options = getOrderStatusOptions(
+      presentation.selectStatus,
+      "payment_failed",
+    );
 
-    expect(presentation.label).toBe("Stock issue \u2013 payment payment_failed (action needed)");
+    expect(presentation.label).toBe(
+      "Stock issue \u2013 payment payment_failed (action needed)",
+    );
     expect(presentation.label).not.toContain("Paid");
     expect(presentation.flagged).toBe(true);
     expect(presentation.treatment).toBe("attention");
     expect(presentation.className).toBe(ORDER_STATUS_ATTENTION_CLASS);
     expect(presentation.showDropdown).toBe(true);
-    expect(options).toEqual(["inventory_exception", "processing", "cancelled", "refunded"]);
+    expect(options).toEqual([
+      "inventory_exception",
+      "processing",
+      "cancelled",
+      "refunded",
+    ]);
     expect(options).not.toEqual(["paid"]);
     expect(options).not.toContain("paid");
     expect(formatOrderStatusLabel(options[0])).toBe("Inventory exception");
@@ -174,8 +206,12 @@ describe("admin inventory exception presentation", () => {
       expect(presentation.treatment).toBe("neutral");
       expect(presentation.className).toBe(ORDER_STATUS_NEUTRAL_CLASS);
       expect(presentation.showDropdown).toBe(true);
-      expect(formatCustomerOrderStatusLabel(status)).toBe(CUSTOMER_ORDER_STATUS_FALLBACK);
-      expect(formatCustomerOrderStatusLabel(status)).not.toBe(presentation.label);
+      expect(formatCustomerOrderStatusLabel(status)).toBe(
+        CUSTOMER_ORDER_STATUS_FALLBACK,
+      );
+      expect(formatCustomerOrderStatusLabel(status)).not.toBe(
+        presentation.label,
+      );
     }
   });
 
@@ -186,7 +222,9 @@ describe("admin inventory exception presentation", () => {
     expect(presentation.label).not.toContain("Paid");
     expect(presentation.flagged).toBe(false);
     expect(presentation.treatment).toBe("neutral");
-    expect(getAdminOrderStatusPresentation({ status: "weird_status" }).showDropdown).toBe(true);
+    expect(
+      getAdminOrderStatusPresentation({ status: "weird_status" }).showDropdown,
+    ).toBe(true);
   });
 
   it("leaves named pipeline statuses on the dropdown without an attention pill", () => {
@@ -210,24 +248,34 @@ describe("admin inventory exception presentation", () => {
 });
 
 describe("formatCustomerOrderStatusLabel", () => {
-  it.each(CUSTOMER_SLUGS)("returns Processing for %s and hides admin copy", (status) => {
-    for (const paymentStatus of [undefined, null, "succeeded", "payment_failed"] as const) {
-      const label = formatCustomerOrderStatusLabel(status, paymentStatus);
-      expect(label).toBe("Processing");
-      expect(label).toBe(CUSTOMER_ORDER_STATUS_FALLBACK);
-      for (const forbidden of FORBIDDEN_CUSTOMER_LABELS) {
-        expect(label).not.toBe(forbidden);
+  it.each(CUSTOMER_SLUGS)(
+    "returns Processing for %s and hides admin copy",
+    (status) => {
+      for (const paymentStatus of [
+        undefined,
+        null,
+        "succeeded",
+        "payment_failed",
+      ] as const) {
+        const label = formatCustomerOrderStatusLabel(status, paymentStatus);
+        expect(label).toBe("Processing");
+        expect(label).toBe(CUSTOMER_ORDER_STATUS_FALLBACK);
+        for (const forbidden of FORBIDDEN_CUSTOMER_LABELS) {
+          expect(label).not.toBe(forbidden);
+        }
+        expect(label).not.toContain("_");
+        expect(label.toLowerCase()).not.toContain("stock issue");
+        expect(label.toLowerCase()).not.toContain("action needed");
       }
-      expect(label).not.toContain("_");
-      expect(label.toLowerCase()).not.toContain("stock issue");
-      expect(label.toLowerCase()).not.toContain("action needed");
-    }
-  });
+    },
+  );
 
   it("keeps named pipeline and legacy labels for customers", () => {
     expect(formatCustomerOrderStatusLabel("paid", "succeeded")).toBe("Paid");
     expect(formatCustomerOrderStatusLabel("paid")).toBe("Paid");
-    expect(formatCustomerOrderStatusLabel("paid", "requires_payment_method")).toBe("Unpaid");
+    expect(
+      formatCustomerOrderStatusLabel("paid", "requires_payment_method"),
+    ).toBe("Unpaid");
     expect(formatCustomerOrderStatusLabel("packed")).toBe("Packed");
     expect(formatCustomerOrderStatusLabel("shipped")).toBe("Shipped");
     expect(formatCustomerOrderStatusLabel("delivered")).toBe("Delivered");
@@ -239,20 +287,34 @@ describe("formatCustomerOrderStatusLabel", () => {
   });
 
   it("does not render a status slug on the account order or fulfilment line", () => {
-    const source = readFileSync(path.join(process.cwd(), "app/(store)/account/page.tsx"), "utf8");
+    const source = readFileSync(
+      path.join(process.cwd(), "app/(store)/account/page.tsx"),
+      "utf8",
+    );
 
-    expect(source).toContain("formatCustomerOrderStatusLabel(order.status, order.payment_status)");
-    expect(source).toContain("Fulfilment: {formatCustomerOrderStatusLabel(order.fulfillment_status)}");
+    expect(source).toMatch(
+      /formatCustomerOrderStatusLabel\(\s*order\.status,\s*order\.payment_status,?\s*\)/,
+    );
+    expect(source).toMatch(
+      /Fulfilment:[\s\S]{0,80}formatCustomerOrderStatusLabel\(\s*order\.fulfillment_status,?\s*\)/,
+    );
     expect(source).not.toContain("formatOrderStatusLabel(");
     expect(source).not.toContain("fulfillment_status.replace");
   });
 
   it("selects the admin presentation status beside the attention pill", () => {
-    const source = readFileSync(path.join(process.cwd(), "app/admin/page.tsx"), "utf8");
+    const source = readFileSync(
+      path.join(process.cwd(), "app/admin/page.tsx"),
+      "utf8",
+    );
 
     expect(source).toContain("getAdminOrderStatusPresentation");
-    expect(source).toContain("statusOption === statusPresentation.selectStatus");
-    expect(source).toContain('data-order-status-flag={statusPresentation.flagged ? "attention" : "neutral"}');
+    expect(source).toContain(
+      "statusOption === statusPresentation.selectStatus",
+    );
+    expect(source).toMatch(
+      /data-order-status-flag=\{\s*statusPresentation\.flagged \? "attention" : "neutral"\s*\}/,
+    );
     expect(source).toContain("{statusPresentation.label}");
     expect(source).toContain("{formatOrderStatusLabel(statusOption)}");
   });

@@ -45,7 +45,9 @@ export default function ShopByStone() {
                     </span>
                   )}
                 </span>
-                <span className="mt-4 block text-sm text-white/86">{stone}</span>
+                <span className="mt-4 block text-sm text-white/86">
+                  {stone}
+                </span>
               </Link>
             );
           })}

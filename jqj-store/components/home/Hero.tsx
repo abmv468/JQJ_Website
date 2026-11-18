@@ -51,7 +51,10 @@ export default function Hero() {
 
             <ul className="mx-auto mt-8 flex max-w-3xl flex-col items-start gap-4 sm:mt-10 sm:items-center">
               {guarantees.map((g) => (
-                <li key={g} className="inline-flex items-center gap-3 text-left text-white/84 sm:text-center">
+                <li
+                  key={g}
+                  className="inline-flex items-center gap-3 text-left text-white/84 sm:text-center"
+                >
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-brand-gold/35 bg-brand-gold/10">
                     <Check className="h-4 w-4 text-brand-gold" />
                   </span>

@@ -13,10 +13,7 @@ import { displayedSpecs, type SpecVariant } from "@/lib/product-specs";
 import { getStockState, getVariantLabel } from "@/lib/product-stock";
 import { useCurrency } from "@/context/CurrencyContext";
 
-const accordionData = (
-  product: Product,
-  variant?: SpecVariant | null,
-) => [
+const accordionData = (product: Product, variant?: SpecVariant | null) => [
   { title: "Description", content: product.description },
   {
     title: "Specifications",
@@ -50,8 +47,12 @@ export default function ProductDetail({
   const [size, setSize] = useState("");
   const [variantSku, setVariantSku] = useState("");
   const [qty, setQty] = useState(1);
-  const [addState, setAddState] = useState<"idle" | "loading" | "success">("idle");
-  const [openAccordion, setOpenAccordion] = useState<string | null>("Description");
+  const [addState, setAddState] = useState<"idle" | "loading" | "success">(
+    "idle",
+  );
+  const [openAccordion, setOpenAccordion] = useState<string | null>(
+    "Description",
+  );
   const resetAddStateTimerRef = useRef<number | null>(null);
   const [liveStock, setLiveStock] = useState<{
     inStock: boolean;
@@ -80,26 +81,31 @@ export default function ProductDetail({
 
   const variants = useMemo(
     () =>
-      (liveStock?.variants ??
-        product.variants?.map((variant) => ({
-          ...variant,
-          inStock: variant.stockCount > 0,
-        })) ??
-        []),
-    [liveStock?.variants, product.variants]
+      liveStock?.variants ??
+      product.variants?.map((variant) => ({
+        ...variant,
+        inStock: variant.stockCount > 0,
+      })) ??
+      [],
+    [liveStock?.variants, product.variants],
   );
 
   const hasVariants = variants.length > 0;
-  const selectedVariant = variants.find((variant) => variant.sku === variantSku) ?? null;
+  const selectedVariant =
+    variants.find((variant) => variant.sku === variantSku) ?? null;
   const specVariant =
-    selectedVariant ?? variants.find((variant) => variant.inStock) ?? variants[0] ?? null;
+    selectedVariant ??
+    variants.find((variant) => variant.inStock) ??
+    variants[0] ??
+    null;
   const effectiveStock = selectedVariant
     ? selectedVariant.stockCount
     : (liveStock?.stockCount ?? fallbackStock.availableStock);
   const inStock = selectedVariant
     ? selectedVariant.inStock
     : (liveStock?.inStock ?? fallbackStock.inStock);
-  const lowStockThreshold = liveStock?.lowStockThreshold ?? fallbackStock.lowStockThreshold;
+  const lowStockThreshold =
+    liveStock?.lowStockThreshold ?? fallbackStock.lowStockThreshold;
   const isLowStock = inStock && effectiveStock <= lowStockThreshold;
 
   useEffect(() => {
@@ -121,7 +127,8 @@ export default function ProductDetail({
   useEffect(() => {
     if (!hasVariants) return;
     if (selectedVariant) return;
-    const firstAvailable = variants.find((variant) => variant.inStock) ?? variants[0];
+    const firstAvailable =
+      variants.find((variant) => variant.inStock) ?? variants[0];
     if (firstAvailable) setVariantSku(firstAvailable.sku);
   }, [hasVariants, selectedVariant, variants]);
 
@@ -160,7 +167,7 @@ export default function ProductDetail({
         size: selectedVariant?.size ?? (size || undefined),
         material: selectedVariant?.material ?? undefined,
       },
-      qty
+      qty,
     );
 
     if (resetAddStateTimerRef.current) {
@@ -195,7 +202,9 @@ export default function ProductDetail({
                   type="button"
                   onClick={() => setActiveImage(i)}
                   className={`relative aspect-square overflow-hidden border bg-brand-card ${
-                    activeImage === i ? "border-brand-gold" : "border-brand-border"
+                    activeImage === i
+                      ? "border-brand-gold"
+                      : "border-brand-border"
                   }`}
                 >
                   <CatalogImage
@@ -223,19 +232,25 @@ export default function ProductDetail({
                   {formatFromUsd(product.compareAtPrice)}
                 </span>
               )}
-              <span className="text-lg text-white">{formatFromUsd(product.price)}</span>
+              <span className="text-lg text-white">
+                {formatFromUsd(product.price)}
+              </span>
             </div>
           </div>
 
           {product.compareAtPrice && (
             <p className="mt-2 text-xs uppercase tracking-wider2 text-brand-gold">
-              Sale — Save {formatFromUsd(product.compareAtPrice - product.price)}
+              Sale — Save{" "}
+              {formatFromUsd(product.compareAtPrice - product.price)}
             </p>
           )}
 
           {hasVariants ? (
             <div className="mt-8 space-y-3">
-              <label htmlFor="variant" className="text-xs uppercase tracking-wider2 text-white/80">
+              <label
+                htmlFor="variant"
+                className="text-xs uppercase tracking-wider2 text-white/80"
+              >
                 Size / Material
               </label>
               <select
@@ -251,7 +266,8 @@ export default function ProductDetail({
                     className="bg-brand-surface"
                     disabled={!variant.inStock}
                   >
-                    {getVariantLabel(variant)} {!variant.inStock ? "— Out of stock" : ""}
+                    {getVariantLabel(variant)}{" "}
+                    {!variant.inStock ? "— Out of stock" : ""}
                   </option>
                 ))}
               </select>
@@ -259,10 +275,16 @@ export default function ProductDetail({
           ) : (
             <div className="mt-8">
               <div className="mb-2 flex items-center justify-between">
-                <label htmlFor="wrist" className="text-xs uppercase tracking-wider2 text-white/80">
+                <label
+                  htmlFor="wrist"
+                  className="text-xs uppercase tracking-wider2 text-white/80"
+                >
                   Enter wrist size (cm/in)
                 </label>
-                <Link href="/measure" className="text-xs text-brand-gold underline">
+                <Link
+                  href="/measure"
+                  className="text-xs text-brand-gold underline"
+                >
                   Measure &amp; Sizing
                 </Link>
               </div>
@@ -279,7 +301,9 @@ export default function ProductDetail({
           {!inStock ? (
             <p className="mt-4 text-sm text-red-400">Out of stock</p>
           ) : isLowStock ? (
-            <p className="mt-4 text-sm text-brand-gold">Low stock — only {effectiveStock} left</p>
+            <p className="mt-4 text-sm text-brand-gold">
+              Low stock — only {effectiveStock} left
+            </p>
           ) : null}
 
           {/* Quantity + Add */}
@@ -312,7 +336,10 @@ export default function ProductDetail({
                 addState === "idle" ? "flex-1" : "w-12 px-0"
               }`}
               disabled={
-                addState !== "idle" || !inStock || effectiveStock < 1 || (hasVariants && !selectedVariant)
+                addState !== "idle" ||
+                !inStock ||
+                effectiveStock < 1 ||
+                (hasVariants && !selectedVariant)
               }
             >
               <LayoutGroup id={`add-to-cart-${product.id}`}>
@@ -337,7 +364,11 @@ export default function ProductDetail({
                         aria-hidden="true"
                         className="h-4 w-4 rounded-full border-2 border-black/20 border-t-black"
                         animate={{ rotate: 360 }}
-                        transition={{ ease: "linear", duration: 0.6, repeat: Infinity }}
+                        transition={{
+                          ease: "linear",
+                          duration: 0.6,
+                          repeat: Infinity,
+                        }}
                       />
                     </motion.span>
                   )}

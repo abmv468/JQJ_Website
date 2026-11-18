@@ -28,10 +28,15 @@ export const dynamic = "force-dynamic";
 
 const noStore = { "Cache-Control": "no-store" };
 
-async function loadOrderWithRelations(supabase: ReturnType<typeof createAdminClient>, id: string) {
+async function loadOrderWithRelations(
+  supabase: ReturnType<typeof createAdminClient>,
+  id: string,
+) {
   const { data, error } = await supabase
     .from("orders")
-    .select("*, order_items(*), order_refunds(*), payments(*, payment_refunds(*))")
+    .select(
+      "*, order_items(*), order_refunds(*), payments(*, payment_refunds(*))",
+    )
     .eq("id", id)
     .single();
   if (error) throw error;
@@ -46,12 +51,17 @@ export async function GET(req: Request) {
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from("orders")
-      .select("*, order_items(*), order_refunds(*), payments(*, payment_refunds(*))")
+      .select(
+        "*, order_items(*), order_refunds(*), payments(*, payment_refunds(*))",
+      )
       .order("created_at", { ascending: false });
     if (error) throw error;
     return NextResponse.json({ orders: data }, { headers: noStore });
   } catch {
-    return NextResponse.json({ error: "Internal error" }, { status: 500, headers: noStore });
+    return NextResponse.json(
+      { error: "Internal error" },
+      { status: 500, headers: noStore },
+    );
   }
 }
 
@@ -62,18 +72,26 @@ export async function PUT(req: Request) {
 
     const { id, status } = await req.json();
     if (!id || !status || typeof status !== "string") {
-      return NextResponse.json({ error: "Missing id or status" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing id or status" },
+        { status: 400 },
+      );
     }
 
     const nextStatus = status.trim().toLowerCase();
     if (!isKnownAdminOrderStatus(nextStatus)) {
-      return NextResponse.json({ error: "Invalid order status" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid order status" },
+        { status: 400 },
+      );
     }
 
     const supabase = createAdminClient();
     const { data: existing, error: existingError } = await supabase
       .from("orders")
-      .select("id, status, sales_channel, payment_status, total_amount, refunded_amount, payments(status)")
+      .select(
+        "id, status, sales_channel, payment_status, total_amount, refunded_amount, payments(status)",
+      )
       .eq("id", id)
       .single();
 
@@ -83,22 +101,33 @@ export async function PUT(req: Request) {
     const refundedAmount = Number(existing.refunded_amount ?? 0);
     const rawStatus = (existing.status ?? "").trim().toLowerCase();
     const fullyRefunded = isFullyRefunded(totalAmount, refundedAmount);
-    const paymentRows = (existing.payments ?? []) as Array<{ status?: string | null }>;
+    const paymentRows = (existing.payments ?? []) as Array<{
+      status?: string | null;
+    }>;
     const paymentCaptured =
       isSucceededPaymentStatus(existing.payment_status) ||
       paymentRows.some((payment) => isSucceededPaymentStatus(payment.status));
 
     if (nextStatus === "refunded" && !fullyRefunded) {
       return NextResponse.json(
-        { error: "Order can be marked refunded only when total refunded amount is complete" },
-        { status: 400 }
+        {
+          error:
+            "Order can be marked refunded only when total refunded amount is complete",
+        },
+        { status: 400 },
       );
     }
 
-    if (isProtectedOrder(existing) && !(nextStatus === "refunded" && fullyRefunded)) {
+    if (
+      isProtectedOrder(existing) &&
+      !(nextStatus === "refunded" && fullyRefunded)
+    ) {
       return NextResponse.json(
-        { error: "Cancelled or test orders cannot be moved along the fulfillment pipeline" },
-        { status: 400 }
+        {
+          error:
+            "Cancelled or test orders cannot be moved along the fulfillment pipeline",
+        },
+        { status: 400 },
       );
     }
 
@@ -107,27 +136,37 @@ export async function PUT(req: Request) {
       !paymentCaptured
     ) {
       return NextResponse.json(
-        { error: "Order can be marked paid or processing only after the payment has succeeded" },
-        { status: 400 }
+        {
+          error:
+            "Order can be marked paid or processing only after the payment has succeeded",
+        },
+        { status: 400 },
       );
     }
 
     if (isInventoryExceptionStatus(rawStatus)) {
       if (!canLeaveInventoryException(nextStatus)) {
         return NextResponse.json(
-          { error: `Invalid status transition from ${rawStatus} to ${nextStatus}` },
-          { status: 400 }
+          {
+            error: `Invalid status transition from ${rawStatus} to ${nextStatus}`,
+          },
+          { status: 400 },
         );
       }
     } else {
       const normalizedCurrentStatus = normalizeOrderStatus(rawStatus);
       if (!normalizedCurrentStatus) {
-        return NextResponse.json({ error: "Order has unsupported status value" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Order has unsupported status value" },
+          { status: 400 },
+        );
       }
       if (!canTransitionOrderStatus(normalizedCurrentStatus, nextStatus)) {
         return NextResponse.json(
-          { error: `Invalid status transition from ${normalizedCurrentStatus} to ${nextStatus}` },
-          { status: 400 }
+          {
+            error: `Invalid status transition from ${normalizedCurrentStatus} to ${nextStatus}`,
+          },
+          { status: 400 },
         );
       }
     }
@@ -145,7 +184,10 @@ export async function PUT(req: Request) {
     if (error) throw error;
     return NextResponse.json({ order: data }, { headers: noStore });
   } catch {
-    return NextResponse.json({ error: "Internal error" }, { status: 500, headers: noStore });
+    return NextResponse.json(
+      { error: "Internal error" },
+      { status: 500, headers: noStore },
+    );
   }
 }
 
@@ -170,13 +212,16 @@ export async function POST(req: Request) {
 
     if (action === "refresh_payment") {
       if (!id) {
-        return NextResponse.json({ error: "Missing order id" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Missing order id" },
+          { status: 400 },
+        );
       }
 
       const { data: orderSnapshot, error: orderSnapshotError } = await supabase
         .from("orders")
         .select(
-          "id, status, sales_channel, payments(id, provider, provider_payment_intent_id, provider_request_id)"
+          "id, status, sales_channel, payments(id, provider, provider_payment_intent_id, provider_request_id)",
         )
         .eq("id", id)
         .single();
@@ -189,23 +234,27 @@ export async function POST(req: Request) {
         provider_request_id: string | null;
       }>;
 
-      const airwallexPayment = payments.find((payment) => payment.provider === "airwallex");
+      const airwallexPayment = payments.find(
+        (payment) => payment.provider === "airwallex",
+      );
       if (!airwallexPayment?.provider_payment_intent_id) {
         return NextResponse.json(
           { error: "This order has no Airwallex payment record to refresh" },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
       const intent = await retrieveAirwallexPaymentIntent(
-        airwallexPayment.provider_payment_intent_id
+        airwallexPayment.provider_payment_intent_id,
       );
 
       if (!isProtectedOrder(orderSnapshot)) {
         await upsertAirwallexPaymentIntent(supabase, {
           orderId: id,
           requestId:
-            intent.request_id ?? airwallexPayment.provider_request_id ?? `refresh-${id}-${Date.now()}`,
+            intent.request_id ??
+            airwallexPayment.provider_request_id ??
+            `refresh-${id}-${Date.now()}`,
           intent,
         });
       }
@@ -222,24 +271,30 @@ export async function POST(req: Request) {
     }
 
     if (action !== "refund") {
-      return NextResponse.json({ error: "Unsupported action" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Unsupported action" },
+        { status: 400 },
+      );
     }
 
     if (body.confirm !== true) {
       return NextResponse.json(
         { error: "Explicit refund confirmation is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!id || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-      return NextResponse.json({ error: "Missing id or valid refund amount" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing id or valid refund amount" },
+        { status: 400 },
+      );
     }
 
     const { data: existing, error: existingError } = await supabase
       .from("orders")
       .select(
-        "id, status, sales_channel, total_amount, refunded_amount, payment_provider, payments(id, provider, provider_payment_intent_id, currency)"
+        "id, status, sales_channel, total_amount, refunded_amount, payment_provider, payments(id, provider, provider_payment_intent_id, currency)",
       )
       .eq("id", id)
       .single();
@@ -252,15 +307,27 @@ export async function POST(req: Request) {
     const normalizedCurrentStatus = normalizeOrderStatus(rawStatus);
     const refundable =
       isInventoryExceptionStatus(rawStatus) ||
-      isProtectedOrder({ status: rawStatus, sales_channel: existing.sales_channel }) ||
+      isProtectedOrder({
+        status: rawStatus,
+        sales_channel: existing.sales_channel,
+      }) ||
       normalizedCurrentStatus != null;
 
-    if (rawStatus === "refunded" || isFullyRefunded(totalAmount, refundedAmount)) {
-      return NextResponse.json({ error: "Order is already fully refunded" }, { status: 400 });
+    if (
+      rawStatus === "refunded" ||
+      isFullyRefunded(totalAmount, refundedAmount)
+    ) {
+      return NextResponse.json(
+        { error: "Order is already fully refunded" },
+        { status: 400 },
+      );
     }
 
     if (!refundable) {
-      return NextResponse.json({ error: "Order has unsupported status value" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Order has unsupported status value" },
+        { status: 400 },
+      );
     }
 
     const payments = (existing.payments ?? []) as Array<{
@@ -275,11 +342,14 @@ export async function POST(req: Request) {
       if (!payment?.provider_payment_intent_id) {
         return NextResponse.json(
           { error: "Airwallex payment record is missing for this order" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
-      const { data: existingProviderRefunds, error: existingProviderRefundsError } = await supabase
+      const {
+        data: existingProviderRefunds,
+        error: existingProviderRefundsError,
+      } = await supabase
         .from("payment_refunds")
         .select("amount, status")
         .eq("order_id", id)
@@ -289,7 +359,7 @@ export async function POST(req: Request) {
 
       const committedRefundAmount = (existingProviderRefunds ?? []).reduce(
         (sum, refund) => sum + Number(refund.amount ?? 0),
-        0
+        0,
       );
       const remaining = Math.max(totalAmount - committedRefundAmount, 0);
 
@@ -298,7 +368,7 @@ export async function POST(req: Request) {
           {
             error: `Refund amount exceeds remaining refundable balance (${remaining.toFixed(2)})`,
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -314,7 +384,9 @@ export async function POST(req: Request) {
         },
       });
 
-      const normalizedRefundStatus = normalizeAirwallexRefundStatus(createdRefund.status);
+      const normalizedRefundStatus = normalizeAirwallexRefundStatus(
+        createdRefund.status,
+      );
       const eventName =
         normalizedRefundStatus === "settled"
           ? "refund.settled"
@@ -331,7 +403,9 @@ export async function POST(req: Request) {
           amount: createdRefund.amount ?? parsedAmount,
           currency: createdRefund.currency ?? payment.currency ?? "USD",
           reason: createdRefund.reason ?? reason ?? null,
-          payment_intent_id: createdRefund.payment_intent_id ?? payment.provider_payment_intent_id,
+          payment_intent_id:
+            createdRefund.payment_intent_id ??
+            payment.provider_payment_intent_id,
         },
       });
 
@@ -350,15 +424,17 @@ export async function POST(req: Request) {
           order: updatedOrder,
           refundStatus: normalizedRefundStatus,
         },
-        { headers: noStore }
+        { headers: noStore },
       );
     }
 
     const remaining = Math.max(totalAmount - refundedAmount, 0);
     if (parsedAmount > remaining) {
       return NextResponse.json(
-        { error: `Refund amount exceeds remaining refundable balance (${remaining.toFixed(2)})` },
-        { status: 400 }
+        {
+          error: `Refund amount exceeds remaining refundable balance (${remaining.toFixed(2)})`,
+        },
+        { status: 400 },
       );
     }
 
@@ -376,6 +452,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ order: updatedOrder }, { headers: noStore });
   } catch {
-    return NextResponse.json({ error: "Internal error" }, { status: 500, headers: noStore });
+    return NextResponse.json(
+      { error: "Internal error" },
+      { status: 500, headers: noStore },
+    );
   }
 }

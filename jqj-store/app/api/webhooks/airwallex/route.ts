@@ -32,7 +32,7 @@ export async function POST(req: Request) {
   if (!webhookSecret) {
     return NextResponse.json(
       { error: "AIRWALLEX_WEBHOOK_SECRET is not configured" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -45,13 +45,15 @@ export async function POST(req: Request) {
     signature,
     timestamp,
     secret: webhookSecret,
-    maxSkewSeconds: Number(process.env.AIRWALLEX_WEBHOOK_MAX_SKEW_SECONDS || 300),
+    maxSkewSeconds: Number(
+      process.env.AIRWALLEX_WEBHOOK_MAX_SKEW_SECONDS || 300,
+    ),
   });
 
   if (!signatureResult.ok) {
     return NextResponse.json(
       { error: signatureResult.error || "Invalid webhook signature" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -59,11 +61,17 @@ export async function POST(req: Request) {
   try {
     event = JSON.parse(rawBody) as AirwallexWebhookEvent;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid JSON payload" },
+      { status: 400 },
+    );
   }
 
   if (!event?.id || !event?.name) {
-    return NextResponse.json({ error: "Missing webhook event id or name" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Missing webhook event id or name" },
+      { status: 400 },
+    );
   }
 
   const supabase = createAdminClient();
@@ -105,7 +113,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Internal error" }, { status: 500 });
     }
 
-    if (existingEvent?.status === "processed" || existingEvent?.status === "ignored") {
+    if (
+      existingEvent?.status === "processed" ||
+      existingEvent?.status === "ignored"
+    ) {
       return NextResponse.json({ received: true, duplicate: true });
     }
     webhookRowId = existingEvent?.id ?? null;
@@ -121,13 +132,18 @@ export async function POST(req: Request) {
       const object = event.data?.object ?? {};
       const paymentIntentId = typeof object.id === "string" ? object.id : null;
       const merchantOrderId =
-        typeof object.merchant_order_id === "string" ? object.merchant_order_id : null;
+        typeof object.merchant_order_id === "string"
+          ? object.merchant_order_id
+          : null;
 
       if (!paymentIntentId) {
         throw new Error("payment_intent event is missing data.object.id");
       }
 
-      const paymentRow = await findAirwallexPaymentByIntent(supabase, paymentIntentId);
+      const paymentRow = await findAirwallexPaymentByIntent(
+        supabase,
+        paymentIntentId,
+      );
 
       linkedOrderId = paymentRow?.order_id ?? merchantOrderId ?? null;
       linkedPaymentId = paymentRow?.id ?? null;
@@ -144,12 +160,16 @@ export async function POST(req: Request) {
           const upsertedPayment = await upsertAirwallexPaymentIntent(supabase, {
             orderId: orderRow.id,
             requestId:
-              (typeof object.request_id === "string" && object.request_id) || `wh-${event.id}`,
+              (typeof object.request_id === "string" && object.request_id) ||
+              `wh-${event.id}`,
             intent: {
               id: paymentIntentId,
               request_id:
-                typeof object.request_id === "string" ? object.request_id : undefined,
-              status: typeof object.status === "string" ? object.status : "PENDING",
+                typeof object.request_id === "string"
+                  ? object.request_id
+                  : undefined,
+              status:
+                typeof object.status === "string" ? object.status : "PENDING",
               amount: Number(object.amount ?? 0),
               currency: String(object.currency ?? "USD"),
               merchant_order_id: merchantOrderId,
@@ -165,7 +185,7 @@ export async function POST(req: Request) {
       const applyResult = await applyAirwallexPaymentIntentStatus(supabase, {
         paymentIntentId,
         nextStatus: normalizeAirwallexPaymentStatus(
-          typeof object.status === "string" ? object.status : null
+          typeof object.status === "string" ? object.status : null,
         ),
         providerEventId: event.id,
         providerEventCreatedAt: event.created_at ?? null,
@@ -221,7 +241,7 @@ export async function POST(req: Request) {
   } catch (error) {
     if (webhookRowId) {
       const errorMessage = truncateError(
-        error instanceof Error ? error.message : "Webhook processing failed"
+        error instanceof Error ? error.message : "Webhook processing failed",
       );
       await supabase
         .from("payment_webhook_events")
@@ -243,4 +263,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
-

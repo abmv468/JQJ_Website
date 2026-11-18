@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import ProductPage, { generateMetadata } from "@/app/(store)/products/[slug]/page";
+import ProductPage, {
+  generateMetadata,
+} from "@/app/(store)/products/[slug]/page";
 import { productPageMetadata } from "@/lib/product-page-metadata";
 import {
   getProductBySlug,
@@ -32,11 +34,15 @@ function robotsDirectives(metadata: Metadata) {
 describe("product page robots", () => {
   it("does not serve the payment-test listing while it is hidden", () => {
     expect(paymentTestListingHidden).toBe(true);
-    expect(unlistedProducts.some((product) => product.slug === PAYMENT_TEST_SLUG)).toBe(true);
+    expect(
+      unlistedProducts.some((product) => product.slug === PAYMENT_TEST_SLUG),
+    ).toBe(true);
     expect(getProductBySlug(PAYMENT_TEST_SLUG)).toBeUndefined();
 
     const metadata = generateMetadata({ params: { slug: PAYMENT_TEST_SLUG } });
-    const listing = unlistedProducts.find((product) => product.slug === PAYMENT_TEST_SLUG);
+    const listing = unlistedProducts.find(
+      (product) => product.slug === PAYMENT_TEST_SLUG,
+    );
     expect(metadata.title).not.toBe(listing?.name);
     expect(metadata.openGraph).toBeUndefined();
     expect(metadata.twitter).toBeUndefined();
@@ -51,7 +57,8 @@ describe("product page robots", () => {
 
     for (const product of unlistedProducts) {
       expect(
-        getProductBySlug(product.slug, { paymentTestListingHidden: false })?.slug,
+        getProductBySlug(product.slug, { paymentTestListingHidden: false })
+          ?.slug,
       ).toBe(product.slug);
 
       const metadata = productPageMetadata(product.slug, {

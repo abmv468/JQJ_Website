@@ -34,18 +34,18 @@ async function getAuthenticatedUserId() {
             name: string;
             value: string;
             options?: Record<string, unknown>;
-          }[]
+          }[],
         ) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
+              cookieStore.set(name, value, options),
             );
           } catch {
             // No-op in route handlers when cookies cannot be set.
           }
         },
       },
-    }
+    },
   );
   const { data } = await supabase.auth.getUser();
   return data.user?.id ?? null;
@@ -53,12 +53,13 @@ async function getAuthenticatedUserId() {
 
 export async function POST(req: Request) {
   try {
-    const { items, customer, idempotencyKey, currency } = (await req.json()) as {
-      items: CheckoutItemInput[];
-      customer: Record<string, string>;
-      idempotencyKey?: string;
-      currency?: string;
-    };
+    const { items, customer, idempotencyKey, currency } =
+      (await req.json()) as {
+        items: CheckoutItemInput[];
+        customer: Record<string, string>;
+        idempotencyKey?: string;
+        currency?: string;
+      };
 
     if (!items?.length) {
       return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
@@ -81,7 +82,9 @@ export async function POST(req: Request) {
     };
 
     const supabase = createAdminClient();
-    const slugs = Array.from(new Set(items.map((item) => item.slug).filter(Boolean) as string[]));
+    const slugs = Array.from(
+      new Set(items.map((item) => item.slug).filter(Boolean) as string[]),
+    );
     const inventoryBySlug = await fetchInventoryBySlugs(supabase, slugs);
     const quotedShipping = computeShippingUsd(
       items.flatMap((item) => {
@@ -91,7 +94,7 @@ export async function POST(req: Request) {
         const quantity = Math.max(0, Math.floor(Number(item.quantity) || 0));
         if (quantity < 1) return [];
         return [{ unitPriceUsd: product.price, quantity }];
-      })
+      }),
     );
     const derivedKey =
       idempotencyKey?.trim() ||
@@ -108,7 +111,7 @@ export async function POST(req: Request) {
             })),
             shippingAddress,
             shipping: quotedShipping,
-          })
+          }),
         )
         .digest("hex")
         .slice(0, 24);
@@ -127,24 +130,30 @@ export async function POST(req: Request) {
       if (existingCountError) throw existingCountError;
 
       if ((count ?? 0) > 0) {
-        return NextResponse.json({ orderId: existing.id }, { headers: { "Cache-Control": "no-store" } });
+        return NextResponse.json(
+          { orderId: existing.id },
+          { headers: { "Cache-Control": "no-store" } },
+        );
       }
     }
 
     const validation = validateCheckoutItems(items, inventoryBySlug);
     if (!validation.ok) {
-      return NextResponse.json({ error: validation.errors[0] || "Insufficient stock" }, { status: 409 });
+      return NextResponse.json(
+        { error: validation.errors[0] || "Insufficient stock" },
+        { status: 409 },
+      );
     }
 
     const subtotal = validation.resolved.reduce(
       (sum, line) => sum + line.product.price * line.requestedQuantity,
-      0
+      0,
     );
     const shippingAmount = computeShippingUsd(
       validation.resolved.map((line) => ({
         unitPriceUsd: line.product.price,
         quantity: line.requestedQuantity,
-      }))
+      })),
     );
     const total = subtotal + shippingAmount + COD_FEE;
 
@@ -155,7 +164,9 @@ export async function POST(req: Request) {
     const claimOrder = async (targetOrderId: string) => {
       const { data: currentOrder, error: currentOrderError } = await supabase
         .from("orders")
-        .select("verification_completed, verification_claimed_at, inventory_reserved")
+        .select(
+          "verification_completed, verification_claimed_at, inventory_reserved",
+        )
         .eq("id", targetOrderId)
         .single();
       if (currentOrderError) throw currentOrderError;
@@ -167,19 +178,28 @@ export async function POST(req: Request) {
           .eq("order_id", targetOrderId);
         if (existingItemsError) throw existingItemsError;
         if ((count ?? 0) > 0) {
-          return { state: "complete" as const, inventoryReserved: currentOrder.inventory_reserved };
+          return {
+            state: "complete" as const,
+            inventoryReserved: currentOrder.inventory_reserved,
+          };
         }
 
         const claimedAt = currentOrder.verification_claimed_at
           ? new Date(currentOrder.verification_claimed_at).getTime()
           : 0;
         if (Date.now() - claimedAt < CLAIM_TIMEOUT_MS) {
-          return { state: "in_progress" as const, inventoryReserved: currentOrder.inventory_reserved };
+          return {
+            state: "in_progress" as const,
+            inventoryReserved: currentOrder.inventory_reserved,
+          };
         }
 
         const { error: staleResetError } = await supabase
           .from("orders")
-          .update({ verification_completed: false, verification_claimed_at: null })
+          .update({
+            verification_completed: false,
+            verification_claimed_at: null,
+          })
           .eq("id", targetOrderId);
         if (staleResetError) throw staleResetError;
       }
@@ -209,20 +229,30 @@ export async function POST(req: Request) {
         .select("id")
         .maybeSingle();
       if (claimError) throw claimError;
-      if (claimed) return { state: "claimed" as const, inventoryReserved: currentOrder.inventory_reserved };
-      return { state: "in_progress" as const, inventoryReserved: currentOrder.inventory_reserved };
+      if (claimed)
+        return {
+          state: "claimed" as const,
+          inventoryReserved: currentOrder.inventory_reserved,
+        };
+      return {
+        state: "in_progress" as const,
+        inventoryReserved: currentOrder.inventory_reserved,
+      };
     };
 
     try {
       if (orderId) {
         const claimResult = await claimOrder(orderId);
         if (claimResult.state === "complete") {
-          return NextResponse.json({ orderId }, { headers: { "Cache-Control": "no-store" } });
+          return NextResponse.json(
+            { orderId },
+            { headers: { "Cache-Control": "no-store" } },
+          );
         }
         if (claimResult.state === "in_progress") {
           return NextResponse.json(
             { error: "Order processing is in progress. Please retry." },
-            { status: 409 }
+            { status: 409 },
           );
         }
         if (!claimResult.inventoryReserved) {
@@ -279,12 +309,15 @@ export async function POST(req: Request) {
 
         const claimResult = await claimOrder(orderId);
         if (claimResult.state === "complete") {
-          return NextResponse.json({ orderId }, { headers: { "Cache-Control": "no-store" } });
+          return NextResponse.json(
+            { orderId },
+            { headers: { "Cache-Control": "no-store" } },
+          );
         }
         if (claimResult.state === "in_progress") {
           return NextResponse.json(
             { error: "Order processing is in progress. Please retry." },
-            { status: 409 }
+            { status: 409 },
           );
         }
         if (!claimResult.inventoryReserved) {
@@ -301,10 +334,11 @@ export async function POST(req: Request) {
           product_name: line.product.name,
           sku: line.variant?.sku ?? line.product.sku,
           variant_size: line.variant?.size ?? line.item.size ?? null,
-          variant_material: line.variant?.material ?? line.item.material ?? null,
+          variant_material:
+            line.variant?.material ?? line.item.material ?? null,
           quantity: line.requestedQuantity,
           price_at_purchase: line.product.price,
-        }))
+        })),
       );
       if (itemError) throw itemError;
     } catch (persistError) {
@@ -364,12 +398,15 @@ export async function POST(req: Request) {
       shippingAddress,
     });
 
-    return NextResponse.json({ orderId }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(
+      { orderId },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (err) {
     console.error("[cod]", err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Order failed" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

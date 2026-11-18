@@ -6,7 +6,11 @@ import {
   PAID_CLAIM_LOST_EVENT,
   releaseExpiredAirwallexReservations,
 } from "@/lib/payments/airwallex-orders";
-import { createCheckoutDb, setActiveDb, type MemoryDb } from "../helpers/memory-db";
+import {
+  createCheckoutDb,
+  setActiveDb,
+  type MemoryDb,
+} from "../helpers/memory-db";
 
 vi.mock("@/lib/email", () => ({
   sendOrderEmails: vi.fn(async () => undefined),
@@ -15,7 +19,9 @@ vi.mock("@/lib/email", () => ({
 const SECRET = "test_dummy_webhook_secret";
 
 function sign(timestamp: string, body: string) {
-  return createHmac("sha256", SECRET).update(`${timestamp}${body}`).digest("hex");
+  return createHmac("sha256", SECRET)
+    .update(`${timestamp}${body}`)
+    .digest("hex");
 }
 
 function signedWebhook() {
@@ -128,7 +134,9 @@ describe("reaper claim versus a later success", () => {
 
     await releaseExpiredAirwallexReservations(db as never);
 
-    expect(db.rpcCalls.filter((call) => call.fn === "restore_order_inventory")).toHaveLength(0);
+    expect(
+      db.rpcCalls.filter((call) => call.fn === "restore_order_inventory"),
+    ).toHaveLength(0);
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
   });
 
@@ -141,7 +149,8 @@ describe("reaper claim versus a later success", () => {
       if (!injected && table === "orders" && op === "update") {
         injected = true;
         db.rowsOf("orders")[0].inventory_reserved = false;
-        db.rowsOf("products")[0].stock_count = Number(db.rowsOf("products")[0].stock_count) + 1;
+        db.rowsOf("products")[0].stock_count =
+          Number(db.rowsOf("products")[0].stock_count) + 1;
       }
       return null;
     };
@@ -157,11 +166,15 @@ describe("reaper claim versus a later success", () => {
       fulfillment_status: "paid",
       inventory_reserved: true,
     });
-    expect(db.rpcCalls.filter((call) => call.fn === "reserve_order_inventory")).toHaveLength(1);
+    expect(
+      db.rpcCalls.filter((call) => call.fn === "reserve_order_inventory"),
+    ).toHaveLength(1);
   });
 
   it("fails the webhook when the reaper claims before the paid write, then pays on redelivery", async () => {
-    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const errors = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
     let injected = false;
     db.failWhen = (table, op) => {
       if (!injected && table === "orders" && op === "update") {
@@ -188,9 +201,18 @@ describe("reaper claim versus a later success", () => {
     });
     expect(db.rowsOf("orders")[0].status).not.toBe("paid");
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
-    expect(errors.mock.calls.some((call) => call[0] === "[airwallex-orders] paid_claim_lost")).toBe(true);
-    const lost = errors.mock.calls.find((call) => call[0] === "[airwallex-orders] paid_claim_lost");
-    expect(lost?.[1]).toEqual({ event: PAID_CLAIM_LOST_EVENT, orderId: "order-race" });
+    expect(
+      errors.mock.calls.some(
+        (call) => call[0] === "[airwallex-orders] paid_claim_lost",
+      ),
+    ).toBe(true);
+    const lost = errors.mock.calls.find(
+      (call) => call[0] === "[airwallex-orders] paid_claim_lost",
+    );
+    expect(lost?.[1]).toEqual({
+      event: PAID_CLAIM_LOST_EVENT,
+      orderId: "order-race",
+    });
 
     db.failWhen = null;
     await releaseExpiredAirwallexReservations(db as never);

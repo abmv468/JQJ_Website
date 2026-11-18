@@ -1,5 +1,9 @@
 import { notFound } from "next/navigation";
-import { getProductBySlug, getRelatedProducts, products } from "@/data/products";
+import {
+  getProductBySlug,
+  getRelatedProducts,
+  products,
+} from "@/data/products";
 import ProductDetail from "@/components/product/ProductDetail";
 import type { Metadata } from "next";
 import { productPageMetadata } from "@/lib/product-page-metadata";
@@ -22,7 +26,8 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
   if (!product) notFound();
 
   const related = getRelatedProducts(product);
-  const categoryName = product.category === "bracelets" ? "Bracelets" : "Necklaces";
+  const categoryName =
+    product.category === "bracelets" ? "Bracelets" : "Necklaces";
   const productSchema = {
     "@context": "https://schema.org",
     "@type": "Product",

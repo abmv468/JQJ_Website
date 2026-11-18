@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, LayoutGrid, Rows3, Search, SlidersHorizontal, X } from "lucide-react";
+import {
+  ChevronDown,
+  LayoutGrid,
+  Rows3,
+  Search,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 import type { Product, ProductTag } from "@/data/products";
 import { formatPrice } from "@/lib/utils";
 import ProductCard from "./ProductCard";
@@ -58,11 +65,16 @@ function getPreciousMetal(product: Product) {
 function getBirthstoneMonth(product: Product) {
   const stone = product.specs.Stone ?? product.stone;
   return birthstoneMonths.find(({ stones }) =>
-    stones.some((birthstone) => stone.toLowerCase().includes(birthstone.toLowerCase()))
+    stones.some((birthstone) =>
+      stone.toLowerCase().includes(birthstone.toLowerCase()),
+    ),
   )?.month;
 }
 
-function getFacetOptions(products: Product[], getValue: (product: Product) => string | undefined) {
+function getFacetOptions(
+  products: Product[],
+  getValue: (product: Product) => string | undefined,
+) {
   const counts = new Map<string, number>();
 
   products.forEach((product) => {
@@ -70,8 +82,8 @@ function getFacetOptions(products: Product[], getValue: (product: Product) => st
     if (value) counts.set(value, (counts.get(value) ?? 0) + 1);
   });
 
-  return Array.from(counts, ([value, count]) => ({ value, count })).sort((a, b) =>
-    a.value.localeCompare(b.value, undefined, { numeric: true })
+  return Array.from(counts, ([value, count]) => ({ value, count })).sort(
+    (a, b) => a.value.localeCompare(b.value, undefined, { numeric: true }),
   );
 }
 
@@ -132,7 +144,9 @@ export default function CollectionView({
     return [Math.floor(Math.min(...prices)), Math.ceil(Math.max(...prices))];
   }, [products]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
-  const [priceRange, setPriceRange] = useState<[number, number]>(() => priceBounds);
+  const [priceRange, setPriceRange] = useState<[number, number]>(
+    () => priceBounds,
+  );
   const [selectedBeadSizes, setSelectedBeadSizes] = useState<string[]>([]);
   const [selectedMetals, setSelectedMetals] = useState<string[]>([]);
   const [selectedBeadShapes, setSelectedBeadShapes] = useState<string[]>([]);
@@ -144,33 +158,33 @@ export default function CollectionView({
 
   const stones = useMemo(
     () => Array.from(new Set(products.map((p) => p.stone))).sort(),
-    [products]
+    [products],
   );
 
   const colorOptions = useMemo(
     () => getFacetOptions(products, (product) => product.specs.Colour),
-    [products]
+    [products],
   );
   const beadSizeOptions = useMemo(
     () => getFacetOptions(products, (product) => product.specs["Bead Size"]),
-    [products]
+    [products],
   );
   const metalOptions = useMemo(
     () => getFacetOptions(products, getPreciousMetal),
-    [products]
+    [products],
   );
   const beadShapeOptions = useMemo(
     () => getFacetOptions(products, (product) => product.specs["Bead Shape"]),
-    [products]
+    [products],
   );
   const birthstoneOptions = useMemo(
     () => getFacetOptions(products, getBirthstoneMonth),
-    [products]
+    [products],
   );
 
   const indexById = useMemo(
     () => new Map(products.map((p, i) => [p.id, i])),
-    [products]
+    [products],
   );
 
   const filtered = useMemo(() => {
@@ -180,27 +194,32 @@ export default function CollectionView({
     if (stone) list = list.filter((p) => p.stone === stone);
     if (tag) list = list.filter((p) => p.tags.includes(tag));
     if (selectedColors.length) {
-      list = list.filter((product) => selectedColors.includes(product.specs.Colour ?? ""));
+      list = list.filter((product) =>
+        selectedColors.includes(product.specs.Colour ?? ""),
+      );
     }
     list = list.filter(
-      (product) => product.price >= priceRange[0] && product.price <= priceRange[1]
+      (product) =>
+        product.price >= priceRange[0] && product.price <= priceRange[1],
     );
     if (selectedBeadSizes.length) {
       list = list.filter((product) =>
-        selectedBeadSizes.includes(product.specs["Bead Size"] ?? "")
+        selectedBeadSizes.includes(product.specs["Bead Size"] ?? ""),
       );
     }
     if (selectedMetals.length) {
-      list = list.filter((product) => selectedMetals.includes(getPreciousMetal(product) ?? ""));
+      list = list.filter((product) =>
+        selectedMetals.includes(getPreciousMetal(product) ?? ""),
+      );
     }
     if (selectedBeadShapes.length) {
       list = list.filter((product) =>
-        selectedBeadShapes.includes(product.specs["Bead Shape"] ?? "")
+        selectedBeadShapes.includes(product.specs["Bead Shape"] ?? ""),
       );
     }
     if (selectedBirthstones.length) {
       list = list.filter((product) =>
-        selectedBirthstones.includes(getBirthstoneMonth(product) ?? "")
+        selectedBirthstones.includes(getBirthstoneMonth(product) ?? ""),
       );
     }
     if (inStockOnly) list = list.filter((p) => p.inStock);
@@ -270,8 +289,14 @@ export default function CollectionView({
 
   useEffect(() => {
     setPriceRange((current) => {
-      const nextMin = Math.max(priceBounds[0], Math.min(current[0], priceBounds[1]));
-      const nextMax = Math.max(priceBounds[0], Math.min(current[1], priceBounds[1]));
+      const nextMin = Math.max(
+        priceBounds[0],
+        Math.min(current[0], priceBounds[1]),
+      );
+      const nextMax = Math.max(
+        priceBounds[0],
+        Math.min(current[1], priceBounds[1]),
+      );
       return [Math.min(nextMin, nextMax), Math.max(nextMin, nextMax)];
     });
   }, [priceBounds]);
@@ -319,32 +344,39 @@ export default function CollectionView({
     setPage(1);
   };
 
-  const pageButtons = Array.from({ length: totalPages }, (_, i) => i + 1).filter(
-    (p) => Math.abs(p - page) <= 2 || p === 1 || p === totalPages
-  );
+  const pageButtons = Array.from(
+    { length: totalPages },
+    (_, i) => i + 1,
+  ).filter((p) => Math.abs(p - page) <= 2 || p === 1 || p === totalPages);
   const displayTitle = limitedTitle && tag === "limited" ? limitedTitle : title;
 
   const toggleFacetValue = (
     value: string,
     selected: string[],
-    setSelected: (values: string[]) => void
+    setSelected: (values: string[]) => void,
   ) => {
     setSelected(
       selected.includes(value)
         ? selected.filter((selectedValue) => selectedValue !== value)
-        : [...selected, value]
+        : [...selected, value],
     );
   };
 
   const updateMinimumPrice = (value: number) => {
     if (!Number.isFinite(value)) return;
-    const nextMinimum = Math.max(priceBounds[0], Math.min(value, priceRange[1]));
+    const nextMinimum = Math.max(
+      priceBounds[0],
+      Math.min(value, priceRange[1]),
+    );
     setPriceRange([nextMinimum, priceRange[1]]);
   };
 
   const updateMaximumPrice = (value: number) => {
     if (!Number.isFinite(value)) return;
-    const nextMaximum = Math.min(priceBounds[1], Math.max(value, priceRange[0]));
+    const nextMaximum = Math.min(
+      priceBounds[1],
+      Math.max(value, priceRange[0]),
+    );
     setPriceRange([priceRange[0], nextMaximum]);
   };
 
@@ -352,10 +384,12 @@ export default function CollectionView({
     options: FacetOption[],
     selected: string[],
     setSelected: (values: string[]) => void,
-    withSwatches = false
+    withSwatches = false,
   ) => {
     if (options.length === 0) {
-      return <p className="pb-4 text-xs text-brand-muted">No options available.</p>;
+      return (
+        <p className="pb-4 text-xs text-brand-muted">No options available.</p>
+      );
     }
 
     return (
@@ -368,14 +402,18 @@ export default function CollectionView({
             <input
               type="checkbox"
               checked={selected.includes(option.value)}
-              onChange={() => toggleFacetValue(option.value, selected, setSelected)}
+              onChange={() =>
+                toggleFacetValue(option.value, selected, setSelected)
+              }
               className="h-4 w-4 shrink-0 accent-brand-gold"
             />
             {withSwatches && (
               <span
                 aria-hidden="true"
                 className="h-3.5 w-3.5 shrink-0 rounded-full border border-white/20"
-                style={{ backgroundColor: colorSwatches[option.value] ?? "#7d817e" }}
+                style={{
+                  backgroundColor: colorSwatches[option.value] ?? "#7d817e",
+                }}
               />
             )}
             <span className="flex-1">{option.value}</span>
@@ -389,7 +427,12 @@ export default function CollectionView({
   const renderFilterPanel = (group: FilterGroup) => {
     switch (group) {
       case "Colour":
-        return renderCheckboxFacet(colorOptions, selectedColors, setSelectedColors, true);
+        return renderCheckboxFacet(
+          colorOptions,
+          selectedColors,
+          setSelectedColors,
+          true,
+        );
       case "Price":
         return (
           <div className="space-y-3 pb-4">
@@ -404,7 +447,9 @@ export default function CollectionView({
                 min={priceBounds[0]}
                 max={priceBounds[1]}
                 value={priceRange[0]}
-                onChange={(event) => updateMinimumPrice(Number(event.target.value))}
+                onChange={(event) =>
+                  updateMinimumPrice(Number(event.target.value))
+                }
                 className="h-2 w-full cursor-pointer accent-brand-gold"
               />
               <input
@@ -413,32 +458,42 @@ export default function CollectionView({
                 min={priceBounds[0]}
                 max={priceBounds[1]}
                 value={priceRange[1]}
-                onChange={(event) => updateMaximumPrice(Number(event.target.value))}
+                onChange={(event) =>
+                  updateMaximumPrice(Number(event.target.value))
+                }
                 className="h-2 w-full cursor-pointer accent-brand-gold"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <label className="border border-brand-border px-2 py-2 text-xs text-brand-muted focus-within:border-brand-gold">
                 <span className="sr-only">Minimum price</span>
-                <span aria-hidden="true" className="mr-1">$</span>
+                <span aria-hidden="true" className="mr-1">
+                  $
+                </span>
                 <input
                   type="number"
                   min={priceBounds[0]}
                   max={priceRange[1]}
                   value={priceRange[0]}
-                  onChange={(event) => updateMinimumPrice(Number(event.target.value))}
+                  onChange={(event) =>
+                    updateMinimumPrice(Number(event.target.value))
+                  }
                   className="w-full bg-transparent text-right text-xs text-white outline-none"
                 />
               </label>
               <label className="border border-brand-border px-2 py-2 text-xs text-brand-muted focus-within:border-brand-gold">
                 <span className="sr-only">Maximum price</span>
-                <span aria-hidden="true" className="mr-1">$</span>
+                <span aria-hidden="true" className="mr-1">
+                  $
+                </span>
                 <input
                   type="number"
                   min={priceRange[0]}
                   max={priceBounds[1]}
                   value={priceRange[1]}
-                  onChange={(event) => updateMaximumPrice(Number(event.target.value))}
+                  onChange={(event) =>
+                    updateMaximumPrice(Number(event.target.value))
+                  }
                   className="w-full bg-transparent text-right text-xs text-white outline-none"
                 />
               </label>
@@ -460,11 +515,23 @@ export default function CollectionView({
           </div>
         );
       case "Bead Size":
-        return renderCheckboxFacet(beadSizeOptions, selectedBeadSizes, setSelectedBeadSizes);
+        return renderCheckboxFacet(
+          beadSizeOptions,
+          selectedBeadSizes,
+          setSelectedBeadSizes,
+        );
       case "Precious Metal":
-        return renderCheckboxFacet(metalOptions, selectedMetals, setSelectedMetals);
+        return renderCheckboxFacet(
+          metalOptions,
+          selectedMetals,
+          setSelectedMetals,
+        );
       case "Bead Shape":
-        return renderCheckboxFacet(beadShapeOptions, selectedBeadShapes, setSelectedBeadShapes);
+        return renderCheckboxFacet(
+          beadShapeOptions,
+          selectedBeadShapes,
+          setSelectedBeadShapes,
+        );
       case "Gems":
         return (
           <div className="flex flex-col gap-2 pb-4">
@@ -483,7 +550,9 @@ export default function CollectionView({
                 type="button"
                 onClick={() => setStone(stoneOption)}
                 className={`text-left text-xs ${
-                  stone === stoneOption ? "text-brand-gold" : "text-brand-muted hover:text-white"
+                  stone === stoneOption
+                    ? "text-brand-gold"
+                    : "text-brand-muted hover:text-white"
                 }`}
               >
                 {stoneOption}
@@ -495,7 +564,7 @@ export default function CollectionView({
         return renderCheckboxFacet(
           birthstoneOptions,
           selectedBirthstones,
-          setSelectedBirthstones
+          setSelectedBirthstones,
         );
     }
   };
@@ -581,7 +650,8 @@ export default function CollectionView({
               className="flex w-[185px] items-center justify-between border border-brand-border bg-black px-4 py-2 text-left text-sm text-white transition-colors hover:border-white/60 sm:w-auto sm:min-w-[220px]"
             >
               <span className="normal-case">
-                {sortOptions.find((option) => option.value === sort)?.label ?? "Featured"}
+                {sortOptions.find((option) => option.value === sort)?.label ??
+                  "Featured"}
               </span>
               <ChevronDown
                 className={`h-4 w-4 transition-transform ${sortOpen ? "rotate-180" : ""}`}
@@ -628,7 +698,9 @@ export default function CollectionView({
           />
           <div className="absolute inset-y-0 right-0 w-full max-w-xs overflow-y-auto border-l border-brand-border bg-brand-surface p-5 shadow-2xl">
             <div className="mb-5 flex items-center justify-between border-b border-brand-border pb-3">
-              <h2 className="font-heading text-sm uppercase tracking-wider2 text-white">Filters</h2>
+              <h2 className="font-heading text-sm uppercase tracking-wider2 text-white">
+                Filters
+              </h2>
               <button
                 type="button"
                 aria-label="Close filters"
@@ -671,9 +743,12 @@ export default function CollectionView({
           <div className="mb-6 flex items-center justify-between border-b border-brand-border/60 pb-4 text-sm text-brand-muted">
             <span>
               Showing {filtered.length === 0 ? 0 : start + 1}-
-              {Math.min(start + PAGE_SIZE, filtered.length)} of {filtered.length}
+              {Math.min(start + PAGE_SIZE, filtered.length)} of{" "}
+              {filtered.length}
             </span>
-            <span>Page {page} of {totalPages}</span>
+            <span>
+              Page {page} of {totalPages}
+            </span>
           </div>
 
           {filtered.length === 0 ? (

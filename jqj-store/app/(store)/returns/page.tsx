@@ -16,7 +16,11 @@ export default function ReturnsPage() {
       intro="If something is not the right fit, we are here to help with fair and transparent return and exchange support."
       effectiveDate="January 1, 2026"
       contactDetails={[
-        { label: "Returns Team", value: "returns@jqdgroup.com", href: "mailto:returns@jqdgroup.com" },
+        {
+          label: "Returns Team",
+          value: "returns@jqdgroup.com",
+          href: "mailto:returns@jqdgroup.com",
+        },
       ]}
       sections={[
         {

@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { meetsShownPasswordConditions, showPasswordRequirementCheck } from "@/lib/auth/password-rules";
+import {
+  meetsShownPasswordConditions,
+  showPasswordRequirementCheck,
+} from "@/lib/auth/password-rules";
 import {
   PASSWORD_BREACHED,
   PASSWORD_TOO_EASY,
@@ -17,7 +20,12 @@ const RESET_ERROR = "We couldn\u2019t reset your password. Please try again.";
 
 function RequirementCheck() {
   return (
-    <svg className="req-check" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <svg
+      className="req-check"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+    >
       <path d="M4.5 12.5 L9.5 17.5 L19.5 6.5" />
     </svg>
   );
@@ -35,7 +43,10 @@ export default function ResetPasswordForm() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const linkFailed = params.has("error") || params.has("error_description") || params.has("error_code");
+    const linkFailed =
+      params.has("error") ||
+      params.has("error_description") ||
+      params.has("error_code");
     if (linkFailed) {
       setPhase("invalid");
       return;
@@ -44,12 +55,15 @@ export default function ResetPasswordForm() {
     const supabase = createClient();
     let active = true;
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (!active) return;
-      if (!data.session) setPhase("invalid");
-    }).catch(() => {
-      if (active) setPhase("invalid");
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!active) return;
+        if (!data.session) setPhase("invalid");
+      })
+      .catch(() => {
+        if (active) setPhase("invalid");
+      });
 
     const {
       data: { subscription },
@@ -105,7 +119,11 @@ export default function ResetPasswordForm() {
       router.refresh();
     } catch (err) {
       const message = plainAuthError(err, RESET_ERROR);
-      if (message === PASSWORD_TOO_SHORT || message === PASSWORD_TOO_EASY || message === PASSWORD_BREACHED) {
+      if (
+        message === PASSWORD_TOO_SHORT ||
+        message === PASSWORD_TOO_EASY ||
+        message === PASSWORD_BREACHED
+      ) {
         setPasswordError(message);
       } else if (message === PASSWORDS_DO_NOT_MATCH) {
         setConfirmError(message);
@@ -122,7 +140,9 @@ export default function ResetPasswordForm() {
       <main className="center-frame" data-auth-view="reset-invalid">
         <div className="form-card fade-in">
           <h1 className="page-title">We couldn{"\u2019"}t use this link</h1>
-          <p className="page-lead">This reset link is invalid or has expired.</p>
+          <p className="page-lead">
+            This reset link is invalid or has expired.
+          </p>
           <Link href="/auth/forgot-password" className="btn-primary">
             Request a new reset link
           </Link>
@@ -199,7 +219,12 @@ export default function ResetPasswordForm() {
             </p>
           ) : null}
         </div>
-        <button type="submit" className="btn-primary" disabled={loading} aria-busy={loading}>
+        <button
+          type="submit"
+          className="btn-primary"
+          disabled={loading}
+          aria-busy={loading}
+        >
           Reset password
         </button>
         {formError ? (

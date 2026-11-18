@@ -16,8 +16,16 @@ export default function InteractiveBackground() {
   const pointerX = useMotionValue(50);
   const pointerY = useMotionValue(28);
 
-  const smoothX = useSpring(pointerX, { stiffness: 140, damping: 26, mass: 0.4 });
-  const smoothY = useSpring(pointerY, { stiffness: 140, damping: 26, mass: 0.4 });
+  const smoothX = useSpring(pointerX, {
+    stiffness: 140,
+    damping: 26,
+    mass: 0.4,
+  });
+  const smoothY = useSpring(pointerY, {
+    stiffness: 140,
+    damping: 26,
+    mass: 0.4,
+  });
 
   const secondaryX = useTransform(smoothX, (value) => 100 - value * 0.7);
   const secondaryY = useTransform(smoothY, (value) => 100 - value * 0.6);
@@ -44,12 +52,23 @@ export default function InteractiveBackground() {
   }, [pointerX, pointerY, shouldReduceMotion]);
 
   if (shouldReduceMotion) {
-    return <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 bg-brand-bg" />;
+    return (
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 -z-10 bg-brand-bg"
+      />
+    );
   }
 
   return (
-    <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-      <motion.div className="absolute inset-0" style={{ backgroundImage: heroAura }} />
+    <div
+      aria-hidden="true"
+      className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
+    >
+      <motion.div
+        className="absolute inset-0"
+        style={{ backgroundImage: heroAura }}
+      />
       <motion.div
         className="absolute inset-0 opacity-55"
         style={{ backgroundImage: grainShift, y: deepLayerY }}

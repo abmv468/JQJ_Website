@@ -15,7 +15,10 @@ import {
   type JournalBlock,
 } from "@/data/journal";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const root = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../..",
+);
 
 const BANNED =
   /handmade|hand-finished|handfinished|atelier|china|handcrafted|artisanal|artisan|crafted/i;
@@ -81,7 +84,7 @@ describe("journal catalogue", () => {
     expect(articlePage).toContain("notFound()");
     expect(articlePage).toContain("generateStaticParams");
     expect(getJournalPost("how-to-clean-a-crystal")?.title).toBe(
-      "How to clean a crystal without damaging it"
+      "How to clean a crystal without damaging it",
     );
     expect(getJournalPost("not-a-note")).toBeUndefined();
     for (const slug of RETIRED_SLUGS) {
@@ -92,14 +95,28 @@ describe("journal catalogue", () => {
   it("places Journal after Necklaces and marks it current on journal paths", () => {
     const navStart = header.indexOf("const navLinks = [");
     const navEnd = header.indexOf("];", navStart);
-    const labels = [...header.slice(navStart, navEnd).matchAll(/label: "([^"]+)"/g)].map((match) => match[1]);
-    expect(labels).toEqual(["New", "Limited Edition", "Bracelets", "Necklaces", "Journal"]);
+    const labels = [
+      ...header.slice(navStart, navEnd).matchAll(/label: "([^"]+)"/g),
+    ].map((match) => match[1]);
+    expect(labels).toEqual([
+      "New",
+      "Limited Edition",
+      "Bracelets",
+      "Necklaces",
+      "Journal",
+    ]);
     expect(header).toContain('{ label: "Journal", href: "/journal" }');
     expect(header.match(/navLinks\.map/g)).toHaveLength(2);
-    expect(header).toContain('pathname === "/journal" || pathname.startsWith("/journal/")');
-    expect(header).toContain('className={`nav-link${current ? " is-current" : ""}`}');
+    expect(header).toContain(
+      'pathname === "/journal" || pathname.startsWith("/journal/")',
+    );
+    expect(header).toContain(
+      'className={`nav-link${current ? " is-current" : ""}`}',
+    );
     expect(header).toContain('aria-current={current ? "page" : undefined}');
-    expect(header).toContain('className={current ? "mobile-nav-current" : undefined}');
+    expect(header).toMatch(
+      /className=\{\s*current \? "mobile-nav-current" : undefined\s*\}/,
+    );
     expect(header).not.toMatch(/key:\s*"journal"/);
     expect(css).toContain(".nav-link.is-current");
     expect(css).toContain(".nav-link.is-current::after");
@@ -108,9 +125,13 @@ describe("journal catalogue", () => {
   });
 
   it("keeps Header Pearl Collective and the footer ritual line, with no Journal footer link", () => {
-    expect(header).toContain('{ label: "Pearl Collective", href: queryHref("necklaces", "Pearl") }');
+    expect(header).toContain(
+      '{ label: "Pearl Collective", href: queryHref("necklaces", "Pearl") }',
+    );
     expect(header.match(/Pearl Collective/g)).toHaveLength(1);
-    expect(footer).toContain("Natural stone pieces designed for everyday ritual.");
+    expect(footer).toContain(
+      "Natural stone pieces designed for everyday ritual.",
+    );
     expect(footer).not.toContain("/journal");
     expect(footer).not.toMatch(/\bJournal\b/);
     expect(footer).toContain('placeholder="Email address"');
@@ -131,7 +152,10 @@ describe("journal catalogue", () => {
     expect(index).toContain('placeholder="Search the Journal"');
     expect(index).toContain('aria-label="Journal categories"');
     expect(index).toContain('role="search"');
-    const form = index.slice(index.indexOf('role="search"'), index.indexOf("</form>"));
+    const form = index.slice(
+      index.indexOf('role="search"'),
+      index.indexOf("</form>"),
+    );
     expect(form).not.toContain("<button");
     expect(form).not.toContain("Search className");
     expect(css).toMatch(/\.journal-search\s*\{[^}]*border-radius:\s*0/);
@@ -142,7 +166,7 @@ describe("journal catalogue", () => {
 
   it("lists the four notes and filters Care without hiding search", () => {
     expect(JOURNAL_INTRO.dek).toBe(
-      "Notes on natural stone, care, and dressing pieces for everyday ritual."
+      "Notes on natural stone, care, and dressing pieces for everyday ritual.",
     );
     expect(JOURNAL_INTRO).not.toHaveProperty("fictional");
     expect(index).not.toContain("fictional");
@@ -151,25 +175,46 @@ describe("journal catalogue", () => {
     expect(article).not.toContain("Example post");
     expect(indexPage).not.toContain("fictional");
     expect(articlePage).not.toContain("JOURNAL_ARTICLE_FICTIONAL");
-    expect(source("data/journal.ts")).not.toContain("JOURNAL_ARTICLE_FICTIONAL");
+    expect(source("data/journal.ts")).not.toContain(
+      "JOURNAL_ARTICLE_FICTIONAL",
+    );
 
     const eyebrow = article.slice(
       article.indexOf('className="eyebrow journal-article-eyebrow"'),
-      article.indexOf("<h1")
+      article.indexOf("<h1"),
     );
-    expect(eyebrow).toContain("<time dateTime={post.dateTime}>{post.displayDate}</time>");
+    expect(eyebrow).toContain(
+      "<time dateTime={post.dateTime}>{post.displayDate}</time>",
+    );
     expect(eyebrow).not.toContain("·");
     expect(eyebrow).not.toMatch(/byline|author/i);
 
-    expect(JOURNAL_POSTS.map((post) => [post.title, post.displayDate, post.dateTime, post.category])).toEqual([
-      ["How to clean a crystal without damaging it", "12 November 2026", "2026-11-12", "care"],
+    expect(
+      JOURNAL_POSTS.map((post) => [
+        post.title,
+        post.displayDate,
+        post.dateTime,
+        post.category,
+      ]),
+    ).toEqual([
+      [
+        "How to clean a crystal without damaging it",
+        "12 November 2026",
+        "2026-11-12",
+        "care",
+      ],
       [
         "Moonstone's blue sheen: how it differs from labradorite",
         "12 November 2026",
         "2026-11-12",
         "stones",
       ],
-      ["Jewellery for a long day at your desk", "12 November 2026", "2026-11-12", "dressing"],
+      [
+        "Jewellery for a long day at your desk",
+        "12 November 2026",
+        "2026-11-12",
+        "dressing",
+      ],
       [
         "The Victorian fascination with crystal jewellery",
         "12 November 2026",
@@ -179,33 +224,73 @@ describe("journal catalogue", () => {
     ]);
     expect(JOURNAL_POSTS[1]?.title).not.toContain("\u2019");
 
-    expect(filterJournalPosts(JOURNAL_POSTS, { category: "all", query: "" })).toHaveLength(4);
-    const care = filterJournalPosts(JOURNAL_POSTS, { category: "care", query: "" });
+    expect(
+      filterJournalPosts(JOURNAL_POSTS, { category: "all", query: "" }),
+    ).toHaveLength(4);
+    const care = filterJournalPosts(JOURNAL_POSTS, {
+      category: "care",
+      query: "",
+    });
     expect(care.map((post) => post.slug)).toEqual(["how-to-clean-a-crystal"]);
     expect(journalFilterStatus("care")).toBe("Showing notes in Care.");
     expect(index).toContain("{status}");
     expect(index).toContain('id="journal-search"');
-    expect(filterJournalPosts(JOURNAL_POSTS, { category: "gifting", query: "" })).toEqual([]);
-    expect(filterJournalPosts(JOURNAL_POSTS, { category: "meaning", query: "" })).toEqual([]);
+    expect(
+      filterJournalPosts(JOURNAL_POSTS, { category: "gifting", query: "" }),
+    ).toEqual([]);
+    expect(
+      filterJournalPosts(JOURNAL_POSTS, { category: "meaning", query: "" }),
+    ).toEqual([]);
     expect(parseJournalCategory("care")).toBe("care");
     expect(parseJournalCategory(undefined)).toBe("all");
   });
 
   it("filters notes by title and dek and keeps the approved care article", () => {
-    expect(source("data/journal.ts")).toContain("`${post.title}\\n${post.dek}`");
+    expect(source("data/journal.ts")).toContain(
+      "`${post.title}\\n${post.dek}`",
+    );
     expect(
-      filterJournalPosts(JOURNAL_POSTS, { category: "all", query: "without damaging" }).map((post) => post.slug)
+      filterJournalPosts(JOURNAL_POSTS, {
+        category: "all",
+        query: "without damaging",
+      }).map((post) => post.slug),
     ).toEqual(["how-to-clean-a-crystal"]);
-    expect(filterJournalPosts(JOURNAL_POSTS, { category: "history", query: "without damaging" })).toEqual([]);
-    expect(filterJournalPosts(JOURNAL_POSTS, { category: "all", query: "soft cloth" })).toEqual([]);
-    expect(filterJournalPosts(JOURNAL_POSTS, { category: "all", query: "microfibre" })).toEqual([]);
-    expect(filterJournalPosts(JOURNAL_POSTS, { category: "all", query: "no-such-note" })).toEqual([]);
-    expect(journalEmptyMessage("all", "no-such-note")).toBe("No notes match this search.");
+    expect(
+      filterJournalPosts(JOURNAL_POSTS, {
+        category: "history",
+        query: "without damaging",
+      }),
+    ).toEqual([]);
+    expect(
+      filterJournalPosts(JOURNAL_POSTS, {
+        category: "all",
+        query: "soft cloth",
+      }),
+    ).toEqual([]);
+    expect(
+      filterJournalPosts(JOURNAL_POSTS, {
+        category: "all",
+        query: "microfibre",
+      }),
+    ).toEqual([]);
+    expect(
+      filterJournalPosts(JOURNAL_POSTS, {
+        category: "all",
+        query: "no-such-note",
+      }),
+    ).toEqual([]);
+    expect(journalEmptyMessage("all", "no-such-note")).toBe(
+      "No notes match this search.",
+    );
     expect(journalEmptyMessage("gifting", "")).toBe("No notes in Gifting.");
     expect(index).toContain("journalEmptyMessage(category, trimmed)");
 
     const care = getJournalPost("how-to-clean-a-crystal");
-    expect(care?.body?.filter((block) => block.type === "heading").map((block) => block.text)).toEqual([
+    expect(
+      care?.body
+        ?.filter((block) => block.type === "heading")
+        .map((block) => block.text),
+    ).toEqual([
       "Start with a dry clean",
       "When water is appropriate",
       "What to avoid",
@@ -230,40 +315,55 @@ describe("journal catalogue", () => {
       care?.body
         ?.filter((block) => block.type !== "quote")
         .map(blockText)
-        .join("\n")
+        .join("\n"),
     ).not.toContain("When in doubt, less is usually more.");
-    expect(care?.body?.at(-1)).toEqual({ type: "quote", text: "When in doubt, less is usually more." });
+    expect(care?.body?.at(-1)).toEqual({
+      type: "quote",
+      text: "When in doubt, less is usually more.",
+    });
     expect(article).toContain('className="journal-pull"');
     expect(article).toContain('className="journal-subhead"');
     expect(article).toContain('className="journal-article-list"');
     expect(article).toContain('className="journal-related"');
-    expect(article.indexOf("journal-related")).toBeLessThan(article.indexOf("Back to Journal"));
+    expect(article.indexOf("journal-related")).toBeLessThan(
+      article.indexOf("Back to Journal"),
+    );
     expect(article).toContain('href="/journal"');
     expect(article).toContain("Back to Journal");
     expect(article).toContain(">Journal</Link>");
     expect(css).toContain("animation: journal-fade 0.65s");
-    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{[^}]*\.journal-main\s*\{[^}]*animation:\s*none/);
+    expect(css).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)\s*\{[^}]*\.journal-main\s*\{[^}]*animation:\s*none/,
+    );
   });
 
   it("pins SEO metadata, related links, and the history note", () => {
     const notes = [
       {
         slug: "how-to-clean-a-crystal",
-        metaTitle: "How to clean a crystal without damage | Jewellery Quintessential",
+        metaTitle:
+          "How to clean a crystal without damage | Jewellery Quintessential",
         metaDescription:
           "A gentle approach begins with knowing what the stone can tolerate. Not every crystal belongs in water, and a soft, dry cloth is often enough.",
         related: [
           { label: "Care", href: "https://jqd.app/care" },
-          { label: "Amethyst Bracelet XV", href: "https://jqd.app/products/amethyst-bracelet-xv" },
+          {
+            label: "Amethyst Bracelet XV",
+            href: "https://jqd.app/products/amethyst-bracelet-xv",
+          },
         ],
       },
       {
         slug: "moonstones-blue-sheen-and-labradorite",
-        metaTitle: "Moonstone's blue sheen and labradorite | Jewellery Quintessential",
+        metaTitle:
+          "Moonstone's blue sheen and labradorite | Jewellery Quintessential",
         metaDescription:
           "Moonstone and labradorite can share an atmospheric flash of colour, yet the way each stone holds light, and their mineral structures, are different.",
         related: [
-          { label: "Labradorite Bracelet V", href: "https://jqd.app/products/labradorite-bracelet-v" },
+          {
+            label: "Labradorite Bracelet V",
+            href: "https://jqd.app/products/labradorite-bracelet-v",
+          },
           {
             label: "Labradorite Silver Pendant",
             href: "https://jqd.app/products/labradorite-silver-pendant",
@@ -272,7 +372,8 @@ describe("journal catalogue", () => {
       },
       {
         slug: "jewellery-for-a-long-day-at-your-desk",
-        metaTitle: "Jewellery for a long day at your desk | Jewellery Quintessential",
+        metaTitle:
+          "Jewellery for a long day at your desk | Jewellery Quintessential",
         metaDescription:
           "When jewellery accompanies hours of sitting, typing and moving, comfort is found in weight, proportion and quiet details, not in pieces that demand attention.",
         related: [
@@ -282,7 +383,8 @@ describe("journal catalogue", () => {
       },
       {
         slug: "victorian-fascination-with-crystal-jewellery",
-        metaTitle: "Victorian fascination with crystals | Jewellery Quintessential",
+        metaTitle:
+          "Victorian fascination with crystals | Jewellery Quintessential",
         metaDescription:
           "Changing fashions, new technologies and an interest in symbolism helped make crystal and gemstone jewellery part of a wider culture of personal expression.",
         related: [
@@ -319,7 +421,9 @@ describe("journal catalogue", () => {
       });
     }
 
-    expect(generateMetadata({ params: { slug: "caring-for-natural-stone" } })).toEqual({
+    expect(
+      generateMetadata({ params: { slug: "caring-for-natural-stone" } }),
+    ).toEqual({
       title: { absolute: "Journal — Jewellery Quintessential" },
       robots: {
         index: false,
@@ -334,16 +438,22 @@ describe("journal catalogue", () => {
 
     const stones = getJournalPost("moonstones-blue-sheen-and-labradorite");
     expect(stones?.body?.some((block) => block.type === "quote")).toBe(false);
-    expect(getJournalPost("jewellery-for-a-long-day-at-your-desk")?.body?.some((block) => block.type === "quote")).toBe(
-      false
-    );
+    expect(
+      getJournalPost("jewellery-for-a-long-day-at-your-desk")?.body?.some(
+        (block) => block.type === "quote",
+      ),
+    ).toBe(false);
 
-    const history = getJournalPost("victorian-fascination-with-crystal-jewellery");
+    const history = getJournalPost(
+      "victorian-fascination-with-crystal-jewellery",
+    );
     const historyText = history?.body?.map(blockText).join("\n") ?? "";
     const house = "\u6975\u6C23";
     expect(historyText).toContain(`Jewellery Quintessential \u00B7 ${house}`);
     expect(historyText.codePointAt(historyText.indexOf(house))).toBe(0x6975);
-    expect(historyText.codePointAt(historyText.indexOf(house) + 1)).toBe(0x6c23);
+    expect(historyText.codePointAt(historyText.indexOf(house) + 1)).toBe(
+      0x6c23,
+    );
     expect(historyText).not.toContain("\u6977");
     expect(historyText).toContain("craftsmanship");
     expect(history?.body?.filter((block) => block.type === "quote")).toEqual([
@@ -357,9 +467,9 @@ describe("journal catalogue", () => {
         (block) =>
           block.type === "paragraph" &&
           block.text.includes(
-            "people have long used stones and decorative objects to express something beyond appearance."
-          )
-      )
+            "people have long used stones and decorative objects to express something beyond appearance.",
+          ),
+      ),
     ).toHaveLength(1);
     expect(history?.body?.at(-1)?.type).toBe("paragraph");
   });
@@ -389,7 +499,10 @@ describe("journal catalogue", () => {
     ] as const;
 
     for (const still of stills) {
-      expect(getJournalPost(still.slug)?.still).toEqual({ src: still.src, alt: still.alt });
+      expect(getJournalPost(still.slug)?.still).toEqual({
+        src: still.src,
+        alt: still.alt,
+      });
       const file = readFileSync(path.join(root, "public", still.src));
       expect(file.subarray(0, 4).toString("ascii")).toBe("RIFF");
       expect(file.subarray(8, 12).toString("ascii")).toBe("WEBP");
@@ -419,6 +532,8 @@ describe("journal catalogue", () => {
     expect(journalSource).not.toContain("楷");
     expect(journalSource).not.toMatch(/\bChina\b/);
     expect(journalSource).toContain("craftsmanship");
-    expect(journalSource).not.toContain("materials sourced from around the world");
+    expect(journalSource).not.toContain(
+      "materials sourced from around the world",
+    );
   });
 });

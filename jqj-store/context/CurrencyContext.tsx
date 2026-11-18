@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   CURRENCY_COOKIE_KEY,
   CURRENCY_STORAGE_KEY,
@@ -21,7 +28,9 @@ interface CurrencyContextValue {
   formatFromUsd: (amountUsd: number) => string;
 }
 
-const CurrencyContext = createContext<CurrencyContextValue | undefined>(undefined);
+const CurrencyContext = createContext<CurrencyContextValue | undefined>(
+  undefined,
+);
 
 function readInitialCurrency(): SupportedCurrency {
   if (typeof document === "undefined") return DEFAULT_CURRENCY;
@@ -44,7 +53,8 @@ function readInitialCurrency(): SupportedCurrency {
 }
 
 export function CurrencyProvider({ children }: { children: ReactNode }) {
-  const [currency, setCurrencyState] = useState<SupportedCurrency>(DEFAULT_CURRENCY);
+  const [currency, setCurrencyState] =
+    useState<SupportedCurrency>(DEFAULT_CURRENCY);
 
   useEffect(() => {
     setCurrencyState(readInitialCurrency());
@@ -70,18 +80,24 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
       currency,
       supportedCurrencies: SUPPORTED_CURRENCIES,
       setCurrency,
-      convertFromUsd: (amountUsd: number) => convertUsdToCurrency(amountUsd, currency),
+      convertFromUsd: (amountUsd: number) =>
+        convertUsdToCurrency(amountUsd, currency),
       formatFromUsd: (amountUsd: number) =>
         formatPrice(convertUsdToCurrency(amountUsd, currency), { currency }),
     }),
-    [currency]
+    [currency],
   );
 
-  return <CurrencyContext.Provider value={value}>{children}</CurrencyContext.Provider>;
+  return (
+    <CurrencyContext.Provider value={value}>
+      {children}
+    </CurrencyContext.Provider>
+  );
 }
 
 export function useCurrency() {
   const context = useContext(CurrencyContext);
-  if (!context) throw new Error("useCurrency must be used within CurrencyProvider");
+  if (!context)
+    throw new Error("useCurrency must be used within CurrencyProvider");
   return context;
 }

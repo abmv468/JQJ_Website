@@ -7,7 +7,11 @@ export function generateStaticParams() {
   return JOURNAL_POSTS.map((post) => ({ slug: post.slug }));
 }
 
-export function generateMetadata({ params }: { params: { slug: string } }): Metadata {
+export function generateMetadata({
+  params,
+}: {
+  params: { slug: string };
+}): Metadata {
   const post = getJournalPost(params.slug);
   if (!post) {
     return {
@@ -42,7 +46,11 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
   };
 }
 
-export default function JournalArticlePage({ params }: { params: { slug: string } }) {
+export default function JournalArticlePage({
+  params,
+}: {
+  params: { slug: string };
+}) {
   const post = getJournalPost(params.slug);
   if (!post) notFound();
   return <JournalArticle post={post} />;

@@ -1,7 +1,9 @@
 export const PASSWORDS_DO_NOT_MATCH = "Passwords do not match.";
 export const PASSWORD_TOO_SHORT = "Password must be at least 6 characters.";
-export const PASSWORD_TOO_EASY = "This password is too easy to guess. Choose a stronger one.";
-export const PASSWORD_BREACHED = "This password has appeared in a data breach. Choose a different one.";
+export const PASSWORD_TOO_EASY =
+  "This password is too easy to guess. Choose a stronger one.";
+export const PASSWORD_BREACHED =
+  "This password has appeared in a data breach. Choose a different one.";
 
 const RULES: { test: RegExp; message: string }[] = [
   {
@@ -10,7 +12,8 @@ const RULES: { test: RegExp; message: string }[] = [
   },
   {
     test: /email not confirmed/i,
-    message: "Confirm your email before signing in. Check your inbox for the confirmation link.",
+    message:
+      "Confirm your email before signing in. Check your inbox for the confirmation link.",
   },
   {
     test: /already registered|user already exists|already been registered/i,
@@ -38,11 +41,13 @@ const RULES: { test: RegExp; message: string }[] = [
   },
   {
     test: /signups not allowed|signup.*disabled/i,
-    message: "Account creation is unavailable right now. Please try again later.",
+    message:
+      "Account creation is unavailable right now. Please try again later.",
   },
   {
     test: /network|fetch failed|failed to fetch|load failed/i,
-    message: "We couldn\u2019t reach the server. Check your connection and try again.",
+    message:
+      "We couldn\u2019t reach the server. Check your connection and try again.",
   },
   {
     test: /expired|invalid.*link|otp|token/i,

@@ -7,7 +7,7 @@ import { products } from "@/data/products";
 const require = createRequire(import.meta.url);
 const configPath = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
-  "../../next.config.js"
+  "../../next.config.js",
 );
 
 type RemotePattern = {
@@ -58,7 +58,9 @@ describe("next/image remote allowlist", () => {
 
     expect(patterns).toEqual(EXPECTED_REMOTE_PATTERNS);
     expect(domains).toEqual([]);
-    expect(patterns.some((pattern) => pattern.hostname.includes("*"))).toBe(false);
+    expect(patterns.some((pattern) => pattern.hostname.includes("*"))).toBe(
+      false,
+    );
     expect(domains.some((domain) => domain.includes("*"))).toBe(false);
   });
 
@@ -70,7 +72,9 @@ describe("next/image remote allowlist", () => {
 
     expect(srcs.length).toBeGreaterThan(0);
 
-    const rejected = srcs.filter((src) => !isLocalPath(src) && !isAllowlistedRemote(src));
+    const rejected = srcs.filter(
+      (src) => !isLocalPath(src) && !isAllowlistedRemote(src),
+    );
     expect(rejected).toEqual([]);
   });
 });

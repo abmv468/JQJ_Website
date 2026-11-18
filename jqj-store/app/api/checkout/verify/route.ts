@@ -17,7 +17,8 @@ import {
 export const dynamic = "force-dynamic";
 const CLAIM_TIMEOUT_MS = 5 * 60 * 1000;
 
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function asUuid(value: string | undefined) {
   if (!value) return null;
@@ -39,18 +40,18 @@ async function getAuthenticatedUserId() {
             name: string;
             value: string;
             options?: Record<string, unknown>;
-          }[]
+          }[],
         ) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
+              cookieStore.set(name, value, options),
             );
           } catch {
             // No-op in route handlers when cookies cannot be set.
           }
         },
       },
-    }
+    },
   );
   const { data } = await supabase.auth.getUser();
   return data.user?.id ?? null;
@@ -60,7 +61,10 @@ export async function POST(req: Request) {
   try {
     const { sessionId } = (await req.json()) as { sessionId: string };
     if (!sessionId) {
-      return NextResponse.json({ error: "Missing session id" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing session id" },
+        { status: 400 },
+      );
     }
 
     const stripe = getStripe();
@@ -69,31 +73,40 @@ export async function POST(req: Request) {
     });
 
     if (session.payment_status !== "paid") {
-      return NextResponse.json({ error: "Payment not completed" }, { status: 402 });
+      return NextResponse.json(
+        { error: "Payment not completed" },
+        { status: 402 },
+      );
     }
 
     const meta = session.metadata ?? {};
     const selectedCurrency = normalizeCurrency(meta.currency);
     const chargedTotal = (session.amount_total ?? 0) / 100;
-    const chargedTotalUsd = convertCurrencyToUsd(chargedTotal, selectedCurrency);
+    const chargedTotalUsd = convertCurrencyToUsd(
+      chargedTotal,
+      selectedCurrency,
+    );
     let subtotal = 0;
     let total = 0;
     const customerEmail = session.customer_details?.email || "";
-    const customerName = meta.customerName || session.customer_details?.name || "";
+    const customerName =
+      meta.customerName || session.customer_details?.name || "";
     const userId = asUuid(meta.userId) ?? (await getAuthenticatedUserId());
 
     let items: CheckoutItemInput[] = [];
     try {
-      items = (JSON.parse(meta.items || "[]") as Array<{
-        id?: string;
-        s?: string;
-        n: string;
-        p: number;
-        q: number;
-        sz?: string;
-        m?: string;
-        sku?: string;
-      }>).map((item) => ({
+      items = (
+        JSON.parse(meta.items || "[]") as Array<{
+          id?: string;
+          s?: string;
+          n: string;
+          p: number;
+          q: number;
+          sz?: string;
+          m?: string;
+          sku?: string;
+        }>
+      ).map((item) => ({
         id: item.id,
         slug: item.s,
         name: item.n,
@@ -104,11 +117,17 @@ export async function POST(req: Request) {
         sku: item.sku,
       }));
     } catch {
-      return NextResponse.json({ error: "Invalid checkout metadata" }, { status: 422 });
+      return NextResponse.json(
+        { error: "Invalid checkout metadata" },
+        { status: 422 },
+      );
     }
 
     if (!items.length) {
-      return NextResponse.json({ error: "Missing checkout items metadata" }, { status: 422 });
+      return NextResponse.json(
+        { error: "Missing checkout items metadata" },
+        { status: 422 },
+      );
     }
 
     const shippingAddress = {
@@ -136,7 +155,10 @@ export async function POST(req: Request) {
 
     if (existing) {
       if (!existing.user_id && userId) {
-        await supabase.from("orders").update({ user_id: userId }).eq("id", existing.id);
+        await supabase
+          .from("orders")
+          .update({ user_id: userId })
+          .eq("id", existing.id);
       }
       const { count, error: itemCountError } = await supabase
         .from("order_items")
@@ -145,14 +167,19 @@ export async function POST(req: Request) {
       if (itemCountError) throw itemCountError;
 
       if ((count ?? 0) > 0) {
-        return NextResponse.json({ orderId: existing.id }, { headers: { "Cache-Control": "no-store" } });
+        return NextResponse.json(
+          { orderId: existing.id },
+          { headers: { "Cache-Control": "no-store" } },
+        );
       }
 
       orderId = existing.id;
       reusedIncompleteOrder = true;
     }
 
-    const slugs = Array.from(new Set(items.map((item) => item.slug).filter(Boolean) as string[]));
+    const slugs = Array.from(
+      new Set(items.map((item) => item.slug).filter(Boolean) as string[]),
+    );
     const inventoryBySlug = await fetchInventoryBySlugs(supabase, slugs);
     const validation = validateCheckoutItems(items, inventoryBySlug);
     const quotedLines = items.flatMap((item) => {
@@ -164,7 +191,10 @@ export async function POST(req: Request) {
       return [{ unitPriceUsd: product.price, quantity }];
     });
     let shipping = computeShippingUsd(quotedLines);
-    subtotal = quotedLines.reduce((sum, line) => sum + Number(line.unitPriceUsd) * line.quantity, 0);
+    subtotal = quotedLines.reduce(
+      (sum, line) => sum + Number(line.unitPriceUsd) * line.quantity,
+      0,
+    );
     total = subtotal + shipping;
     if (!validation.ok) {
       const { data: existingException } = await supabase
@@ -175,32 +205,36 @@ export async function POST(req: Request) {
 
       let exceptionOrderId = existingException?.id ?? null;
       if (existingException && !existingException.user_id && userId) {
-        await supabase.from("orders").update({ user_id: userId }).eq("id", existingException.id);
+        await supabase
+          .from("orders")
+          .update({ user_id: userId })
+          .eq("id", existingException.id);
       }
       if (!exceptionOrderId) {
-        const { data: exceptionOrder, error: exceptionInsertError } = await supabase
-          .from("orders")
-          .insert({
-            user_id: userId,
-            status: "inventory_exception",
-            fulfillment_status: "payment_failed",
-            payment_provider: "stripe",
-            payment_status: "succeeded",
-            verification_completed: true,
-            verification_claimed_at: new Date().toISOString(),
-            subtotal_amount: subtotal,
-            total_amount: total,
-            shipping_amount: shipping,
-            discount_amount: 0,
-            tax_amount: 0,
-            currency: selectedCurrency,
-            shipping_address: shippingAddress,
-            customer_email: customerEmail,
-            customer_name: customerName,
-            stripe_session_id: session.id,
-          })
-          .select("id")
-          .single();
+        const { data: exceptionOrder, error: exceptionInsertError } =
+          await supabase
+            .from("orders")
+            .insert({
+              user_id: userId,
+              status: "inventory_exception",
+              fulfillment_status: "payment_failed",
+              payment_provider: "stripe",
+              payment_status: "succeeded",
+              verification_completed: true,
+              verification_claimed_at: new Date().toISOString(),
+              subtotal_amount: subtotal,
+              total_amount: total,
+              shipping_amount: shipping,
+              discount_amount: 0,
+              tax_amount: 0,
+              currency: selectedCurrency,
+              shipping_address: shippingAddress,
+              customer_email: customerEmail,
+              customer_name: customerName,
+              stripe_session_id: session.id,
+            })
+            .select("id")
+            .single();
         if (exceptionInsertError) {
           if ((exceptionInsertError as { code?: string }).code === "23505") {
             const { data: deduped } = await supabase
@@ -221,44 +255,51 @@ export async function POST(req: Request) {
         throw new Error("Unable to persist paid order exception");
       }
 
-      const { count: exceptionItemCount, error: exceptionCountError } = await supabase
-        .from("order_items")
-        .select("id", { count: "exact", head: true })
-        .eq("order_id", exceptionOrderId);
+      const { count: exceptionItemCount, error: exceptionCountError } =
+        await supabase
+          .from("order_items")
+          .select("id", { count: "exact", head: true })
+          .eq("order_id", exceptionOrderId);
       if (exceptionCountError) throw exceptionCountError;
 
       if ((exceptionItemCount ?? 0) === 0) {
-        const { error: exceptionItemsError } = await supabase.from("order_items").insert(
-          items.map((item) => ({
-            order_id: exceptionOrderId,
-            product_id: null,
-            variant_id: null,
-            product_name: item.name,
-            sku: item.sku ?? null,
-            variant_size: item.size ?? null,
-            variant_material: item.material ?? null,
-            quantity: item.quantity,
-            price_at_purchase: item.price,
-          }))
-        );
+        const { error: exceptionItemsError } = await supabase
+          .from("order_items")
+          .insert(
+            items.map((item) => ({
+              order_id: exceptionOrderId,
+              product_id: null,
+              variant_id: null,
+              product_name: item.name,
+              sku: item.sku ?? null,
+              variant_size: item.size ?? null,
+              variant_material: item.material ?? null,
+              quantity: item.quantity,
+              price_at_purchase: item.price,
+            })),
+          );
         if (exceptionItemsError) throw exceptionItemsError;
       }
 
       return NextResponse.json(
-        { orderId: exceptionOrderId, warning: validation.errors[0] || "Inventory issue detected after payment" },
-        { headers: { "Cache-Control": "no-store" } }
+        {
+          orderId: exceptionOrderId,
+          warning:
+            validation.errors[0] || "Inventory issue detected after payment",
+        },
+        { headers: { "Cache-Control": "no-store" } },
       );
     }
 
     subtotal = validation.resolved.reduce(
       (sum, line) => sum + line.product.price * line.requestedQuantity,
-      0
+      0,
     );
     shipping = computeShippingUsd(
       validation.resolved.map((line) => ({
         unitPriceUsd: line.product.price,
         quantity: line.requestedQuantity,
-      }))
+      })),
     );
     total = subtotal + shipping;
 
@@ -271,7 +312,9 @@ export async function POST(req: Request) {
     const claimVerification = async (targetOrderId: string) => {
       const { data: currentOrder, error: currentOrderError } = await supabase
         .from("orders")
-        .select("verification_completed, verification_claimed_at, inventory_reserved")
+        .select(
+          "verification_completed, verification_claimed_at, inventory_reserved",
+        )
         .eq("id", targetOrderId)
         .single();
       if (currentOrderError) throw currentOrderError;
@@ -283,19 +326,28 @@ export async function POST(req: Request) {
           .eq("order_id", targetOrderId);
         if (existingItemsError) throw existingItemsError;
         if ((count ?? 0) > 0) {
-          return { state: "complete" as const, inventoryReserved: currentOrder.inventory_reserved };
+          return {
+            state: "complete" as const,
+            inventoryReserved: currentOrder.inventory_reserved,
+          };
         }
 
         const claimedAt = currentOrder.verification_claimed_at
           ? new Date(currentOrder.verification_claimed_at).getTime()
           : 0;
         if (Date.now() - claimedAt < CLAIM_TIMEOUT_MS) {
-          return { state: "in_progress" as const, inventoryReserved: currentOrder.inventory_reserved };
+          return {
+            state: "in_progress" as const,
+            inventoryReserved: currentOrder.inventory_reserved,
+          };
         }
 
         const { error: staleResetError } = await supabase
           .from("orders")
-          .update({ verification_completed: false, verification_claimed_at: null })
+          .update({
+            verification_completed: false,
+            verification_claimed_at: null,
+          })
           .eq("id", targetOrderId);
         if (staleResetError) throw staleResetError;
       }
@@ -326,9 +378,15 @@ export async function POST(req: Request) {
         .maybeSingle();
       if (claimError) throw claimError;
       if (claimRow) {
-        return { state: "claimed" as const, inventoryReserved: currentOrder.inventory_reserved };
+        return {
+          state: "claimed" as const,
+          inventoryReserved: currentOrder.inventory_reserved,
+        };
       }
-      return { state: "in_progress" as const, inventoryReserved: currentOrder.inventory_reserved };
+      return {
+        state: "in_progress" as const,
+        inventoryReserved: currentOrder.inventory_reserved,
+      };
     };
 
     if (!orderId) {
@@ -371,7 +429,10 @@ export async function POST(req: Request) {
             if (dedupedCountError) throw dedupedCountError;
 
             if ((count ?? 0) > 0) {
-              return NextResponse.json({ orderId: deduped.id }, { headers: { "Cache-Control": "no-store" } });
+              return NextResponse.json(
+                { orderId: deduped.id },
+                { headers: { "Cache-Control": "no-store" } },
+              );
             }
 
             orderId = deduped.id;
@@ -386,12 +447,17 @@ export async function POST(req: Request) {
 
     const claimResult = await claimVerification(orderId!);
     if (claimResult.state === "complete") {
-      return NextResponse.json({ orderId }, { headers: { "Cache-Control": "no-store" } });
+      return NextResponse.json(
+        { orderId },
+        { headers: { "Cache-Control": "no-store" } },
+      );
     }
     if (claimResult.state === "in_progress") {
       return NextResponse.json(
-        { error: "Order verification is in progress. Please retry in a moment." },
-        { status: 409 }
+        {
+          error: "Order verification is in progress. Please retry in a moment.",
+        },
+        { status: 409 },
       );
     }
 
@@ -412,10 +478,11 @@ export async function POST(req: Request) {
             product_name: line.product.name,
             sku: line.variant?.sku ?? line.product.sku,
             variant_size: line.variant?.size ?? line.item.size ?? null,
-            variant_material: line.variant?.material ?? line.item.material ?? null,
+            variant_material:
+              line.variant?.material ?? line.item.material ?? null,
             quantity: line.requestedQuantity,
             price_at_purchase: line.item.price,
-          }))
+          })),
         );
         if (itemError) throw itemError;
       }
@@ -464,7 +531,7 @@ export async function POST(req: Request) {
       items: validation.resolved.map((line) => ({
         name:
           line.product.name +
-          ((line.variant?.size || line.variant?.material)
+          (line.variant?.size || line.variant?.material
             ? ` (${[line.variant?.size, line.variant?.material].filter(Boolean).join(" / ")})`
             : ""),
         quantity: line.requestedQuantity,
@@ -478,12 +545,15 @@ export async function POST(req: Request) {
       shippingAddress,
     });
 
-    return NextResponse.json({ orderId }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(
+      { orderId },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (err) {
     console.error("[verify]", err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Verification failed" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

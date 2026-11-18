@@ -16,7 +16,10 @@ interface VariantPayload {
 
 function deriveStockFromVariants(variants?: VariantPayload[]) {
   if (!variants?.length) return null;
-  const stock_count = variants.reduce((sum, variant) => sum + Math.max(0, Number(variant.stock_count || 0)), 0);
+  const stock_count = variants.reduce(
+    (sum, variant) => sum + Math.max(0, Number(variant.stock_count || 0)),
+    0,
+  );
   return {
     stock_count,
     in_stock: stock_count > 0,
@@ -38,7 +41,7 @@ export async function GET(req: Request) {
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Failed to load products" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -49,7 +52,9 @@ export async function POST(req: Request) {
     if (authError) return authError;
 
     const body = await req.json();
-    const variants = Array.isArray(body.variants) ? (body.variants as VariantPayload[]) : [];
+    const variants = Array.isArray(body.variants)
+      ? (body.variants as VariantPayload[])
+      : [];
     const supabase = createAdminClient();
     const stockFromVariants = deriveStockFromVariants(variants);
     const payload = {
@@ -58,7 +63,11 @@ export async function POST(req: Request) {
     };
     delete payload.variants;
 
-    const { data, error } = await supabase.from("products").insert(payload).select().single();
+    const { data, error } = await supabase
+      .from("products")
+      .insert(payload)
+      .select()
+      .single();
     if (error) throw error;
 
     if (variants.length) {
@@ -69,7 +78,9 @@ export async function POST(req: Request) {
         sku: variant.sku,
         stock_count: Math.max(0, Number(variant.stock_count || 0)),
       }));
-      const { error: variantError } = await supabase.from("product_variants").insert(preparedVariants);
+      const { error: variantError } = await supabase
+        .from("product_variants")
+        .insert(preparedVariants);
       if (variantError) {
         await supabase.from("products").delete().eq("id", data.id);
         throw variantError;
@@ -86,8 +97,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ product: fullProduct }, { headers: noStore });
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to create product" },
-      { status: 500 }
+      {
+        error: err instanceof Error ? err.message : "Failed to create product",
+      },
+      { status: 500 },
     );
   }
 }
@@ -101,18 +114,25 @@ export async function PUT(req: Request) {
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
     const supabase = createAdminClient();
 
-    const parsedVariants = Array.isArray(variants) ? (variants as VariantPayload[]) : undefined;
+    const parsedVariants = Array.isArray(variants)
+      ? (variants as VariantPayload[])
+      : undefined;
     const stockFromVariants = deriveStockFromVariants(parsedVariants);
     const inventoryUpdates = {
       sku: updates.sku ?? null,
       stock_count: Math.max(0, Number(updates.stock_count ?? 0)),
-      low_stock_threshold: Math.max(0, Number(updates.low_stock_threshold ?? 5)),
+      low_stock_threshold: Math.max(
+        0,
+        Number(updates.low_stock_threshold ?? 5),
+      ),
       in_stock: Boolean(updates.in_stock),
     };
 
     const { data: snapshot, error: snapshotError } = await supabase
       .from("products")
-      .select("sku, stock_count, low_stock_threshold, in_stock, product_variants(size, material, sku, stock_count)")
+      .select(
+        "sku, stock_count, low_stock_threshold, in_stock, product_variants(size, material, sku, stock_count)",
+      )
       .eq("id", id)
       .single();
     if (snapshotError) throw snapshotError;
@@ -169,7 +189,7 @@ export async function PUT(req: Request) {
               material: variant.material,
               sku: variant.sku,
               stock_count: variant.stock_count,
-            }))
+            })),
           );
         }
       }
@@ -186,8 +206,10 @@ export async function PUT(req: Request) {
     return NextResponse.json({ product: data }, { headers: noStore });
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to update product" },
-      { status: 500 }
+      {
+        error: err instanceof Error ? err.message : "Failed to update product",
+      },
+      { status: 500 },
     );
   }
 }
@@ -206,8 +228,10 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ success: true }, { headers: noStore });
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to delete product" },
-      { status: 500 }
+      {
+        error: err instanceof Error ? err.message : "Failed to delete product",
+      },
+      { status: 500 },
     );
   }
 }

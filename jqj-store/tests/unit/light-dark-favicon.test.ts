@@ -6,24 +6,41 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { paymentTestListingHidden } from "@/data/products";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const root = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../..",
+);
 
 /** Locked rasters from the WEB-023 pack. Do not recrop or rebuild these bytes. */
 const LOCKED_SHA256: Record<string, string> = {
-  "public/favicon.ico": "894e7f3cb42b38adcf8ab7c884def7d1885d47fbab690d4aa3657c349f6fb2ae",
-  "public/apple-touch-icon.png": "292363bd2be44c336e22909fc908985915e3d24e6c10c62c93c0025161155ffe",
-  "public/icon-16.png": "98164c8a25b0a648cfb878051d4a9adae63cb9f7ca847cd91b96fbba1a130e69",
-  "public/icon-32.png": "4a097e97213a739cb35bf15ffcc806f461a3dfa0e33d7db068fd52d2016f48dd",
-  "public/icon-48.png": "0da9bec6595fd21b50f4dadffa5222d903ff0efdf908998abbaa0f85a8645dc2",
-  "public/icon-192.png": "b1048ac5cc6bee2ba633e08e02d724b8f7fe8bf09caccf9d3f4d2082a796fcb7",
-  "public/icon-512.png": "6bf9b903a8c82ab65b3c94488d4483877815f84bd7d74e1ecf11b51f068e0f17",
-  "public/icon-16-dark.png": "aaff3b4a6c1b5bc2512f0367ca0b1e5f011486bfbd56abf1a6cd6b4946c7430d",
-  "public/icon-32-dark.png": "1791c80694792e67c2780c66f11f83cff0b63f3af01bf074f1bfde97f58b931a",
-  "public/icon-48-dark.png": "c7ff2a828dd97ab0100f0376e529d22c13cc96c865e4e992e6926af589dec363",
-  "public/icon-192-dark.png": "41f3bad74d870e513007de8457441f154b4a8fa941cfd1793e4faa87e5026fb8",
-  "public/icon-512-dark.png": "1531dcf8337c560629c6d6ff2685d2a6df6393648bfb9af3ee5fa35813063ef3",
-  "public/icon-180.png": "473a8576332ea2445079b8e3fe2d503d804e90a44c315f775691b4382d082a6f",
-  "public/icon-180-dark.png": "4a0fce8dd41f52bf2bf6bc7ddad0f798859746626b08bd1657e7b2b8ad7e86be",
+  "public/favicon.ico":
+    "894e7f3cb42b38adcf8ab7c884def7d1885d47fbab690d4aa3657c349f6fb2ae",
+  "public/apple-touch-icon.png":
+    "292363bd2be44c336e22909fc908985915e3d24e6c10c62c93c0025161155ffe",
+  "public/icon-16.png":
+    "98164c8a25b0a648cfb878051d4a9adae63cb9f7ca847cd91b96fbba1a130e69",
+  "public/icon-32.png":
+    "4a097e97213a739cb35bf15ffcc806f461a3dfa0e33d7db068fd52d2016f48dd",
+  "public/icon-48.png":
+    "0da9bec6595fd21b50f4dadffa5222d903ff0efdf908998abbaa0f85a8645dc2",
+  "public/icon-192.png":
+    "b1048ac5cc6bee2ba633e08e02d724b8f7fe8bf09caccf9d3f4d2082a796fcb7",
+  "public/icon-512.png":
+    "6bf9b903a8c82ab65b3c94488d4483877815f84bd7d74e1ecf11b51f068e0f17",
+  "public/icon-16-dark.png":
+    "aaff3b4a6c1b5bc2512f0367ca0b1e5f011486bfbd56abf1a6cd6b4946c7430d",
+  "public/icon-32-dark.png":
+    "1791c80694792e67c2780c66f11f83cff0b63f3af01bf074f1bfde97f58b931a",
+  "public/icon-48-dark.png":
+    "c7ff2a828dd97ab0100f0376e529d22c13cc96c865e4e992e6926af589dec363",
+  "public/icon-192-dark.png":
+    "41f3bad74d870e513007de8457441f154b4a8fa941cfd1793e4faa87e5026fb8",
+  "public/icon-512-dark.png":
+    "1531dcf8337c560629c6d6ff2685d2a6df6393648bfb9af3ee5fa35813063ef3",
+  "public/icon-180.png":
+    "473a8576332ea2445079b8e3fe2d503d804e90a44c315f775691b4382d082a6f",
+  "public/icon-180-dark.png":
+    "4a0fce8dd41f52bf2bf6bc7ddad0f798859746626b08bd1657e7b2b8ad7e86be",
 };
 
 const DESCRIPTION =
@@ -34,7 +51,9 @@ function source(relative: string): string {
 }
 
 function sha256(relative: string): string {
-  return createHash("sha256").update(readFileSync(path.join(root, relative))).digest("hex");
+  return createHash("sha256")
+    .update(readFileSync(path.join(root, relative)))
+    .digest("hex");
 }
 
 type PngInfo = {
@@ -104,7 +123,8 @@ function decodePng(buf: Buffer): PngInfo {
       if (filter === 0) out[i] = value;
       else if (filter === 1) out[i] = (value + left) & 255;
       else if (filter === 2) out[i] = (value + up) & 255;
-      else if (filter === 3) out[i] = (value + Math.floor((left + up) / 2)) & 255;
+      else if (filter === 3)
+        out[i] = (value + Math.floor((left + up) / 2)) & 255;
       else if (filter === 4) {
         const paeth = left + up - ul;
         const pa = Math.abs(paeth - left);
@@ -135,7 +155,9 @@ describe("light/dark gem-and-wave favicon", () => {
   const header = source("components/layout/Header.tsx");
   const light = source("public/favicon-light.svg");
   const dark = source("public/favicon-dark.svg");
-  const apple = decodePng(readFileSync(path.join(root, "public/apple-touch-icon.png")));
+  const apple = decodePng(
+    readFileSync(path.join(root, "public/apple-touch-icon.png")),
+  );
 
   it("commits the locked raster fallbacks byte-for-byte", () => {
     for (const [relative, hash] of Object.entries(LOCKED_SHA256)) {
@@ -169,7 +191,9 @@ describe("light/dark gem-and-wave favicon", () => {
     expect(pathData(light).length).toBeGreaterThan(1000);
     expect(light).toContain('fill="#000000"');
     expect(dark).toContain('fill="#ffffff"');
-    expect(light.replace('fill="#000000"', "FILL")).toBe(dark.replace('fill="#ffffff"', "FILL"));
+    expect(light.replace('fill="#000000"', "FILL")).toBe(
+      dark.replace('fill="#ffffff"', "FILL"),
+    );
   });
 
   it("wires the SVG color-scheme switch, light raster fallbacks, and solid apple icon", () => {
@@ -183,7 +207,9 @@ describe("light/dark gem-and-wave favicon", () => {
       expect(layout).toContain(`url: "/icon-${size}.png"`);
       expect(layout).not.toContain(`url: "/icon-${size}-dark.png"`);
     }
-    expect(layout).toContain('apple: { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }');
+    expect(layout).toMatch(
+      /apple:\s*\{\s*url:\s*"\/apple-touch-icon\.png",\s*sizes:\s*"180x180",\s*type:\s*"image\/png",?\s*\}/,
+    );
     expect(layout).not.toContain("/JQD-logo.png");
     expect(layout).not.toContain("icon-180.png");
     expect(layout).toContain('logo: absoluteUrl("/icon-512.png")');
@@ -211,10 +237,20 @@ describe("light/dark gem-and-wave favicon", () => {
   });
 
   it("uses an opaque 180 apple-touch icon on a solid ground", () => {
-    expect(apple).toMatchObject({ width: 180, height: 180, colorType: 2, channels: 3, hasTrns: false });
+    expect(apple).toMatchObject({
+      width: 180,
+      height: 180,
+      colorType: 2,
+      channels: 3,
+      hasTrns: false,
+    });
     expect(apple.pixels.subarray(0, 3)).toEqual(Buffer.from([255, 255, 255]));
-    const transparent180 = decodePng(readFileSync(path.join(root, "public/icon-180.png")));
+    const transparent180 = decodePng(
+      readFileSync(path.join(root, "public/icon-180.png")),
+    );
     expect(transparent180.colorType).toBe(6);
-    expect(sha256("public/icon-180.png")).not.toBe(sha256("public/apple-touch-icon.png"));
+    expect(sha256("public/icon-180.png")).not.toBe(
+      sha256("public/apple-touch-icon.png"),
+    );
   });
 });

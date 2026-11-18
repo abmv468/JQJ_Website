@@ -30,7 +30,13 @@ export default function InboxPanel({
           <br />
           It may take a few minutes, and it can land in spam.
         </p>
-        <button type="button" className="btn-primary" onClick={onAction} disabled={pending} aria-busy={pending}>
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={onAction}
+          disabled={pending}
+          aria-busy={pending}
+        >
           {actionLabel}
         </button>
         {statusNote ? (

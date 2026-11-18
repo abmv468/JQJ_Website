@@ -8,9 +8,16 @@ export const dynamic = "force-dynamic";
 const CONFIRMED = "Your email is confirmed.";
 const CONFIRM_FAILED = "This confirmation link is invalid or has expired.";
 
-function redirectWithStatus(origin: string, status: string, message: string, next = "/account") {
+function redirectWithStatus(
+  origin: string,
+  status: string,
+  message: string,
+  next = "/account",
+) {
   const search = new URLSearchParams({ status, message, next });
-  return NextResponse.redirect(new URL(`/auth/verify?${search.toString()}`, origin));
+  return NextResponse.redirect(
+    new URL(`/auth/verify?${search.toString()}`, origin),
+  );
 }
 
 export async function GET(request: Request) {
@@ -28,7 +35,12 @@ export async function GET(request: Request) {
     });
 
     if (error) {
-      return redirectWithStatus(requestUrl.origin, "error", CONFIRM_FAILED, next);
+      return redirectWithStatus(
+        requestUrl.origin,
+        "error",
+        CONFIRM_FAILED,
+        next,
+      );
     }
 
     return redirectWithStatus(requestUrl.origin, "success", CONFIRMED, next);
@@ -37,7 +49,12 @@ export async function GET(request: Request) {
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) {
-      return redirectWithStatus(requestUrl.origin, "error", CONFIRM_FAILED, next);
+      return redirectWithStatus(
+        requestUrl.origin,
+        "error",
+        CONFIRM_FAILED,
+        next,
+      );
     }
 
     return redirectWithStatus(requestUrl.origin, "success", CONFIRMED, next);

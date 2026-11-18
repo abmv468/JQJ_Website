@@ -4,7 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { loadAdminSettingsFacts } from "./settings-action";
 import type { AdminSettingsFacts } from "@/lib/admin/settings-facts";
-import { AIRWALLEX_SETTINGS_NOTE, HIDDEN_ON_SERVER } from "@/lib/admin/settings-facts";
+import {
+  AIRWALLEX_SETTINGS_NOTE,
+  HIDDEN_ON_SERVER,
+} from "@/lib/admin/settings-facts";
 import {
   formatCheckoutAddress,
   orderLines,
@@ -89,7 +92,12 @@ interface AdminOrder {
     quantity: number;
     price_at_purchase: number;
   }>;
-  order_refunds?: { id: string; amount: number; reason: string | null; created_at: string }[];
+  order_refunds?: {
+    id: string;
+    amount: number;
+    reason: string | null;
+    created_at: string;
+  }[];
   payments?: Array<{
     id: string;
     provider: string;
@@ -145,8 +153,9 @@ function emptyDraft(): RefundDraft {
 
 function primaryPayment(order: AdminOrder) {
   return (
-    (order.payments ?? []).find((payment) => payment.provider === "airwallex") ??
-    (order.payments ?? [])[0]
+    (order.payments ?? []).find(
+      (payment) => payment.provider === "airwallex",
+    ) ?? (order.payments ?? [])[0]
   );
 }
 
@@ -182,36 +191,46 @@ export default function AdminPage() {
     variants: [] as VariantDraft[],
   });
   const [productError, setProductError] = useState<string | null>(null);
-  const [refundDrafts, setRefundDrafts] = useState<Record<string, RefundDraft>>({});
+  const [refundDrafts, setRefundDrafts] = useState<Record<string, RefundDraft>>(
+    {},
+  );
   const [orderActionError, setOrderActionError] = useState<string | null>(null);
   const [focusedOrderId, setFocusedOrderId] = useState<string | null>(null);
   const [settings, setSettings] = useState<AdminSettingsFacts | null>(null);
-  const [settingsState, setSettingsState] = useState<"idle" | "ready" | "hidden">("idle");
+  const [settingsState, setSettingsState] = useState<
+    "idle" | "ready" | "hidden"
+  >("idle");
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user);
-      setAuthChecked(true);
-    }).catch(() => {
-      setUser(null);
-      setAuthChecked(true);
-    });
+    supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        setUser(data.user);
+        setAuthChecked(true);
+      })
+      .catch(() => {
+        setUser(null);
+        setAuthChecked(true);
+      });
   }, []);
 
-  const getAdminAuthHeaders = useCallback(async (withJsonContentType = false) => {
-    const supabase = createClient();
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const token = session?.access_token;
-    if (!token) return null;
+  const getAdminAuthHeaders = useCallback(
+    async (withJsonContentType = false) => {
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) return null;
 
-    return {
-      Authorization: `Bearer ${token}`,
-      ...(withJsonContentType ? { "Content-Type": "application/json" } : {}),
-    };
-  }, []);
+      return {
+        Authorization: `Bearer ${token}`,
+        ...(withJsonContentType ? { "Content-Type": "application/json" } : {}),
+      };
+    },
+    [],
+  );
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -224,15 +243,16 @@ export default function AdminPage() {
       }
 
       const token = orderHeaders.Authorization.replace(/^Bearer\s+/i, "");
-      const [productsResponse, ordersResponse, settingsResult] = await Promise.all([
-        fetch("/api/admin/products", {
-          headers: orderHeaders,
-        }),
-        fetch("/api/admin/orders", {
-          headers: orderHeaders,
-        }),
-        loadAdminSettingsFacts(token).catch(() => ({ ok: false as const })),
-      ]);
+      const [productsResponse, ordersResponse, settingsResult] =
+        await Promise.all([
+          fetch("/api/admin/products", {
+            headers: orderHeaders,
+          }),
+          fetch("/api/admin/orders", {
+            headers: orderHeaders,
+          }),
+          loadAdminSettingsFacts(token).catch(() => ({ ok: false as const })),
+        ]);
 
       if (productsResponse.status === 401 || productsResponse.status === 403) {
         setIsAdmin(false);
@@ -248,7 +268,10 @@ export default function AdminPage() {
         throw new Error("Failed to load admin data");
       }
 
-      const [p, o] = await Promise.all([productsResponse.json(), ordersResponse.json()]);
+      const [p, o] = await Promise.all([
+        productsResponse.json(),
+        ordersResponse.json(),
+      ]);
       setIsAdmin(true);
       setProducts(p.products ?? []);
       setOrders(o.orders ?? []);
@@ -275,7 +298,10 @@ export default function AdminPage() {
   }, [authChecked, loadData, user]);
 
   useEffect(() => {
-    if (focusedOrderId && !orders.some((order) => order.id === focusedOrderId)) {
+    if (
+      focusedOrderId &&
+      !orders.some((order) => order.id === focusedOrderId)
+    ) {
       setFocusedOrderId(null);
     }
   }, [focusedOrderId, orders]);
@@ -284,7 +310,9 @@ export default function AdminPage() {
     setOrderActionError(null);
     const headers = await getAdminAuthHeaders(true);
     if (!headers) {
-      setOrderActionError("Admin session is unavailable. Please sign in again.");
+      setOrderActionError(
+        "Admin session is unavailable. Please sign in again.",
+      );
       return;
     }
 
@@ -299,14 +327,18 @@ export default function AdminPage() {
       return;
     }
     const payload = await response.json();
-    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, ...payload.order } : o)));
+    setOrders((prev) =>
+      prev.map((o) => (o.id === id ? { ...o, ...payload.order } : o)),
+    );
   }
 
   async function refreshPaymentStatus(order: AdminOrder) {
     setOrderActionError(null);
     const headers = await getAdminAuthHeaders(true);
     if (!headers) {
-      setOrderActionError("Admin session is unavailable. Please sign in again.");
+      setOrderActionError(
+        "Admin session is unavailable. Please sign in again.",
+      );
       return;
     }
 
@@ -321,7 +353,9 @@ export default function AdminPage() {
       return;
     }
 
-    setOrders((prev) => prev.map((entry) => (entry.id === order.id ? payload.order : entry)));
+    setOrders((prev) =>
+      prev.map((entry) => (entry.id === order.id ? payload.order : entry)),
+    );
   }
 
   function patchDraft(orderId: string, patch: Partial<RefundDraft>) {
@@ -355,7 +389,9 @@ export default function AdminPage() {
 
     const headers = await getAdminAuthHeaders(true);
     if (!headers) {
-      setOrderActionError("Admin session is unavailable. Please sign in again.");
+      setOrderActionError(
+        "Admin session is unavailable. Please sign in again.",
+      );
       return;
     }
 
@@ -376,9 +412,12 @@ export default function AdminPage() {
       httpOk: response.ok,
       error: typeof payload.error === "string" ? payload.error : null,
       code: typeof payload.code === "string" ? payload.code : null,
-      refundStatus: typeof payload.refundStatus === "string" ? payload.refundStatus : null,
+      refundStatus:
+        typeof payload.refundStatus === "string" ? payload.refundStatus : null,
       previousRefunded: Number(order.refunded_amount || 0),
-      nextRefunded: Number(nextOrder?.refunded_amount ?? order.refunded_amount ?? 0),
+      nextRefunded: Number(
+        nextOrder?.refunded_amount ?? order.refunded_amount ?? 0,
+      ),
       total: figures.total,
       amountLabel: formatPrice(prepared.amount),
       orderId: orderDisplayId(order.id),
@@ -387,10 +426,13 @@ export default function AdminPage() {
 
     if (attempt.applyOrder && nextOrder) {
       const merged = orderAfterRefundAttempt(order, nextOrder, attempt.outcome);
-      setOrders((prev) => prev.map((entry) => (entry.id === order.id ? merged : entry)));
+      setOrders((prev) =>
+        prev.map((entry) => (entry.id === order.id ? merged : entry)),
+      );
     }
 
-    const recorded = attempt.outcome === "partial" || attempt.outcome === "full";
+    const recorded =
+      attempt.outcome === "partial" || attempt.outcome === "full";
     patchDraft(order.id, {
       amount: recorded ? "" : draft.amount,
       reason: recorded ? "" : draft.reason,
@@ -423,7 +465,7 @@ export default function AdminPage() {
     setStockForm((prev) => ({
       ...prev,
       variants: prev.variants.map((variant, variantIndex) =>
-        variantIndex === index ? { ...variant, ...patch } : variant
+        variantIndex === index ? { ...variant, ...patch } : variant,
       ),
     }));
   }
@@ -468,7 +510,9 @@ export default function AdminPage() {
       if (!res.ok) throw new Error(data.error || "Failed to save product");
 
       setProducts((prev) =>
-        prev.map((product) => (product.id === editingProductId ? data.product : product))
+        prev.map((product) =>
+          product.id === editingProductId ? data.product : product,
+        ),
       );
       setEditingProductId(null);
     } catch (err) {
@@ -478,7 +522,8 @@ export default function AdminPage() {
 
   const revenue = sumOrderRevenue(orders);
   const lowStock = products.filter((product) => product.stock_count <= 5);
-  const focusedOrder = orders.find((order) => order.id === focusedOrderId) ?? null;
+  const focusedOrder =
+    orders.find((order) => order.id === focusedOrderId) ?? null;
 
   return (
     <div className="fade-in">
@@ -503,7 +548,9 @@ export default function AdminPage() {
         <div className="center-state">
           <h1 className="page-title">Access denied</h1>
           <p className="quiet">
-            {user ? `${user.email} is not an admin.` : "Please sign in with an admin account."}
+            {user
+              ? `${user.email} is not an admin.`
+              : "Please sign in with an admin account."}
           </p>
           <a href="/auth/login" className="btn-primary">
             Sign in
@@ -528,7 +575,11 @@ export default function AdminPage() {
           <main className="admin-main">
             <div className="view-head">
               <h1 className="page-title">{tabTitle[tab]}</h1>
-              <button type="button" onClick={() => void loadData()} className="text-btn">
+              <button
+                type="button"
+                onClick={() => void loadData()}
+                className="text-btn"
+              >
                 {loading ? "Refreshing" : "Refresh"}
               </button>
             </div>
@@ -547,7 +598,10 @@ export default function AdminPage() {
                     <ul className="history">
                       {lowStock.map((product) => (
                         <li key={product.id}>
-                          {product.name} <span className="gold">{product.stock_count} left</span>
+                          {product.name}{" "}
+                          <span className="gold">
+                            {product.stock_count} left
+                          </span>
                         </li>
                       ))}
                     </ul>
@@ -584,11 +638,14 @@ export default function AdminPage() {
                             <td>{product.name}</td>
                             <td>{product.sku || "\u2014"}</td>
                             <td>{product.categories?.name ?? "\u2014"}</td>
-                            <td className="gold">{formatPrice(Number(product.price))}</td>
+                            <td className="gold">
+                              {formatPrice(Number(product.price))}
+                            </td>
                             <td>
                               {!product.in_stock
                                 ? `Out (${product.stock_count})`
-                                : product.stock_count <= (product.low_stock_threshold ?? 5)
+                                : product.stock_count <=
+                                    (product.low_stock_threshold ?? 5)
                                   ? `Low (${product.stock_count})`
                                   : product.stock_count}
                             </td>
@@ -617,7 +674,12 @@ export default function AdminPage() {
                         <span>Product SKU</span>
                         <input
                           value={stockForm.sku}
-                          onChange={(e) => setStockForm((prev) => ({ ...prev, sku: e.target.value }))}
+                          onChange={(e) =>
+                            setStockForm((prev) => ({
+                              ...prev,
+                              sku: e.target.value,
+                            }))
+                          }
                         />
                       </label>
                       <label className="field">
@@ -627,7 +689,10 @@ export default function AdminPage() {
                           min={0}
                           value={stockForm.stock_count}
                           onChange={(e) =>
-                            setStockForm((prev) => ({ ...prev, stock_count: e.target.value }))
+                            setStockForm((prev) => ({
+                              ...prev,
+                              stock_count: e.target.value,
+                            }))
                           }
                         />
                       </label>
@@ -638,7 +703,10 @@ export default function AdminPage() {
                           min={1}
                           value={stockForm.low_stock_threshold}
                           onChange={(e) =>
-                            setStockForm((prev) => ({ ...prev, low_stock_threshold: e.target.value }))
+                            setStockForm((prev) => ({
+                              ...prev,
+                              low_stock_threshold: e.target.value,
+                            }))
                           }
                         />
                       </label>
@@ -647,7 +715,10 @@ export default function AdminPage() {
                           type="checkbox"
                           checked={stockForm.in_stock}
                           onChange={(e) =>
-                            setStockForm((prev) => ({ ...prev, in_stock: e.target.checked }))
+                            setStockForm((prev) => ({
+                              ...prev,
+                              in_stock: e.target.checked,
+                            }))
                           }
                         />
                         In stock
@@ -678,21 +749,33 @@ export default function AdminPage() {
                                   <input
                                     aria-label="Size"
                                     value={variant.size}
-                                    onChange={(e) => updateVariant(index, { size: e.target.value })}
+                                    onChange={(e) =>
+                                      updateVariant(index, {
+                                        size: e.target.value,
+                                      })
+                                    }
                                   />
                                 </td>
                                 <td>
                                   <input
                                     aria-label="Material"
                                     value={variant.material}
-                                    onChange={(e) => updateVariant(index, { material: e.target.value })}
+                                    onChange={(e) =>
+                                      updateVariant(index, {
+                                        material: e.target.value,
+                                      })
+                                    }
                                   />
                                 </td>
                                 <td>
                                   <input
                                     aria-label="SKU"
                                     value={variant.sku}
-                                    onChange={(e) => updateVariant(index, { sku: e.target.value })}
+                                    onChange={(e) =>
+                                      updateVariant(index, {
+                                        sku: e.target.value,
+                                      })
+                                    }
                                   />
                                 </td>
                                 <td>
@@ -701,7 +784,11 @@ export default function AdminPage() {
                                     type="number"
                                     min={0}
                                     value={variant.stock_count}
-                                    onChange={(e) => updateVariant(index, { stock_count: e.target.value })}
+                                    onChange={(e) =>
+                                      updateVariant(index, {
+                                        stock_count: e.target.value,
+                                      })
+                                    }
                                   />
                                 </td>
                                 <td>
@@ -711,7 +798,10 @@ export default function AdminPage() {
                                     onClick={() =>
                                       setStockForm((prev) => ({
                                         ...prev,
-                                        variants: prev.variants.filter((_, variantIndex) => variantIndex !== index),
+                                        variants: prev.variants.filter(
+                                          (_, variantIndex) =>
+                                            variantIndex !== index,
+                                        ),
                                       }))
                                     }
                                   >
@@ -733,30 +823,52 @@ export default function AdminPage() {
                             ...prev,
                             variants: [
                               ...prev.variants,
-                              { key: nextVariantKey(), size: "", material: "", sku: "", stock_count: "0" },
+                              {
+                                key: nextVariantKey(),
+                                size: "",
+                                material: "",
+                                sku: "",
+                                stock_count: "0",
+                              },
                             ],
                           }))
                         }
                       >
                         Add variant
                       </button>
-                      <button type="button" className="btn-primary" onClick={() => void saveProductInventory()}>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={() => void saveProductInventory()}
+                      >
                         Save
                       </button>
-                      <button type="button" className="text-btn" onClick={() => setEditingProductId(null)}>
+                      <button
+                        type="button"
+                        className="text-btn"
+                        onClick={() => setEditingProductId(null)}
+                      >
                         Cancel
                       </button>
                     </div>
-                    {productError ? <p className="field-error">{productError}</p> : null}
+                    {productError ? (
+                      <p className="field-error">{productError}</p>
+                    ) : null}
                   </div>
                 )}
               </div>
             )}
 
             {tab === "orders" && (
-              <div className={`orders-layout${focusedOrder ? " is-focused" : ""}`}>
-                {orderActionError ? <p className="field-error">{orderActionError}</p> : null}
-                <div className={`table-wrap order-list${focusedOrder ? " is-receded" : ""}`}>
+              <div
+                className={`orders-layout${focusedOrder ? " is-focused" : ""}`}
+              >
+                {orderActionError ? (
+                  <p className="field-error">{orderActionError}</p>
+                ) : null}
+                <div
+                  className={`table-wrap order-list${focusedOrder ? " is-receded" : ""}`}
+                >
                   <table>
                     <thead>
                       <tr>
@@ -787,29 +899,47 @@ export default function AdminPage() {
                             <tr key={order.id}>
                               <td>
                                 <p>{orderDisplayId(order.id)}</p>
-                                <p className="quiet">{new Date(order.created_at).toLocaleString()}</p>
+                                <p className="quiet">
+                                  {new Date(order.created_at).toLocaleString()}
+                                </p>
                               </td>
-                              <td>{order.customer_name || order.customer_email || "Guest"}</td>
+                              <td>
+                                {order.customer_name ||
+                                  order.customer_email ||
+                                  "Guest"}
+                              </td>
                               {focusedOrder ? null : (
                                 <>
-                                  <td>{(order.payment_status || figures.payment?.status || "unknown").replace(/_/g, " ")}</td>
+                                  <td>
+                                    {(
+                                      order.payment_status ||
+                                      figures.payment?.status ||
+                                      "unknown"
+                                    ).replace(/_/g, " ")}
+                                  </td>
                                   <td>
                                     <FulfillmentControl
                                       order={order}
                                       total={figures.total}
                                       settled={figures.settled}
-                                      onStatus={(status) => void updateOrderStatus(order.id, status)}
+                                      onStatus={(status) =>
+                                        void updateOrderStatus(order.id, status)
+                                      }
                                     />
                                   </td>
                                 </>
                               )}
-                              <td className="gold">{formatPrice(figures.total)}</td>
+                              <td className="gold">
+                                {formatPrice(figures.total)}
+                              </td>
                               {focusedOrder ? null : (
                                 <td>
                                   {figures.settled <= 0 ? (
                                     <span className="quiet">{"\u2014"}</span>
                                   ) : (
-                                    <span className="gold">{formatPrice(figures.settled)}</span>
+                                    <span className="gold">
+                                      {formatPrice(figures.settled)}
+                                    </span>
                                   )}
                                 </td>
                               )}
@@ -837,8 +967,12 @@ export default function AdminPage() {
                     draft={refundDrafts[focusedOrder.id] ?? emptyDraft()}
                     onClose={() => setFocusedOrderId(null)}
                     onDraft={(patch) => patchDraft(focusedOrder.id, patch)}
-                    onRefund={(confirmed) => void submitRefund(focusedOrder, confirmed)}
-                    onStatus={(status) => void updateOrderStatus(focusedOrder.id, status)}
+                    onRefund={(confirmed) =>
+                      void submitRefund(focusedOrder, confirmed)
+                    }
+                    onStatus={(status) =>
+                      void updateOrderStatus(focusedOrder.id, status)
+                    }
                     onRefresh={() => void refreshPaymentStatus(focusedOrder)}
                   />
                 ) : null}
@@ -849,12 +983,20 @@ export default function AdminPage() {
               <Table
                 head={["Customer", "Email", "Orders"]}
                 rows={Object.values(
-                  orders.reduce<Record<string, [string, string, number]>>((acc, order) => {
-                    const key = order.customer_email || "guest";
-                    if (!acc[key]) acc[key] = [order.customer_name || "Guest", order.customer_email || "\u2014", 0];
-                    acc[key][2] += 1;
-                    return acc;
-                  }, {})
+                  orders.reduce<Record<string, [string, string, number]>>(
+                    (acc, order) => {
+                      const key = order.customer_email || "guest";
+                      if (!acc[key])
+                        acc[key] = [
+                          order.customer_name || "Guest",
+                          order.customer_email || "\u2014",
+                          0,
+                        ];
+                      acc[key][2] += 1;
+                      return acc;
+                    },
+                    {},
+                  ),
                 ).map((row) => [row[0], row[1], String(row[2])])}
                 empty="No customers yet."
               />
@@ -867,10 +1009,22 @@ export default function AdminPage() {
                     <Fact label="House name" value={settings.houseName} />
                     <Fact label="Legal entity" value={settings.legalEntity} />
                     <Fact label="Admin email" value={settings.adminEmail} />
-                    <Fact label="Currency" value={settings.currencies.join(", ")} />
-                    <Fact label="Airwallex mode" value={settings.airwallexMode} />
-                    <Fact label="COD fee" value={formatPrice(settings.codFeeUsd)} />
-                    <Fact label="Flat shipping" value={formatPrice(settings.flatShippingUsd)} />
+                    <Fact
+                      label="Currency"
+                      value={settings.currencies.join(", ")}
+                    />
+                    <Fact
+                      label="Airwallex mode"
+                      value={settings.airwallexMode}
+                    />
+                    <Fact
+                      label="COD fee"
+                      value={formatPrice(settings.codFeeUsd)}
+                    />
+                    <Fact
+                      label="Flat shipping"
+                      value={formatPrice(settings.flatShippingUsd)}
+                    />
                   </dl>
                 ) : settingsState === "hidden" ? (
                   <dl className="fact-list">
@@ -892,7 +1046,15 @@ export default function AdminPage() {
   );
 }
 
-function Stat({ label, value, gold = false }: { label: string; value: string; gold?: boolean }) {
+function Stat({
+  label,
+  value,
+  gold = false,
+}: {
+  label: string;
+  value: string;
+  gold?: boolean;
+}) {
   return (
     <div className="stat">
       <p className="stat-label">{label}</p>
@@ -910,7 +1072,15 @@ function Fact({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Table({ head, rows, empty }: { head: string[]; rows: string[][]; empty: string }) {
+function Table({
+  head,
+  rows,
+  empty,
+}: {
+  head: string[];
+  rows: string[][];
+  empty: string;
+}) {
   return (
     <div className="table-wrap">
       <table>
@@ -954,10 +1124,13 @@ function FulfillmentControl({
   settled: number;
   onStatus: (status: string) => void;
 }) {
-  const rawPaymentStatus = order.payment_status || primaryPayment(order)?.status || "unknown";
+  const rawPaymentStatus =
+    order.payment_status || primaryPayment(order)?.status || "unknown";
   const paymentSucceeded =
     isSucceededPaymentStatus(order.payment_status) ||
-    (order.payments ?? []).some((payment) => isSucceededPaymentStatus(payment.status));
+    (order.payments ?? []).some((payment) =>
+      isSucceededPaymentStatus(payment.status),
+    );
   const statusPresentation = getAdminOrderStatusPresentation({
     status: order.status,
     fulfillmentStatus: order.fulfillment_status,
@@ -965,23 +1138,28 @@ function FulfillmentControl({
   });
   const statusOptions = getOrderStatusOptions(
     statusPresentation.selectStatus,
-    paymentSucceeded ? "succeeded" : rawPaymentStatus.toLowerCase()
+    paymentSucceeded ? "succeeded" : rawPaymentStatus.toLowerCase(),
   );
   const currentSelectValue =
-    statusOptions.find((statusOption) => statusOption === statusPresentation.selectStatus) ??
-    statusOptions[0];
+    statusOptions.find(
+      (statusOption) => statusOption === statusPresentation.selectStatus,
+    ) ?? statusOptions[0];
 
   return (
     <div className="fulfillment-row">
       {statusPresentation.treatment !== "pipeline" ? (
         <span
-          data-order-status-flag={statusPresentation.flagged ? "attention" : "neutral"}
+          data-order-status-flag={
+            statusPresentation.flagged ? "attention" : "neutral"
+          }
           className="fulfillment-label"
         >
           {statusPresentation.label}
         </span>
       ) : (
-        <span className="fulfillment-label">{formatOrderStatusLabel(statusPresentation.selectStatus)}</span>
+        <span className="fulfillment-label">
+          {formatOrderStatusLabel(statusPresentation.selectStatus)}
+        </span>
       )}
       {statusPresentation.showDropdown ? (
         <select
@@ -1024,14 +1202,19 @@ function OrderPanel({
   const address = formatCheckoutAddress(order.shipping_address);
   const method = paymentMethodLabel({
     paymentProvider: order.payment_provider || figures.payment?.provider,
-    paymentMethod: typeof order.shipping_address?.payment_method === "string"
-      ? order.shipping_address.payment_method
-      : null,
+    paymentMethod:
+      typeof order.shipping_address?.payment_method === "string"
+        ? order.shipping_address.payment_method
+        : null,
   });
-  const paid = isSucceededPaymentStatus(order.payment_status) ||
-    (order.payments ?? []).some((payment) => isSucceededPaymentStatus(payment.status));
+  const paid =
+    isSucceededPaymentStatus(order.payment_status) ||
+    (order.payments ?? []).some((payment) =>
+      isSucceededPaymentStatus(payment.status),
+    );
   const confirmAmount = Number(draft.amount);
-  const showAfter = draft.confirming && Number.isFinite(confirmAmount) && confirmAmount > 0;
+  const showAfter =
+    draft.confirming && Number.isFinite(confirmAmount) && confirmAmount > 0;
   const history = [
     ...(order.order_refunds ?? []).map((refund) => ({
       id: refund.id,
@@ -1045,7 +1228,9 @@ function OrderPanel({
     })) ?? []),
   ].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
   const noticeClass =
-    draft.noticeTone === "failed" || draft.noticeTone === "rejected" ? "notice-failed" : "quiet";
+    draft.noticeTone === "failed" || draft.noticeTone === "rejected"
+      ? "notice-failed"
+      : "quiet";
 
   return (
     <article className="order-panel" data-order-panel={displayId}>
@@ -1112,8 +1297,14 @@ function OrderPanel({
         <h3 className="section-label">Payment</h3>
         <dl className="fact-list">
           <Fact label="Method" value={method} />
-          <Fact label={paid ? "Paid" : "Amount"} value={formatPrice(figures.total)} />
-          <Fact label="Remaining to refund" value={formatPrice(figures.remaining)} />
+          <Fact
+            label={paid ? "Paid" : "Amount"}
+            value={formatPrice(figures.total)}
+          />
+          <Fact
+            label="Remaining to refund"
+            value={formatPrice(figures.remaining)}
+          />
         </dl>
         {history.length > 0 ? (
           <ul className="history">
@@ -1171,21 +1362,40 @@ function OrderPanel({
                 </p>
                 {showAfter ? (
                   <p className="quiet">
-                    Remaining after this refund {formatPrice(remainingAfterThisRefund(figures.remaining, confirmAmount))}.
+                    Remaining after this refund{" "}
+                    {formatPrice(
+                      remainingAfterThisRefund(
+                        figures.remaining,
+                        confirmAmount,
+                      ),
+                    )}
+                    .
                   </p>
                 ) : null}
                 <div className="actions">
-                  <button type="button" className="btn-primary" onClick={() => onRefund(true)}>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={() => onRefund(true)}
+                  >
                     Confirm refund
                   </button>
-                  <button type="button" className="text-btn" onClick={() => onDraft({ confirming: false })}>
+                  <button
+                    type="button"
+                    className="text-btn"
+                    onClick={() => onDraft({ confirming: false })}
+                  >
                     Back
                   </button>
                 </div>
               </div>
             ) : (
               <div className="actions">
-                <button type="button" className="btn-primary" onClick={() => onRefund(false)}>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => onRefund(false)}
+                >
                   Refund
                 </button>
               </div>

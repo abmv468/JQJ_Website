@@ -10,7 +10,11 @@ import {
   PAYMENT_ON_PROTECTED_ORDER_EVENT,
   PROTECTED_ORDER_ALERT_EVENT,
 } from "@/lib/payments/airwallex-orders";
-import { createCheckoutDb, setActiveDb, type MemoryDb } from "../helpers/memory-db";
+import {
+  createCheckoutDb,
+  setActiveDb,
+  type MemoryDb,
+} from "../helpers/memory-db";
 
 vi.mock("@/lib/email", () => ({
   sendOrderEmails: vi.fn(async () => undefined),
@@ -21,9 +25,9 @@ vi.mock("@/lib/auth/require-admin", () => ({
 }));
 
 vi.mock("@/lib/payments/airwallex", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/payments/airwallex")>(
-    "@/lib/payments/airwallex"
-  );
+  const actual = await vi.importActual<
+    typeof import("@/lib/payments/airwallex")
+  >("@/lib/payments/airwallex");
   return {
     ...actual,
     createAirwallexPaymentIntent: vi.fn(),
@@ -35,7 +39,9 @@ const SECRET = "test_dummy_webhook_secret";
 const HOOK = "[airwallex-orders] payment_on_protected_order";
 
 function sign(timestamp: string, body: string) {
-  return createHmac("sha256", SECRET).update(`${timestamp}${body}`).digest("hex");
+  return createHmac("sha256", SECRET)
+    .update(`${timestamp}${body}`)
+    .digest("hex");
 }
 
 function signedWebhook(body: unknown) {
@@ -52,9 +58,16 @@ function signedWebhook(body: unknown) {
   });
 }
 
-function paymentEvent(eventId: string, orderId: string, intentId: string, status: string) {
+function paymentEvent(
+  eventId: string,
+  orderId: string,
+  intentId: string,
+  status: string,
+) {
   const name =
-    status === "SUCCEEDED" ? "payment_intent.succeeded" : "payment_intent.failed";
+    status === "SUCCEEDED"
+      ? "payment_intent.succeeded"
+      : "payment_intent.failed";
   return {
     id: eventId,
     name,
@@ -73,7 +86,13 @@ function paymentEvent(eventId: string, orderId: string, intentId: string, status
 
 function seedOrder(
   db: MemoryDb,
-  order: { id: string; status: string; salesChannel?: string; paymentStatus?: string; reserved?: boolean }
+  order: {
+    id: string;
+    status: string;
+    salesChannel?: string;
+    paymentStatus?: string;
+    reserved?: boolean;
+  },
 ) {
   db.seed("orders", [
     {
@@ -117,12 +136,16 @@ function seedOrder(
 
 function stockMoves(db: MemoryDb) {
   return db.rpcCalls.filter(
-    (call) => call.fn === "reserve_order_inventory" || call.fn === "restore_order_inventory"
+    (call) =>
+      call.fn === "reserve_order_inventory" ||
+      call.fn === "restore_order_inventory",
   );
 }
 
 function orderWrites(db: MemoryDb) {
-  return db.writes.filter((write) => write.table === "orders" && write.op !== "insert");
+  return db.writes.filter(
+    (write) => write.table === "orders" && write.op !== "insert",
+  );
 }
 
 function hookCalls(spy: { mock: { calls: unknown[][] } }) {
@@ -132,10 +155,18 @@ function hookCalls(spy: { mock: { calls: unknown[][] } }) {
 function closedOrderAlerts(spy: { mock: { calls: unknown[][] } }) {
   return spy.mock.calls
     .map((call) => call[0])
-    .filter((value): value is string => typeof value === "string" && value.includes("jqd_alert"))
+    .filter(
+      (value): value is string =>
+        typeof value === "string" && value.includes("jqd_alert"),
+    )
     .map(
       (value) =>
-        JSON.parse(value) as { tag: string; event: string; orderId: string; kind: "succeeded" | "failed" }
+        JSON.parse(value) as {
+          tag: string;
+          event: string;
+          orderId: string;
+          kind: "succeeded" | "failed";
+        },
     );
 }
 
@@ -163,7 +194,14 @@ describe("protected cancelled and test orders", () => {
     });
 
     const response = await webhook(
-      signedWebhook(paymentEvent("evt_ok", "order-cancelled", "int_order-cancelled", "SUCCEEDED"))
+      signedWebhook(
+        paymentEvent(
+          "evt_ok",
+          "order-cancelled",
+          "int_order-cancelled",
+          "SUCCEEDED",
+        ),
+      ),
     );
 
     expect(response.status).toBe(200);
@@ -173,7 +211,10 @@ describe("protected cancelled and test orders", () => {
       fulfillment_status: "pending_payment",
       inventory_reserved: false,
     });
-    expect(db.rowsOf("payments")[0]).toMatchObject({ status: "succeeded", amount: 115 });
+    expect(db.rowsOf("payments")[0]).toMatchObject({
+      status: "succeeded",
+      amount: 115,
+    });
     expect(db.rowsOf("products")[0].stock_count).toBe(5);
     expect(stockMoves(db)).toHaveLength(0);
     expect(sendOrderEmails).not.toHaveBeenCalled();
@@ -192,15 +233,26 @@ describe("protected cancelled and test orders", () => {
       orderId: "order-cancelled",
       kind: "succeeded",
     });
-    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("paymentIntentId");
-    expect(JSON.stringify(hookCalls(errorSpy))).not.toContain("buyer@example.com");
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain(
+      "paymentIntentId",
+    );
+    expect(JSON.stringify(hookCalls(errorSpy))).not.toContain(
+      "buyer@example.com",
+    );
   });
 
   it("logs a protected payment with only the tag, event, and order id", async () => {
     seedOrder(db, { id: "order-cancelled", status: "cancelled" });
 
     const response = await webhook(
-      signedWebhook(paymentEvent("evt_log", "order-cancelled", "int_order-cancelled", "SUCCEEDED"))
+      signedWebhook(
+        paymentEvent(
+          "evt_log",
+          "order-cancelled",
+          "int_order-cancelled",
+          "SUCCEEDED",
+        ),
+      ),
     );
 
     expect(response.status).toBe(200);
@@ -215,7 +267,9 @@ describe("protected cancelled and test orders", () => {
         kind: "succeeded",
       },
     ]);
-    expect(["succeeded", "failed"]).toContain(closedOrderAlerts(errorSpy)[0].kind);
+    expect(["succeeded", "failed"]).toContain(
+      closedOrderAlerts(errorSpy)[0].kind,
+    );
     expect(hookCalls(errorSpy)).toEqual([
       [
         HOOK,
@@ -233,7 +287,14 @@ describe("protected cancelled and test orders", () => {
     seedOrder(db, { id: "order-cancelled", status: "cancelled" });
 
     const response = await webhook(
-      signedWebhook(paymentEvent("evt_fail", "order-cancelled", "int_order-cancelled", "FAILED"))
+      signedWebhook(
+        paymentEvent(
+          "evt_fail",
+          "order-cancelled",
+          "int_order-cancelled",
+          "FAILED",
+        ),
+      ),
     );
 
     expect(response.status).toBe(200);
@@ -254,14 +315,21 @@ describe("protected cancelled and test orders", () => {
       orderId: "order-cancelled",
       kind: "failed",
     });
-    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("paymentIntentId");
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain(
+      "paymentIntentId",
+    );
   });
 
   it.each(["", true, "-1", "abc"] as const)(
     "does not record a protected success when the amount is %j",
     async (amount) => {
       seedOrder(db, { id: "order-cancelled", status: "cancelled" });
-      const event = paymentEvent("evt_bad_amount", "order-cancelled", "int_order-cancelled", "SUCCEEDED");
+      const event = paymentEvent(
+        "evt_bad_amount",
+        "order-cancelled",
+        "int_order-cancelled",
+        "SUCCEEDED",
+      );
       event.data.object.amount = amount as unknown as number;
 
       const response = await webhook(signedWebhook(event));
@@ -275,37 +343,45 @@ describe("protected cancelled and test orders", () => {
       });
       expect(db.rowsOf("orders")[0].status).toBe("cancelled");
       expect(closedOrderAlerts(errorSpy)).toHaveLength(0);
-    }
+    },
   );
 
   it.each([
     ["NaN", Number.NaN],
     ["Infinity", Number.POSITIVE_INFINITY],
     ["-Infinity", Number.NEGATIVE_INFINITY],
-  ] as const)("rejects a protected success amount of %s from apply()", async (_label, amount) => {
-    seedOrder(db, { id: "order-cancelled", status: "cancelled" });
+  ] as const)(
+    "rejects a protected success amount of %s from apply()",
+    async (_label, amount) => {
+      seedOrder(db, { id: "order-cancelled", status: "cancelled" });
 
-    await expect(
-      applyAirwallexPaymentIntentStatus(db as never, {
-        paymentIntentId: "int_order-cancelled",
-        nextStatus: "succeeded",
-        amount,
-      })
-    ).rejects.toThrow("Payment amount is not a finite number");
-    expect(db.rowsOf("payments")[0]).toMatchObject({
-      status: "requires_payment_method",
-      amount: 115,
-    });
-    expect(db.rowsOf("orders")[0]).toMatchObject({
-      status: "cancelled",
-      inventory_reserved: false,
-    });
-    expect(stockMoves(db)).toHaveLength(0);
-  });
+      await expect(
+        applyAirwallexPaymentIntentStatus(db as never, {
+          paymentIntentId: "int_order-cancelled",
+          nextStatus: "succeeded",
+          amount,
+        }),
+      ).rejects.toThrow("Payment amount is not a finite number");
+      expect(db.rowsOf("payments")[0]).toMatchObject({
+        status: "requires_payment_method",
+        amount: 115,
+      });
+      expect(db.rowsOf("orders")[0]).toMatchObject({
+        status: "cancelled",
+        inventory_reserved: false,
+      });
+      expect(stockMoves(db)).toHaveLength(0);
+    },
+  );
 
   it("does not record a protected success when the amount is not finite", async () => {
     seedOrder(db, { id: "order-cancelled", status: "cancelled" });
-    const event = paymentEvent("evt_bad_amount", "order-cancelled", "int_order-cancelled", "SUCCEEDED");
+    const event = paymentEvent(
+      "evt_bad_amount",
+      "order-cancelled",
+      "int_order-cancelled",
+      "SUCCEEDED",
+    );
     event.data.object.amount = "not-a-number" as unknown as number;
 
     const response = await webhook(signedWebhook(event));
@@ -331,10 +407,19 @@ describe("protected cancelled and test orders", () => {
     db.rowsOf("products")[0].stock_count = 4;
 
     const succeeded = await webhook(
-      signedWebhook(paymentEvent("evt_test_ok", "order-test", "int_order-test", "SUCCEEDED"))
+      signedWebhook(
+        paymentEvent(
+          "evt_test_ok",
+          "order-test",
+          "int_order-test",
+          "SUCCEEDED",
+        ),
+      ),
     );
     const failed = await webhook(
-      signedWebhook(paymentEvent("evt_test_fail", "order-test", "int_order-test", "FAILED"))
+      signedWebhook(
+        paymentEvent("evt_test_fail", "order-test", "int_order-test", "FAILED"),
+      ),
     );
 
     expect(succeeded.status).toBe(200);
@@ -346,7 +431,10 @@ describe("protected cancelled and test orders", () => {
       fulfillment_status: "pending_payment",
       inventory_reserved: true,
     });
-    expect(db.rowsOf("payments")[0]).toMatchObject({ status: "succeeded", amount: 115 });
+    expect(db.rowsOf("payments")[0]).toMatchObject({
+      status: "succeeded",
+      amount: 115,
+    });
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
     expect(stockMoves(db)).toHaveLength(0);
     expect(sendOrderEmails).not.toHaveBeenCalled();
@@ -373,7 +461,9 @@ describe("protected cancelled and test orders", () => {
         kind: "failed",
       },
     ]);
-    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("paymentIntentId");
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain(
+      "paymentIntentId",
+    );
   });
 
   it("does not write when verify or admin sync forces a protected order", async () => {
@@ -391,7 +481,7 @@ describe("protected cancelled and test orders", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderId: "order-cancelled", refresh: true }),
-      })
+      }),
     );
     const refreshed = await adminPost(
       new Request("http://localhost:3000/api/admin/orders", {
@@ -400,8 +490,11 @@ describe("protected cancelled and test orders", () => {
           "Content-Type": "application/json",
           authorization: "Bearer admin-token",
         },
-        body: JSON.stringify({ action: "refresh_payment", id: "order-cancelled" }),
-      })
+        body: JSON.stringify({
+          action: "refresh_payment",
+          id: "order-cancelled",
+        }),
+      }),
     );
 
     expect(verified.status).toBe(202);
@@ -412,7 +505,10 @@ describe("protected cancelled and test orders", () => {
       payment_status: "requires_payment_method",
       fulfillment_status: "pending_payment",
     });
-    expect(db.rowsOf("payments")[0]).toMatchObject({ status: "succeeded", amount: 115 });
+    expect(db.rowsOf("payments")[0]).toMatchObject({
+      status: "succeeded",
+      amount: 115,
+    });
     expect(db.rowsOf("products")[0].stock_count).toBe(5);
     expect(stockMoves(db)).toHaveLength(0);
     expect(closedOrderAlerts(errorSpy)).toEqual([
@@ -429,16 +525,27 @@ describe("protected cancelled and test orders", () => {
 
   it("treats a duplicate protected webhook as a duplicate and does not log again", async () => {
     seedOrder(db, { id: "order-cancelled", status: "cancelled" });
-    const event = paymentEvent("evt_dup", "order-cancelled", "int_order-cancelled", "SUCCEEDED");
+    const event = paymentEvent(
+      "evt_dup",
+      "order-cancelled",
+      "int_order-cancelled",
+      "SUCCEEDED",
+    );
     const first = await webhook(signedWebhook(event));
     const second = await webhook(signedWebhook(event));
 
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
-    await expect(second.json()).resolves.toEqual({ received: true, duplicate: true });
+    await expect(second.json()).resolves.toEqual({
+      received: true,
+      duplicate: true,
+    });
     expect(hookCalls(errorSpy)).toHaveLength(1);
     expect(closedOrderAlerts(errorSpy)).toHaveLength(1);
-    expect(db.rowsOf("payments")[0]).toMatchObject({ status: "succeeded", amount: 115 });
+    expect(db.rowsOf("payments")[0]).toMatchObject({
+      status: "succeeded",
+      amount: 115,
+    });
     expect(stockMoves(db)).toHaveLength(0);
     expect(sendOrderEmails).not.toHaveBeenCalled();
     expect(db.rowsOf("orders")[0].status).toBe("cancelled");
@@ -454,7 +561,9 @@ describe("protected cancelled and test orders", () => {
     });
 
     const response = await webhook(
-      signedWebhook(paymentEvent("evt_live", "order-live", "int_order-live", "SUCCEEDED"))
+      signedWebhook(
+        paymentEvent("evt_live", "order-live", "int_order-live", "SUCCEEDED"),
+      ),
     );
 
     expect(response.status).toBe(200);
@@ -465,7 +574,9 @@ describe("protected cancelled and test orders", () => {
       inventory_reserved: true,
     });
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
-    expect(db.rpcCalls.filter((call) => call.fn === "reserve_order_inventory")).toHaveLength(1);
+    expect(
+      db.rpcCalls.filter((call) => call.fn === "reserve_order_inventory"),
+    ).toHaveLength(1);
     expect(sendOrderEmails).toHaveBeenCalledTimes(1);
     expect(hookCalls(errorSpy)).toHaveLength(0);
   });

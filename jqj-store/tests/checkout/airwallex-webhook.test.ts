@@ -1,12 +1,18 @@
 import { createHmac } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/webhooks/airwallex/route";
-import { createCheckoutDb, setActiveDb, type MemoryDb } from "../helpers/memory-db";
+import {
+  createCheckoutDb,
+  setActiveDb,
+  type MemoryDb,
+} from "../helpers/memory-db";
 
 const SECRET = "test_dummy_webhook_secret";
 
 function sign(timestamp: string, body: string) {
-  return createHmac("sha256", SECRET).update(`${timestamp}${body}`).digest("hex");
+  return createHmac("sha256", SECRET)
+    .update(`${timestamp}${body}`)
+    .digest("hex");
 }
 
 function webhookRequest(body: string, headers: Record<string, string>) {
@@ -17,7 +23,10 @@ function webhookRequest(body: string, headers: Record<string, string>) {
   });
 }
 
-function signed(body: unknown, timestamp = String(Math.floor(Date.now() / 1000))) {
+function signed(
+  body: unknown,
+  timestamp = String(Math.floor(Date.now() / 1000)),
+) {
   const raw = typeof body === "string" ? body : JSON.stringify(body);
   return webhookRequest(raw, {
     "content-type": "application/json",
@@ -37,7 +46,7 @@ describe("POST /api/webhooks/airwallex", () => {
       "fetch",
       vi.fn(async () => {
         throw new Error("unexpected network call");
-      })
+      }),
     );
     db.rowsOf("products")[0].stock_count = 4;
     db.seed("orders", [
@@ -102,7 +111,7 @@ describe("POST /api/webhooks/airwallex", () => {
             merchant_order_id: "order-1",
           },
         },
-      })
+      }),
     );
 
     expect(response.status).toBe(200);
@@ -131,12 +140,15 @@ describe("POST /api/webhooks/airwallex", () => {
       webhookRequest(`${body} `, {
         "x-signature": sign(timestamp, body),
         "x-timestamp": timestamp,
-      })
+      }),
     );
     expect(tampered.status).toBe(400);
 
     const mismatch = await POST(
-      webhookRequest(body, { "x-signature": "deadbeef", "x-timestamp": timestamp })
+      webhookRequest(body, {
+        "x-signature": "deadbeef",
+        "x-timestamp": timestamp,
+      }),
     );
     expect(mismatch.status).toBe(400);
 
@@ -145,7 +157,7 @@ describe("POST /api/webhooks/airwallex", () => {
       webhookRequest(body, {
         "x-signature": sign(staleStamp, body),
         "x-timestamp": staleStamp,
-      })
+      }),
     );
     expect(stale.status).toBe(400);
 
@@ -163,10 +175,12 @@ describe("POST /api/webhooks/airwallex", () => {
         id: "evt_invalid",
         name: "payment_intent.succeeded",
         data: { object: { status: "SUCCEEDED" } },
-      })
+      }),
     );
     expect(response.status).toBe(500);
-    expect(db.rowsOf("orders")[0].payment_status).toBe("requires_payment_method");
+    expect(db.rowsOf("orders")[0].payment_status).toBe(
+      "requires_payment_method",
+    );
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
   });
 
@@ -175,12 +189,22 @@ describe("POST /api/webhooks/airwallex", () => {
       id: "evt_dup",
       name: "payment_intent.succeeded",
       created_at: new Date().toISOString(),
-      data: { object: { id: "int_1", status: "SUCCEEDED", amount: 115, currency: "USD" } },
+      data: {
+        object: {
+          id: "int_1",
+          status: "SUCCEEDED",
+          amount: 115,
+          currency: "USD",
+        },
+      },
     };
     expect((await POST(signed(payload))).status).toBe(200);
     const duplicate = await POST(signed(payload));
     expect(duplicate.status).toBe(200);
-    await expect(duplicate.json()).resolves.toEqual({ received: true, duplicate: true });
+    await expect(duplicate.json()).resolves.toEqual({
+      received: true,
+      duplicate: true,
+    });
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
     expect(db.rowsOf("payment_webhook_events")).toHaveLength(1);
   });

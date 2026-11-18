@@ -20,7 +20,9 @@ export default function ForgetMassProduced() {
               Beyond mass production, closer to ritual.
             </h2>
             <p className="mt-6 text-sm leading-7 text-white/68">
-              From our design studio to materials sourced around the world, every piece is shaped by considered proportions, distinctive stones, and the details that make it yours.
+              From our design studio to materials sourced around the world,
+              every piece is shaped by considered proportions, distinctive
+              stones, and the details that make it yours.
             </p>
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
               {[
@@ -65,7 +67,9 @@ export default function ForgetMassProduced() {
             >
               Collected pieces
             </p>
-            <p className="mt-2 text-sm leading-6 text-white/82">{LIFESTYLE_CAPTION_BODY}</p>
+            <p className="mt-2 text-sm leading-6 text-white/82">
+              {LIFESTYLE_CAPTION_BODY}
+            </p>
           </div>
         </div>
       </div>

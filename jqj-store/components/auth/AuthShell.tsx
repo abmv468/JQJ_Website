@@ -6,7 +6,11 @@ export default function AuthShell({ children }: { children: React.ReactNode }) {
   return (
     <div className={`jq-auth ${typesetFontVariables}`}>
       <header className="auth-header">
-        <Link href="/" className="wordmark" aria-label={`${BRAND_EN} ${BRAND_ZH}`}>
+        <Link
+          href="/"
+          className="wordmark"
+          aria-label={`${BRAND_EN} ${BRAND_ZH}`}
+        >
           <span className="wordmark-en">{BRAND_EN}</span>
           <span className="wordmark-dot" aria-hidden="true">
             ·

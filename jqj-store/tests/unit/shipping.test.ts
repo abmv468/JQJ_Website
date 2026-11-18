@@ -15,7 +15,9 @@ const CASES = [
 describe("computeShippingUsd", () => {
   it.each(CASES)("USD $usd ships at $shipping", ({ usd, shipping }) => {
     expect(computeShippingUsd(usd)).toBe(shipping);
-    expect(computeShippingUsd([{ unitPriceUsd: usd, quantity: 1 }])).toBe(shipping);
+    expect(computeShippingUsd([{ unitPriceUsd: usd, quantity: 1 }])).toBe(
+      shipping,
+    );
     expect(computeShippingUsd(String(usd))).toBe(shipping);
   });
 
@@ -33,7 +35,7 @@ describe("computeShippingUsd", () => {
       computeShippingUsd([
         { unitPriceUsd: 19.99, quantity: 1 },
         { unitPriceUsd: 230, quantity: 1 },
-      ])
+      ]),
     ).toBe(SHIPPING_FLAT_USD);
     expect(computeShippingUsd([{ unitPriceUsd: 249.99, quantity: 2 }])).toBe(0);
     expect(computeShippingUsd(499.98)).toBe(0);
@@ -42,7 +44,9 @@ describe("computeShippingUsd", () => {
   it("applies the threshold to the post-discount merchandise subtotal", () => {
     expect(computeShippingUsd(260, 10)).toBe(0);
     expect(computeShippingUsd(260, 10.01)).toBe(SHIPPING_FLAT_USD);
-    expect(computeShippingUsd([{ unitPriceUsd: 300, quantity: 1 }], 50.01)).toBe(SHIPPING_FLAT_USD);
+    expect(
+      computeShippingUsd([{ unitPriceUsd: 300, quantity: 1 }], 50.01),
+    ).toBe(SHIPPING_FLAT_USD);
     expect(computeShippingUsd(260, 0)).toBe(0);
   });
 
@@ -51,10 +55,13 @@ describe("computeShippingUsd", () => {
     ({ usd, shipping }) => {
       const eurDisplay = convertUsdToCurrency(usd, "EUR");
       const onUsd = computeShippingUsd(usd);
-      const ifTheEurFigureWereCompared = eurDisplay >= FREE_SHIPPING_THRESHOLD_USD ? 0 : SHIPPING_FLAT_USD;
+      const ifTheEurFigureWereCompared =
+        eurDisplay >= FREE_SHIPPING_THRESHOLD_USD ? 0 : SHIPPING_FLAT_USD;
 
       expect(onUsd).toBe(shipping);
-      expect(onUsd).toBe(computeShippingUsd([{ unitPriceUsd: usd, quantity: 1 }]));
+      expect(onUsd).toBe(
+        computeShippingUsd([{ unitPriceUsd: usd, quantity: 1 }]),
+      );
       expect(eurDisplay).not.toBe(usd);
 
       if (usd === FREE_SHIPPING_THRESHOLD_USD) {
@@ -62,6 +69,6 @@ describe("computeShippingUsd", () => {
         expect(ifTheEurFigureWereCompared).toBe(SHIPPING_FLAT_USD);
         expect(onUsd).toBe(0);
       }
-    }
+    },
   );
 });

@@ -1,14 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "@/app/api/cron/release-reservations/route";
 import { authorizeCronRequest } from "@/lib/payments/cron-auth";
-import { createCheckoutDb, setActiveDb, type MemoryDb } from "../helpers/memory-db";
+import {
+  createCheckoutDb,
+  setActiveDb,
+  type MemoryDb,
+} from "../helpers/memory-db";
 
 const SECRET = "cron_test_secret";
 
 function cronRequest(authorization?: string) {
   const headers = new Headers();
   if (authorization !== undefined) headers.set("authorization", authorization);
-  return new Request("http://localhost:3000/api/cron/release-reservations", { headers });
+  return new Request("http://localhost:3000/api/cron/release-reservations", {
+    headers,
+  });
 }
 
 function hoursAgo(hours: number) {
@@ -76,15 +82,23 @@ describe("GET /api/cron/release-reservations", () => {
     expect(response.status).toBe(401);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
-    expect(db.rpcCalls.filter((call) => call.fn === "restore_order_inventory")).toHaveLength(0);
+    expect(
+      db.rpcCalls.filter((call) => call.fn === "restore_order_inventory"),
+    ).toHaveLength(0);
   });
 
   it("rejects a whitespace-only secret with an identical raw bearer", async () => {
     const secret = "   ";
     const token = `Bearer ${secret}`;
 
-    expect(authorizeCronRequest(token, secret)).toEqual({ ok: false, reason: "missing_secret" });
-    expect(authorizeCronRequest("Bearer", secret)).toEqual({ ok: false, reason: "missing_secret" });
+    expect(authorizeCronRequest(token, secret)).toEqual({
+      ok: false,
+      reason: "missing_secret",
+    });
+    expect(authorizeCronRequest("Bearer", secret)).toEqual({
+      ok: false,
+      reason: "missing_secret",
+    });
 
     process.env.CRON_SECRET = secret;
     const response = await GET(cronRequest("Bearer"));

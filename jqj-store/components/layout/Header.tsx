@@ -5,8 +5,22 @@ import Image from "next/image";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowUpRight, ChevronDown, Menu, Search, ShoppingBag, User, X } from "lucide-react";
-import { AnimatePresence, LazyMotion, domAnimation, m, useReducedMotion } from "framer-motion";
+import {
+  ArrowUpRight,
+  ChevronDown,
+  Menu,
+  Search,
+  ShoppingBag,
+  User,
+  X,
+} from "lucide-react";
+import {
+  AnimatePresence,
+  LazyMotion,
+  domAnimation,
+  m,
+  useReducedMotion,
+} from "framer-motion";
 import { useCart } from "@/context/CartContext";
 import { isCartBadgeHidden } from "@/lib/cart-storage";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -60,24 +74,60 @@ const megaMenus: Record<MegaMenuKey, MegaMenuConfig> = {
       {
         title: "Style",
         items: [
-          { label: "Chain Necklaces", href: queryHref("necklaces", "Chain Necklaces") },
-          { label: "Charm Necklaces", href: queryHref("necklaces", "Charm Necklaces") },
-          { label: "Initial Necklaces", href: queryHref("necklaces", "Initial Necklaces") },
-          { label: "Layered Necklaces", href: queryHref("necklaces", "Layered Necklaces") },
-          { label: "Pendant Necklaces", href: queryHref("necklaces", "Pendant Necklaces") },
-          { label: "Solitaire Necklaces", href: queryHref("necklaces", "Solitaire Necklaces") },
-          { label: "Station Necklaces", href: queryHref("necklaces", "Station Necklaces") },
-          { label: "Y & Lariat Necklaces", href: queryHref("necklaces", "Y and Lariat Necklaces") },
+          {
+            label: "Chain Necklaces",
+            href: queryHref("necklaces", "Chain Necklaces"),
+          },
+          {
+            label: "Charm Necklaces",
+            href: queryHref("necklaces", "Charm Necklaces"),
+          },
+          {
+            label: "Initial Necklaces",
+            href: queryHref("necklaces", "Initial Necklaces"),
+          },
+          {
+            label: "Layered Necklaces",
+            href: queryHref("necklaces", "Layered Necklaces"),
+          },
+          {
+            label: "Pendant Necklaces",
+            href: queryHref("necklaces", "Pendant Necklaces"),
+          },
+          {
+            label: "Solitaire Necklaces",
+            href: queryHref("necklaces", "Solitaire Necklaces"),
+          },
+          {
+            label: "Station Necklaces",
+            href: queryHref("necklaces", "Station Necklaces"),
+          },
+          {
+            label: "Y & Lariat Necklaces",
+            href: queryHref("necklaces", "Y and Lariat Necklaces"),
+          },
         ],
       },
       {
         title: "Collection",
         items: [
-          { label: "Birthstones Series", href: queryHref("necklaces", "Birthstones") },
-          { label: "Celestial Keepsakes", href: queryHref("necklaces", "Celestial") },
-          { label: "Initials Series", href: queryHref("necklaces", "Initials") },
+          {
+            label: "Birthstones Series",
+            href: queryHref("necklaces", "Birthstones"),
+          },
+          {
+            label: "Celestial Keepsakes",
+            href: queryHref("necklaces", "Celestial"),
+          },
+          {
+            label: "Initials Series",
+            href: queryHref("necklaces", "Initials"),
+          },
           { label: "Pearl Collective", href: queryHref("necklaces", "Pearl") },
-          { label: "Waterproof Edit", href: queryHref("necklaces", "Waterproof") },
+          {
+            label: "Waterproof Edit",
+            href: queryHref("necklaces", "Waterproof"),
+          },
         ],
       },
       {
@@ -103,13 +153,28 @@ const megaMenus: Record<MegaMenuKey, MegaMenuConfig> = {
       {
         title: "Shop by Colour",
         items: [
-          { label: "Black & Gray", href: queryHref("bracelets", "Black and Gray") },
+          {
+            label: "Black & Gray",
+            href: queryHref("bracelets", "Black and Gray"),
+          },
           { label: "Cool Blues", href: queryHref("bracelets", "Cool Blues") },
-          { label: "Earth Browns & Beige", href: queryHref("bracelets", "Earth Browns and Beige") },
-          { label: "Warm Reds & Orange", href: queryHref("bracelets", "Warm Reds and Orange") },
-          { label: "Royal Purple", href: queryHref("bracelets", "Royal Purple") },
+          {
+            label: "Earth Browns & Beige",
+            href: queryHref("bracelets", "Earth Browns and Beige"),
+          },
+          {
+            label: "Warm Reds & Orange",
+            href: queryHref("bracelets", "Warm Reds and Orange"),
+          },
+          {
+            label: "Royal Purple",
+            href: queryHref("bracelets", "Royal Purple"),
+          },
           { label: "Rich Green", href: queryHref("bracelets", "Rich Green") },
-          { label: "White & Light Tones", href: queryHref("bracelets", "White and Light Tones") },
+          {
+            label: "White & Light Tones",
+            href: queryHref("bracelets", "White and Light Tones"),
+          },
           { label: "Multi-colour", href: queryHref("bracelets", "Multicolor") },
         ],
       },
@@ -118,9 +183,15 @@ const megaMenus: Record<MegaMenuKey, MegaMenuConfig> = {
         items: [
           { label: "Mini Beads", href: queryHref("bracelets", "Mini Beads") },
           { label: "Small Beads", href: queryHref("bracelets", "Small Beads") },
-          { label: "Medium Beads", href: queryHref("bracelets", "Medium Beads") },
+          {
+            label: "Medium Beads",
+            href: queryHref("bracelets", "Medium Beads"),
+          },
           { label: "Big Beads", href: queryHref("bracelets", "Big Beads") },
-          { label: "Mixed Size Beads", href: queryHref("bracelets", "Mixed Size Beads") },
+          {
+            label: "Mixed Size Beads",
+            href: queryHref("bracelets", "Mixed Size Beads"),
+          },
         ],
       },
     ],
@@ -137,7 +208,9 @@ const megaMenuRouteKeys = Object.keys(megaMenus) as MegaMenuKey[];
 
 function getMegaMenuKeyByHref(href: string): MegaMenuKey | null {
   const route = href.split("?")[0].replace("/", "");
-  return megaMenuRouteKeys.includes(route as MegaMenuKey) ? (route as MegaMenuKey) : null;
+  return megaMenuRouteKeys.includes(route as MegaMenuKey)
+    ? (route as MegaMenuKey)
+    : null;
 }
 
 export default function Header() {
@@ -153,9 +226,14 @@ export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [hoveredMegaMenu, setHoveredMegaMenu] = useState<MegaMenuKey | null>(null);
-  const [pinnedMegaMenu, setPinnedMegaMenu] = useState<MegaMenuKey | null>(null);
-  const [mobileExpandedMenu, setMobileExpandedMenu] = useState<MegaMenuKey | null>(null);
+  const [hoveredMegaMenu, setHoveredMegaMenu] = useState<MegaMenuKey | null>(
+    null,
+  );
+  const [pinnedMegaMenu, setPinnedMegaMenu] = useState<MegaMenuKey | null>(
+    null,
+  );
+  const [mobileExpandedMenu, setMobileExpandedMenu] =
+    useState<MegaMenuKey | null>(null);
   const [mobileMenuTop, setMobileMenuTop] = useState(0);
   const [isClient, setIsClient] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -183,7 +261,10 @@ export default function Header() {
     }, 110);
   }
 
-  function handleMegaMenuLinkClick(event: React.MouseEvent<HTMLAnchorElement>, key: MegaMenuKey) {
+  function handleMegaMenuLinkClick(
+    event: React.MouseEvent<HTMLAnchorElement>,
+    key: MegaMenuKey,
+  ) {
     if (pinnedMegaMenu !== key) {
       event.preventDefault();
       setPinnedMegaMenu(key);
@@ -259,9 +340,13 @@ export default function Header() {
       const headerRect = headerRef.current?.getBoundingClientRect();
       if (!headerRect) return;
 
-      const announcementRect = headerRef.current?.previousElementSibling?.getBoundingClientRect();
+      const announcementRect =
+        headerRef.current?.previousElementSibling?.getBoundingClientRect();
       const announcementBottom = Math.max(0, announcementRect?.bottom ?? 0);
-      const safeTop = Math.max(headerRect.bottom, announcementBottom + headerRect.height);
+      const safeTop = Math.max(
+        headerRect.bottom,
+        announcementBottom + headerRect.height,
+      );
 
       setMobileMenuTop(Math.max(0, Math.round(safeTop)));
     };
@@ -349,11 +434,18 @@ export default function Header() {
               onClick={() => {
                 setMobileExpandedMenu(null);
                 const headerRect = headerRef.current?.getBoundingClientRect();
-                const announcementRect = headerRef.current?.previousElementSibling?.getBoundingClientRect();
+                const announcementRect =
+                  headerRef.current?.previousElementSibling?.getBoundingClientRect();
 
                 if (headerRect) {
-                  const announcementBottom = Math.max(0, announcementRect?.bottom ?? 0);
-                  const safeTop = Math.max(headerRect.bottom, announcementBottom + headerRect.height);
+                  const announcementBottom = Math.max(
+                    0,
+                    announcementRect?.bottom ?? 0,
+                  );
+                  const safeTop = Math.max(
+                    headerRect.bottom,
+                    announcementBottom + headerRect.height,
+                  );
                   setMobileMenuTop(Math.max(0, Math.round(safeTop)));
                 }
                 setMobileOpen(true);
@@ -406,7 +498,11 @@ export default function Header() {
             </nav>
           </div>
 
-          <Link href="/" aria-label="Jewellery Quintessential home" className="group shrink-0">
+          <Link
+            href="/"
+            aria-label="Jewellery Quintessential home"
+            className="group shrink-0"
+          >
             <Image
               src="/header/monogram-jq.png"
               alt=""
@@ -419,7 +515,10 @@ export default function Header() {
             />
           </Link>
 
-          <m.div layout className="flex flex-1 items-center justify-end gap-2 sm:gap-3">
+          <m.div
+            layout
+            className="flex flex-1 items-center justify-end gap-2 sm:gap-3"
+          >
             <m.div layout className="hidden items-center gap-2 sm:flex">
               <button
                 type="button"
@@ -434,10 +533,21 @@ export default function Header() {
                 {searchOpen && (
                   <m.form
                     key="header-search"
-                    initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, x: -10, scale: 0.98 }}
+                    initial={
+                      shouldReduceMotion
+                        ? { opacity: 1 }
+                        : { opacity: 0, x: -10, scale: 0.98 }
+                    }
                     animate={{ opacity: 1, x: 0, scale: 1 }}
-                    exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: -8, scale: 0.98 }}
-                    transition={{ duration: shouldReduceMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
+                    exit={
+                      shouldReduceMotion
+                        ? { opacity: 0 }
+                        : { opacity: 0, x: -8, scale: 0.98 }
+                    }
+                    transition={{
+                      duration: shouldReduceMotion ? 0 : 0.2,
+                      ease: [0.22, 1, 0.36, 1],
+                    }}
                     onSubmit={handleSearchSubmit}
                     className="flex h-10 w-[17rem] items-center rounded-brand border border-white/20 bg-black/55 px-2 shadow-[0_10px_24px_rgba(0,0,0,0.24)] backdrop-blur"
                   >
@@ -472,12 +582,18 @@ export default function Header() {
               <select
                 id="header-currency"
                 value={currency}
-                onChange={(event) => setCurrency(event.target.value as typeof currency)}
+                onChange={(event) =>
+                  setCurrency(event.target.value as typeof currency)
+                }
                 className="h-11 rounded-full border border-white/10 bg-white/[0.02] px-3 font-heading text-[10px] uppercase tracking-[0.14em] text-white/72 outline-none transition-[border-color,background-color,color] duration-200 hover:border-white/20 hover:bg-white/[0.05] hover:text-white"
                 aria-label="Currency"
               >
                 {supportedCurrencies.map((code) => (
-                  <option key={code} value={code} className="bg-brand-surface text-white">
+                  <option
+                    key={code}
+                    value={code}
+                    className="bg-brand-surface text-white"
+                  >
                     {code}
                   </option>
                 ))}
@@ -486,7 +602,11 @@ export default function Header() {
 
             <m.div layout>
               {signedIn ? (
-                <Link href="/account" aria-label="Account" className="icon-button hidden sm:inline-flex">
+                <Link
+                  href="/account"
+                  aria-label="Account"
+                  className="icon-button hidden sm:inline-flex"
+                >
                   <User className="h-5 w-5" />
                 </Link>
               ) : (
@@ -516,7 +636,9 @@ export default function Header() {
               </span>
               <span
                 className={`absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border border-black/10 bg-brand-gold px-1 text-[10px] font-semibold text-black transition-[opacity,transform] ${
-                  badgeHidden ? "translate-y-1 opacity-0" : "translate-y-0 opacity-100"
+                  badgeHidden
+                    ? "translate-y-1 opacity-0"
+                    : "translate-y-0 opacity-100"
                 }`}
               >
                 {hydrated ? itemCount : ""}
@@ -529,10 +651,15 @@ export default function Header() {
           {activeMegaMenu && (
             <m.div
               key={activeMegaMenu}
-              initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: -8 }}
+              initial={
+                shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: -8 }
+              }
               animate={{ opacity: 1, y: 0 }}
               exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
-              transition={{ duration: shouldReduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
+              transition={{
+                duration: shouldReduceMotion ? 0 : 0.18,
+                ease: [0.22, 1, 0.36, 1],
+              }}
               className="hidden border-t lg:block"
               onMouseEnter={clearMegaMenuTimer}
               onMouseLeave={closeMegaMenuWithDelay}
@@ -579,7 +706,10 @@ export default function Header() {
                         </div>
 
                         <div className="grid w-full max-w-[360px] gap-6 md:grid-cols-1">
-                          <Link href={config.card.href} className="group block self-start">
+                          <Link
+                            href={config.card.href}
+                            className="group block self-start"
+                          >
                             <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-3">
                               <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-black">
                                 <Image
@@ -630,9 +760,17 @@ export default function Header() {
                     }}
                   />
                   <m.div
-                    initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, x: -18, scale: 0.98 }}
+                    initial={
+                      shouldReduceMotion
+                        ? { opacity: 1 }
+                        : { opacity: 0, x: -18, scale: 0.98 }
+                    }
                     animate={{ opacity: 1, x: 0, scale: 1 }}
-                    exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: -14, scale: 0.99 }}
+                    exit={
+                      shouldReduceMotion
+                        ? { opacity: 0 }
+                        : { opacity: 0, x: -14, scale: 0.99 }
+                    }
                     transition={{
                       duration: shouldReduceMotion ? 0 : 0.24,
                       ease: [0.23, 1, 0.32, 1],
@@ -663,7 +801,8 @@ export default function Header() {
                         const megaKey = getMegaMenuKeyByHref(l.href);
 
                         if (!megaKey) {
-                          const current = journalCurrent && l.href === "/journal";
+                          const current =
+                            journalCurrent && l.href === "/journal";
                           return (
                             <Link
                               key={l.href}
@@ -673,7 +812,13 @@ export default function Header() {
                               aria-current={current ? "page" : undefined}
                               onClick={() => setMobileOpen(false)}
                             >
-                              <span className={current ? "mobile-nav-current" : undefined}>{l.label}</span>
+                              <span
+                                className={
+                                  current ? "mobile-nav-current" : undefined
+                                }
+                              >
+                                {l.label}
+                              </span>
                               <span className="text-white/28">/</span>
                             </Link>
                           );
@@ -702,7 +847,9 @@ export default function Header() {
                                 aria-expanded={expanded}
                                 className="inline-flex h-9 w-9 shrink-0 items-center justify-center text-white/84"
                                 onClick={() =>
-                                  setMobileExpandedMenu((prev) => (prev === megaKey ? null : megaKey))
+                                  setMobileExpandedMenu((prev) =>
+                                    prev === megaKey ? null : megaKey,
+                                  )
                                 }
                               >
                                 <ChevronDown
@@ -778,11 +925,17 @@ export default function Header() {
                         <select
                           id="mobile-currency"
                           value={currency}
-                          onChange={(event) => setCurrency(event.target.value as typeof currency)}
+                          onChange={(event) =>
+                            setCurrency(event.target.value as typeof currency)
+                          }
                           className="rounded-full border border-white/12 bg-white/[0.03] px-3 py-2 font-heading text-[10px] uppercase tracking-[0.14em] text-white/86"
                         >
                           {supportedCurrencies.map((code) => (
-                            <option key={code} value={code} className="bg-brand-surface text-white">
+                            <option
+                              key={code}
+                              value={code}
+                              className="bg-brand-surface text-white"
+                            >
                               {code}
                             </option>
                           ))}
@@ -798,13 +951,17 @@ export default function Header() {
                           Sign Out
                         </button>
                       )}
-                      {signOutError && <p className="pt-4 text-xs text-red-400">{signOutError}</p>}
+                      {signOutError && (
+                        <p className="pt-4 text-xs text-red-400">
+                          {signOutError}
+                        </p>
+                      )}
                     </nav>
                   </m.div>
                 </m.div>
               )}
             </AnimatePresence>,
-            document.body
+            document.body,
           )}
       </header>
     </LazyMotion>

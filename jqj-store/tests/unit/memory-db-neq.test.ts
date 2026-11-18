@@ -10,7 +10,10 @@ describe("memory db neq", () => {
       { id: "order-paid", status: "paid", payment_status: "succeeded" },
     ]);
 
-    const { data, error } = await db.from("orders").select("id").neq("payment_status", "succeeded");
+    const { data, error } = await db
+      .from("orders")
+      .select("id")
+      .neq("payment_status", "succeeded");
 
     expect(error).toBeNull();
     expect(data).toEqual([{ id: "order-pending" }]);

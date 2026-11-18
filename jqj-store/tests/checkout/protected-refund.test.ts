@@ -2,14 +2,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/admin/orders/route";
 import { createAirwallexRefund } from "@/lib/payments/airwallex";
 import { applyAirwallexRefundEvent } from "@/lib/payments/airwallex-orders";
-import { createCheckoutDb, setActiveDb, type MemoryDb } from "../helpers/memory-db";
+import {
+  createCheckoutDb,
+  setActiveDb,
+  type MemoryDb,
+} from "../helpers/memory-db";
 
 vi.mock("@supabase/supabase-js", () => ({
   createClient: () => ({
     auth: {
       getUser: async (token: string) => {
         if (token === "admin-token") {
-          return { data: { user: { email: "admin@example.com" } }, error: null };
+          return {
+            data: { user: { email: "admin@example.com" } },
+            error: null,
+          };
         }
         return { data: { user: null }, error: { message: "invalid" } };
       },
@@ -18,9 +25,9 @@ vi.mock("@supabase/supabase-js", () => ({
 }));
 
 vi.mock("@/lib/payments/airwallex", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/payments/airwallex")>(
-    "@/lib/payments/airwallex"
-  );
+  const actual = await vi.importActual<
+    typeof import("@/lib/payments/airwallex")
+  >("@/lib/payments/airwallex");
   return {
     ...actual,
     createAirwallexRefund: vi.fn(),
@@ -29,7 +36,12 @@ vi.mock("@/lib/payments/airwallex", async () => {
 
 function seedOrder(
   db: MemoryDb,
-  order: { id: string; status: string; salesChannel?: string; refunded?: number }
+  order: {
+    id: string;
+    status: string;
+    salesChannel?: string;
+    refunded?: number;
+  },
 ) {
   db.seed("orders", [
     {
@@ -59,7 +71,12 @@ function seedOrder(
   ]);
 }
 
-async function settle(db: MemoryDb, orderId: string, refundId: string, amount: number) {
+async function settle(
+  db: MemoryDb,
+  orderId: string,
+  refundId: string,
+  amount: number,
+) {
   return applyAirwallexRefundEvent(db as never, {
     eventName: "refund.settled",
     refundObject: {
@@ -110,7 +127,7 @@ describe("refunds on protected orders", () => {
       "fetch",
       vi.fn(async () => {
         throw new Error("unexpected network call");
-      })
+      }),
     );
   });
 
@@ -133,7 +150,11 @@ describe("refunds on protected orders", () => {
   });
 
   it("keeps a test order from being revived by a refund", async () => {
-    seedOrder(db, { id: "order-test", status: "pending", salesChannel: "test" });
+    seedOrder(db, {
+      id: "order-test",
+      status: "pending",
+      salesChannel: "test",
+    });
 
     await settle(db, "order-test", "rf_test_partial", 20);
     expect(db.rowsOf("orders")[0]).toMatchObject({
@@ -189,13 +210,16 @@ describe("refunds on protected orders", () => {
           call.fn === "reserve_order_inventory" ||
           call.fn === "restore_order_inventory" ||
           call.fn === "reserve_inventory" ||
-          call.fn === "restore_inventory"
-      )
+          call.fn === "restore_inventory",
+      ),
     ).toEqual([]);
-    const orderWrites = db.writes.filter((write) => write.table === "orders" && write.op === "update");
+    const orderWrites = db.writes.filter(
+      (write) => write.table === "orders" && write.op === "update",
+    );
     expect(orderWrites.length).toBeGreaterThan(0);
     for (const write of orderWrites) {
-      const payload = write.payload && !Array.isArray(write.payload) ? write.payload : {};
+      const payload =
+        write.payload && !Array.isArray(write.payload) ? write.payload : {};
       expect(payload).not.toHaveProperty("inventory_reserved");
     }
     expect(db.writes.filter((write) => write.table === "products")).toEqual([]);
@@ -203,25 +227,45 @@ describe("refunds on protected orders", () => {
 
   it("still applies a refund when the order is cancelled or a test order", async () => {
     seedOrder(db, { id: "order-cancelled", status: "cancelled" });
-    const cancelled = await settle(db, "order-cancelled", "rf_allowed_cancelled", 20);
-    expect(cancelled).toMatchObject({ applied: true, orderId: "order-cancelled" });
+    const cancelled = await settle(
+      db,
+      "order-cancelled",
+      "rf_allowed_cancelled",
+      20,
+    );
+    expect(cancelled).toMatchObject({
+      applied: true,
+      orderId: "order-cancelled",
+    });
     expect(cancelled).not.toMatchObject({ reason: "protected_order" });
-    expect(db.rowsOf("orders").find((row) => row.id === "order-cancelled")).toMatchObject({
+    expect(
+      db.rowsOf("orders").find((row) => row.id === "order-cancelled"),
+    ).toMatchObject({
       status: "cancelled",
       refunded_amount: 20,
     });
 
-    seedOrder(db, { id: "order-test", status: "pending", salesChannel: "test" });
+    seedOrder(db, {
+      id: "order-test",
+      status: "pending",
+      salesChannel: "test",
+    });
     const testOrder = await settle(db, "order-test", "rf_allowed_test", 20);
     expect(testOrder).toMatchObject({ applied: true, orderId: "order-test" });
     expect(testOrder).not.toMatchObject({ reason: "protected_order" });
-    expect(db.rowsOf("orders").find((row) => row.id === "order-test")).toMatchObject({
+    expect(
+      db.rowsOf("orders").find((row) => row.id === "order-test"),
+    ).toMatchObject({
       status: "pending",
       sales_channel: "test",
       refunded_amount: 20,
     });
 
-    seedOrder(db, { id: "order-route", status: "pending", salesChannel: "test" });
+    seedOrder(db, {
+      id: "order-route",
+      status: "pending",
+      salesChannel: "test",
+    });
     const response = await POST(refundRequest("order-route"));
     const body = await response.json();
 
@@ -229,7 +273,9 @@ describe("refunds on protected orders", () => {
     expect(createAirwallexRefund).toHaveBeenCalledTimes(1);
     expect(body.error).toBeUndefined();
     expect(JSON.stringify(body)).not.toContain("protected_order");
-    expect(db.rowsOf("orders").find((row) => row.id === "order-route")).toMatchObject({
+    expect(
+      db.rowsOf("orders").find((row) => row.id === "order-route"),
+    ).toMatchObject({
       status: "pending",
       sales_channel: "test",
       refunded_amount: 20,

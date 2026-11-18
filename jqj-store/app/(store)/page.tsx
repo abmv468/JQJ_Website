@@ -19,7 +19,8 @@ export default function HomePage() {
             <p className="eyebrow">Signature Pieces</p>
             <h2 className="section-title">Designed to be kept</h2>
             <p className="section-lead text-[13px] sm:text-sm md:text-[15px]">
-              Our most collected bracelets and necklaces—selected for balance, wearability, and the kind of presence that gets better with time.
+              Our most collected bracelets and necklaces—selected for balance,
+              wearability, and the kind of presence that gets better with time.
             </p>
           </div>
 

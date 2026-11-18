@@ -4,7 +4,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import CheckoutPage from "@/app/(store)/checkout/page";
 import { POST as postAirwallex } from "@/app/api/checkout/airwallex/route";
 import { POST as postCod } from "@/app/api/checkout/cod/route";
-import { COD_FEE, CARD_CURRENCY_NOTICE, COD_FREE_LABEL } from "@/lib/checkout-fees";
+import {
+  COD_FEE,
+  CARD_CURRENCY_NOTICE,
+  COD_FREE_LABEL,
+} from "@/lib/checkout-fees";
 import { convertUsdToCurrency, type SupportedCurrency } from "@/lib/currency";
 import {
   buildCheckoutSummary,
@@ -22,9 +26,9 @@ import {
 } from "../helpers/memory-db";
 
 vi.mock("@/lib/payments/airwallex", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/payments/airwallex")>(
-    "@/lib/payments/airwallex"
-  );
+  const actual = await vi.importActual<
+    typeof import("@/lib/payments/airwallex")
+  >("@/lib/payments/airwallex");
   return {
     ...actual,
     createAirwallexPaymentIntent: vi.fn(),
@@ -66,7 +70,10 @@ const cartState = vi.hoisted(() => ({
 vi.mock("@/context/CartContext", () => ({
   useCart: () => ({
     items: cartState.items,
-    subtotal: cartState.items.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    subtotal: cartState.items.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0,
+    ),
     clearCart: () => undefined,
   }),
 }));
@@ -88,25 +95,39 @@ function moneyStrings(summary: CheckoutSummary) {
   ];
 }
 
-function expectEntirelyUsd(summary: CheckoutSummary, display: SupportedCurrency) {
+function expectEntirelyUsd(
+  summary: CheckoutSummary,
+  display: SupportedCurrency,
+) {
   expect(summary.currency).toBe("USD");
-  expect(summary.lines[0]?.formatted).toBe(formatPrice(summary.lines[0]?.amountUsd ?? 0, { currency: "USD" }));
-  expect(summary.subtotal).toBe(formatPrice(summary.subtotalUsd, { currency: "USD" }));
-  expect(summary.shipping).toBe(formatPrice(summary.shippingUsd, { currency: "USD" }));
-  expect(summary.codFee).toBe(formatPrice(summary.codFeeUsd, { currency: "USD" }));
-  expect(summary.total).toBe(formatPrice(summary.totalUsd, { currency: "USD" }));
+  expect(summary.lines[0]?.formatted).toBe(
+    formatPrice(summary.lines[0]?.amountUsd ?? 0, { currency: "USD" }),
+  );
+  expect(summary.subtotal).toBe(
+    formatPrice(summary.subtotalUsd, { currency: "USD" }),
+  );
+  expect(summary.shipping).toBe(
+    formatPrice(summary.shippingUsd, { currency: "USD" }),
+  );
+  expect(summary.codFee).toBe(
+    formatPrice(summary.codFeeUsd, { currency: "USD" }),
+  );
+  expect(summary.total).toBe(
+    formatPrice(summary.totalUsd, { currency: "USD" }),
+  );
 
   for (const formatted of moneyStrings(summary)) {
     expect(formatted).toBe(
-      formatPrice(
-        Number(formatted.replace(/[^0-9.]/g, "")),
-        { currency: "USD" }
-      )
+      formatPrice(Number(formatted.replace(/[^0-9.]/g, "")), {
+        currency: "USD",
+      }),
     );
     if (display !== "USD") {
       const amount = Number(formatted.replace(/[^0-9.]/g, ""));
       expect(formatted).not.toBe(
-        formatPrice(convertUsdToCurrency(amount, display), { currency: display })
+        formatPrice(convertUsdToCurrency(amount, display), {
+          currency: display,
+        }),
       );
     }
   }
@@ -116,7 +137,7 @@ function summaryFromPrices(
   display: SupportedCurrency,
   codFeeUsd: number,
   unitPriceUsd: number,
-  quantity: number
+  quantity: number,
 ) {
   const items = [
     {
@@ -151,7 +172,7 @@ describe("checkout summary charge currency", () => {
       "fetch",
       vi.fn(async () => {
         throw new Error("unexpected network call");
-      })
+      }),
     );
     vi.mocked(createAirwallexPaymentIntent).mockReset();
     vi.mocked(createAirwallexPaymentIntent).mockResolvedValue({
@@ -177,7 +198,7 @@ describe("checkout summary charge currency", () => {
           currency: "USD",
           idempotencyKey: REQUEST_ID,
         }),
-      })
+      }),
     );
 
     expect(response.status).toBe(200);
@@ -188,11 +209,13 @@ describe("checkout summary charge currency", () => {
     expect(summary.totalUsd).not.toBe(CLIENT_PRICE * QTY + SHIPPING_USD);
     expect(db.rowsOf("order_items")[0].price_at_purchase).toBe(DB_UNIT_USD);
     expect(createAirwallexPaymentIntent).toHaveBeenCalledWith(
-      expect.objectContaining({ amount: summary.totalUsd, currency: "USD" })
+      expect.objectContaining({ amount: summary.totalUsd, currency: "USD" }),
     );
     expectEntirelyUsd(summary, "EUR");
     expect(summary.chargeNote).toBe("Charged in USD");
-    expect(summary.lines.map((line) => line.formatted)).toEqual([formatPrice(200, { currency: "USD" })]);
+    expect(summary.lines.map((line) => line.formatted)).toEqual([
+      formatPrice(200, { currency: "USD" }),
+    ]);
     expect(summary.subtotal).toBe(formatPrice(200, { currency: "USD" }));
     expect(summary.shipping).toBe(formatPrice(15, { currency: "USD" }));
     expect(summary.total).toBe(formatPrice(215, { currency: "USD" }));
@@ -210,7 +233,7 @@ describe("checkout summary charge currency", () => {
           currency: "GBP",
           idempotencyKey: "cod-gbp-summary",
         }),
-      })
+      }),
     );
 
     expect(response.status).toBe(200);
@@ -219,8 +242,12 @@ describe("checkout summary charge currency", () => {
     expect(summary.shippingUsd).toBe(order.shipping_amount);
     expect(summary.codFeeUsd).toBe(COD_FEE);
     expect(summary.totalUsd).toBe(order.total_amount);
-    expect(summary.totalUsd).not.toBe(CLIENT_PRICE * QTY + SHIPPING_USD + COD_FEE);
-    expect(order.shipping_address).toEqual(expect.objectContaining({ cod_fee: COD_FEE }));
+    expect(summary.totalUsd).not.toBe(
+      CLIENT_PRICE * QTY + SHIPPING_USD + COD_FEE,
+    );
+    expect(order.shipping_address).toEqual(
+      expect.objectContaining({ cod_fee: COD_FEE }),
+    );
     expectEntirelyUsd(summary, "GBP");
     expect(summary.chargeNote).toBe("Charged in USD");
     expect(summary.codFee).toBe(formatPrice(COD_FEE, { currency: "USD" }));
@@ -233,7 +260,7 @@ describe("checkout summary charge currency", () => {
     expectEntirelyUsd(summary, "USD");
     expect(summary.chargeNote).toBeNull();
     expect(summary.lines[0]?.formatted).toBe(
-      formatPrice(convertUsdToCurrency(200, "USD"), { currency: "USD" })
+      formatPrice(convertUsdToCurrency(200, "USD"), { currency: "USD" }),
     );
     expect(summary.total).toBe(formatPrice(235, { currency: "USD" }));
     expect(summary.codFee).toBe("$20.00");
@@ -241,18 +268,30 @@ describe("checkout summary charge currency", () => {
 
   it("does not mix a display-currency line item with a USD total", () => {
     const summary = summaryFromDb("EUR", COD_FEE_USD);
-    const legacyLine = formatPrice(convertUsdToCurrency(200, "EUR"), { currency: "EUR" });
-    const legacyCodFee = formatPrice(convertUsdToCurrency(20, "EUR"), { currency: "EUR" });
+    const legacyLine = formatPrice(convertUsdToCurrency(200, "EUR"), {
+      currency: "EUR",
+    });
+    const legacyCodFee = formatPrice(convertUsdToCurrency(20, "EUR"), {
+      currency: "EUR",
+    });
     const chargedTotal = formatPrice(235, { currency: "USD" });
 
     expect(legacyLine).not.toBe(formatPrice(200, { currency: "USD" }));
-    expect(summary.lines[0]?.formatted).toBe(formatPrice(200, { currency: "USD" }));
+    expect(summary.lines[0]?.formatted).toBe(
+      formatPrice(200, { currency: "USD" }),
+    );
     expect(summary.lines[0]?.formatted).not.toBe(legacyLine);
     expect(summary.subtotal).not.toBe(legacyLine);
-    expect(summary.shipping).not.toBe(formatPrice(convertUsdToCurrency(15, "EUR"), { currency: "EUR" }));
+    expect(summary.shipping).not.toBe(
+      formatPrice(convertUsdToCurrency(15, "EUR"), { currency: "EUR" }),
+    );
     expect(summary.codFee).not.toBe(legacyCodFee);
     expect(summary.total).toBe(chargedTotal);
-    expect(new Set(moneyStrings(summary).map((value) => value.replace(/[0-9.,\s]/g, ""))).size).toBe(1);
+    expect(
+      new Set(
+        moneyStrings(summary).map((value) => value.replace(/[0-9.,\s]/g, "")),
+      ).size,
+    ).toBe(1);
   });
 
   it("renders the card summary in USD when the shopper's display currency is EUR or GBP", () => {
@@ -266,7 +305,9 @@ describe("checkout summary charge currency", () => {
       expect(html).toContain(formatPrice(215, { currency: "USD" }));
       expect(html).toContain("Charged in USD");
       expect(html).not.toContain(legacyLine);
-      expect(html).not.toContain(formatPrice(convertUsdToCurrency(200, currency), { currency }));
+      expect(html).not.toContain(
+        formatPrice(convertUsdToCurrency(200, currency), { currency }),
+      );
       expect(html).toContain(CARD_CURRENCY_NOTICE);
       expect(html).toContain(COD_FREE_LABEL);
       expect(html).not.toContain("sandbox");
@@ -303,7 +344,7 @@ describe("checkout summary charge currency", () => {
             currency: "USD",
             idempotencyKey: "22222222-2222-4222-8222-222222222222",
           }),
-        })
+        }),
       );
 
       expect(response.status).toBe(200);
@@ -314,12 +355,14 @@ describe("checkout summary charge currency", () => {
       expect(summary.totalUsd).toBe(usd + shipping);
       expect(summary.totalUsd).toBe(order.total_amount);
       expect(summary.shipping).toBe(formatPrice(shipping, { currency: "USD" }));
-      expect(summary.total).toBe(formatPrice(usd + shipping, { currency: "USD" }));
+      expect(summary.total).toBe(
+        formatPrice(usd + shipping, { currency: "USD" }),
+      );
       expect(createAirwallexPaymentIntent).toHaveBeenCalledWith(
-        expect.objectContaining({ amount: summary.totalUsd, currency: "USD" })
+        expect.objectContaining({ amount: summary.totalUsd, currency: "USD" }),
       );
       expectEntirelyUsd(summary, "EUR");
-    }
+    },
   );
 
   it("renders flat USD shipping under $250 and free USD shipping at and above $250", () => {
@@ -334,8 +377,12 @@ describe("checkout summary charge currency", () => {
       cartState.items[0].price = price;
       cartState.items[0].quantity = 1;
       const html = renderToStaticMarkup(createElement(CheckoutPage));
-      expect(html).toContain(`Shipping</span><span>${formatPrice(shipping, { currency: "USD" })}</span>`);
-      expect(html).toContain(formatPrice(price + shipping, { currency: "USD" }));
+      expect(html).toContain(
+        `Shipping</span><span>${formatPrice(shipping, { currency: "USD" })}</span>`,
+      );
+      expect(html).toContain(
+        formatPrice(price + shipping, { currency: "USD" }),
+      );
       expect(html).toContain("Charged in USD");
     }
   });

@@ -5,7 +5,10 @@ import { describe, expect, it } from "vitest";
 import { products } from "@/data/products";
 import { RETURNS_DAYS } from "@/lib/policy";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const root = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../..",
+);
 
 const WINDOW_SOURCES = [
   "components/home/Hero.tsx",
@@ -38,7 +41,7 @@ describe("trust copy", () => {
     expect(shipping).not.toMatch(/first resize/i);
     expect(shipping).not.toMatch(/complimentary first resize/i);
     expect(shipping).toContain(
-      "Exchange or resize requests for bracelets are accepted within ${RETURNS_DAYS} days of delivery."
+      "Exchange or resize requests for bracelets are accepted within ${RETURNS_DAYS} days of delivery.",
     );
   });
 
@@ -60,13 +63,19 @@ describe("trust copy", () => {
       expect(product.specs.Origin).toBe("Designed in Hong Kong");
     }
 
-    const bracelets = products.filter((product) => product.category === "bracelets");
-    const necklaces = products.filter((product) => product.category === "necklaces");
+    const bracelets = products.filter(
+      (product) => product.category === "bracelets",
+    );
+    const necklaces = products.filter(
+      (product) => product.category === "necklaces",
+    );
     expect(bracelets.length).toBeGreaterThan(0);
     expect(necklaces.length).toBeGreaterThan(0);
     for (const product of bracelets) {
       expect(product.features.join(" ")).not.toMatch(/first resize/i);
-      expect(product.features.join(" ")).not.toMatch(/complimentary first resize/i);
+      expect(product.features.join(" ")).not.toMatch(
+        /complimentary first resize/i,
+      );
     }
     const catalogSource = source("data/products.ts");
     const seedSource = source("supabase/seed.sql");
@@ -98,7 +107,9 @@ describe("trust copy", () => {
     }
     expect(source("components/home/Hero.tsx")).not.toContain("TRUST_LINE");
     expect(source("lib/policy.ts")).not.toContain("TRUST_LINE");
-    expect(source("components/home/Hero.tsx")).toContain("Museum-inspired since 2015");
+    expect(source("components/home/Hero.tsx")).toContain(
+      "Museum-inspired since 2015",
+    );
     expect(source("components/home/Hero.tsx")).not.toContain("craftsmanship");
   });
 

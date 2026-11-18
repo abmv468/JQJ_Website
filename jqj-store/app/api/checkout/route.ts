@@ -3,7 +3,11 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { convertUsdToCurrency, normalizeCurrency, toStripeCurrency } from "@/lib/currency";
+import {
+  convertUsdToCurrency,
+  normalizeCurrency,
+  toStripeCurrency,
+} from "@/lib/currency";
 import { computeShippingUsd } from "@/lib/shipping";
 import {
   fetchInventoryBySlugs,
@@ -28,18 +32,18 @@ async function getAuthenticatedUserId() {
             name: string;
             value: string;
             options?: Record<string, unknown>;
-          }[]
+          }[],
         ) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
+              cookieStore.set(name, value, options),
             );
           } catch {
             // No-op in route handlers when cookies cannot be set.
           }
         },
       },
-    }
+    },
   );
   const { data } = await supabase.auth.getUser();
   return data.user?.id ?? null;
@@ -61,18 +65,23 @@ export async function POST(req: Request) {
     const stripeCurrency = toStripeCurrency(selectedCurrency);
 
     const supabase = createAdminClient();
-    const slugs = Array.from(new Set(items.map((item) => item.slug).filter(Boolean) as string[]));
+    const slugs = Array.from(
+      new Set(items.map((item) => item.slug).filter(Boolean) as string[]),
+    );
     const inventoryBySlug = await fetchInventoryBySlugs(supabase, slugs);
     const validation = validateCheckoutItems(items, inventoryBySlug);
     if (!validation.ok) {
-      return NextResponse.json({ error: validation.errors[0] || "Insufficient stock" }, { status: 409 });
+      return NextResponse.json(
+        { error: validation.errors[0] || "Insufficient stock" },
+        { status: 409 },
+      );
     }
 
     const shippingAmount = computeShippingUsd(
       validation.resolved.map((line) => ({
         unitPriceUsd: line.product.price,
         quantity: line.requestedQuantity,
-      }))
+      })),
     );
     const stripe = getStripe();
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -84,11 +93,13 @@ export async function POST(req: Request) {
         product_data: {
           name:
             line.product.name +
-            ((line.variant?.size || line.variant?.material)
+            (line.variant?.size || line.variant?.material
               ? ` (${[line.variant?.size, line.variant?.material].filter(Boolean).join(" / ")})`
               : ""),
         },
-        unit_amount: Math.round(convertUsdToCurrency(line.product.price, selectedCurrency) * 100),
+        unit_amount: Math.round(
+          convertUsdToCurrency(line.product.price, selectedCurrency) * 100,
+        ),
       },
       quantity: line.requestedQuantity,
     }));
@@ -98,7 +109,9 @@ export async function POST(req: Request) {
         price_data: {
           currency: stripeCurrency,
           product_data: { name: "Shipping (UPS Express)" },
-          unit_amount: Math.round(convertUsdToCurrency(shippingAmount, selectedCurrency) * 100),
+          unit_amount: Math.round(
+            convertUsdToCurrency(shippingAmount, selectedCurrency) * 100,
+          ),
         },
         quantity: 1,
       });
@@ -114,13 +127,16 @@ export async function POST(req: Request) {
         sz: line.variant?.size ?? line.item.size,
         m: line.variant?.material ?? line.item.material,
         sku: line.variant?.sku ?? line.item.sku,
-      }))
+      })),
     );
 
     if (serializedItems.length > 4900) {
       return NextResponse.json(
-        { error: "Cart payload is too large for checkout. Please reduce item count and retry." },
-        { status: 400 }
+        {
+          error:
+            "Cart payload is too large for checkout. Please reduce item count and retry.",
+        },
+        { status: 400 },
       );
     }
 
@@ -145,12 +161,15 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json({ url: session.url }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(
+      { url: session.url },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (err) {
     console.error("[checkout]", err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Checkout failed" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

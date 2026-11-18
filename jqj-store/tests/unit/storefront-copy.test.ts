@@ -3,7 +3,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const root = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../..",
+);
 
 const ROOTS = [
   "app/(store)",
@@ -37,7 +40,8 @@ function filesUnder(relative: string): string[] {
   for (const entry of readdirSync(absolute, { withFileTypes: true })) {
     const next = path.join(relative, entry.name);
     if (entry.isDirectory()) found.push(...filesUnder(next));
-    else if (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx")) found.push(next);
+    else if (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx"))
+      found.push(next);
   }
   return found;
 }
@@ -76,7 +80,10 @@ describe("storefront copy lock", () => {
   });
 
   it("still allows craftsmanship and the legal footer line", () => {
-    const footer = readFileSync(path.join(root, "components/layout/Footer.tsx"), "utf8");
+    const footer = readFileSync(
+      path.join(root, "components/layout/Footer.tsx"),
+      "utf8",
+    );
     expect(footer).toContain("© {new Date().getFullYear()} — JQD Group");
     expect(footer).toContain('title: "Jewellery Quintessential"');
     expect(footer).toContain("How to Care for Your Jewellery");

@@ -1,7 +1,8 @@
 const DEFAULT_SITE_URL = "https://jqd.app";
 
 function getSiteUrl() {
-  const configuredUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || DEFAULT_SITE_URL;
+  const configuredUrl =
+    process.env.NEXT_PUBLIC_SITE_URL?.trim() || DEFAULT_SITE_URL;
   return configuredUrl.replace(/\/$/, "");
 }
 

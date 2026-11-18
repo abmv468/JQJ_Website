@@ -27,7 +27,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       url: absoluteUrl(path),
       lastModified: routeLastModified(path),
       changeFrequency: path === "/" ? "weekly" : "monthly",
-      priority: path === "/" ? 1 : path === "/bracelets" || path === "/necklaces" ? 0.9 : 0.6,
+      priority:
+        path === "/"
+          ? 1
+          : path === "/bracelets" || path === "/necklaces"
+            ? 0.9
+            : 0.6,
     })),
     {
       url: absoluteUrl("/journal"),

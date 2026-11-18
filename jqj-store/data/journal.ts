@@ -8,7 +8,10 @@ export const JOURNAL_CATEGORIES = [
   { slug: "history", label: "History" },
 ] as const;
 
-export type JournalCategory = Exclude<(typeof JOURNAL_CATEGORIES)[number]["slug"], "all">;
+export type JournalCategory = Exclude<
+  (typeof JOURNAL_CATEGORIES)[number]["slug"],
+  "all"
+>;
 
 export type JournalCatalogueCategory = JournalCategory | "all" | "unknown";
 
@@ -60,12 +63,16 @@ export const JOURNAL_POSTS: readonly JournalPost[] = [
       src: "/journal/how-to-clean-a-crystal.webp",
       alt: "A polished natural-stone beaded bracelet on a folded soft cloth, with a dry brush at the edge, on a warm cream surface.",
     },
-    metaTitle: "How to clean a crystal without damage | Jewellery Quintessential",
+    metaTitle:
+      "How to clean a crystal without damage | Jewellery Quintessential",
     metaDescription:
       "A gentle approach begins with knowing what the stone can tolerate. Not every crystal belongs in water, and a soft, dry cloth is often enough.",
     related: [
       { label: "Care", href: "https://jqd.app/care" },
-      { label: "Amethyst Bracelet XV", href: "https://jqd.app/products/amethyst-bracelet-xv" },
+      {
+        label: "Amethyst Bracelet XV",
+        href: "https://jqd.app/products/amethyst-bracelet-xv",
+      },
     ],
     body: [
       {
@@ -163,12 +170,19 @@ export const JOURNAL_POSTS: readonly JournalPost[] = [
       src: "/journal/moonstones-blue-sheen-and-labradorite.webp",
       alt: "A milky moonstone cabochon with a soft blue under-surface glow beside a darker labradorite cabochon with a sharp electric-blue flash, on a warm cream surface.",
     },
-    metaTitle: "Moonstone's blue sheen and labradorite | Jewellery Quintessential",
+    metaTitle:
+      "Moonstone's blue sheen and labradorite | Jewellery Quintessential",
     metaDescription:
       "Moonstone and labradorite can share an atmospheric flash of colour, yet the way each stone holds light, and their mineral structures, are different.",
     related: [
-      { label: "Labradorite Bracelet V", href: "https://jqd.app/products/labradorite-bracelet-v" },
-      { label: "Labradorite Silver Pendant", href: "https://jqd.app/products/labradorite-silver-pendant" },
+      {
+        label: "Labradorite Bracelet V",
+        href: "https://jqd.app/products/labradorite-bracelet-v",
+      },
+      {
+        label: "Labradorite Silver Pendant",
+        href: "https://jqd.app/products/labradorite-silver-pendant",
+      },
     ],
     body: [
       {
@@ -290,7 +304,8 @@ export const JOURNAL_POSTS: readonly JournalPost[] = [
       src: "/journal/jewellery-for-a-long-day-at-your-desk.webp",
       alt: "A lightweight gemstone beaded bracelet on a nearly empty desk, with a closed book at the edge.",
     },
-    metaTitle: "Jewellery for a long day at your desk | Jewellery Quintessential",
+    metaTitle:
+      "Jewellery for a long day at your desk | Jewellery Quintessential",
     metaDescription:
       "When jewellery accompanies hours of sitting, typing and moving, comfort is found in weight, proportion and quiet details, not in pieces that demand attention.",
     related: [
@@ -479,7 +494,10 @@ export const JOURNAL_POSTS: readonly JournalPost[] = [
         type: "paragraph",
         text: "The increasing availability of materials through international trade influenced what could be incorporated into jewellery design. Larger compositions, elaborate settings and decorative details became part of fashionable dress, and the visual richness of jewellery could communicate social position and personal taste.",
       },
-      { type: "heading", text: "Crystal, glass and the changing material landscape" },
+      {
+        type: "heading",
+        text: "Crystal, glass and the changing material landscape",
+      },
       {
         type: "paragraph",
         text: "The word crystal can refer to different materials in jewellery contexts. Historically, natural rock crystal, other natural gemstones and manufactured glass all had their own uses and visual appeal.",
@@ -543,26 +561,39 @@ export const JOURNAL_POSTS: readonly JournalPost[] = [
   },
 ];
 
-const CATEGORY_SLUGS = new Set<string>(JOURNAL_CATEGORIES.map((item) => item.slug));
+const CATEGORY_SLUGS = new Set<string>(
+  JOURNAL_CATEGORIES.map((item) => item.slug),
+);
 
-export function parseJournalCategory(value: string | undefined): JournalCatalogueCategory {
+export function parseJournalCategory(
+  value: string | undefined,
+): JournalCatalogueCategory {
   const raw = (value ?? "").trim().toLowerCase();
   if (!raw || raw === "all") return "all";
   if (CATEGORY_SLUGS.has(raw)) return raw as JournalCategory;
   return "unknown";
 }
 
-export function journalCategoryLabel(category: JournalCatalogueCategory): string | null {
-  return JOURNAL_CATEGORIES.find((item) => item.slug === category)?.label ?? null;
+export function journalCategoryLabel(
+  category: JournalCatalogueCategory,
+): string | null {
+  return (
+    JOURNAL_CATEGORIES.find((item) => item.slug === category)?.label ?? null
+  );
 }
 
-export function journalFilterStatus(category: JournalCatalogueCategory): string | null {
+export function journalFilterStatus(
+  category: JournalCatalogueCategory,
+): string | null {
   const label = journalCategoryLabel(category);
   if (!label || category === "all") return null;
   return `Showing notes in ${label}.`;
 }
 
-export function journalEmptyMessage(category: JournalCatalogueCategory, query: string): string {
+export function journalEmptyMessage(
+  category: JournalCatalogueCategory,
+  query: string,
+): string {
   if (query.trim()) return "No notes match this search.";
   const label = journalCategoryLabel(category);
   if (label && category !== "all") return `No notes in ${label}.`;
@@ -571,7 +602,7 @@ export function journalEmptyMessage(category: JournalCatalogueCategory, query: s
 
 export function filterJournalPosts(
   posts: readonly JournalPost[],
-  { category, query }: { category: JournalCatalogueCategory; query: string }
+  { category, query }: { category: JournalCatalogueCategory; query: string },
 ): JournalPost[] {
   const needle = query.trim().toLowerCase();
   return posts.filter((post) => {
@@ -586,6 +617,8 @@ export function getJournalPost(slug: string): JournalPost | undefined {
   return JOURNAL_POSTS.find((post) => post.slug === slug);
 }
 
-export function journalCategoryHref(slug: (typeof JOURNAL_CATEGORIES)[number]["slug"]): string {
+export function journalCategoryHref(
+  slug: (typeof JOURNAL_CATEGORIES)[number]["slug"],
+): string {
   return slug === "all" ? "/journal" : `/journal?category=${slug}`;
 }

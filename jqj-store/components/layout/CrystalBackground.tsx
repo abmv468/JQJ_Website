@@ -22,7 +22,10 @@ export default function CrystalBackground() {
 
   return (
     <LazyMotion features={domAnimation}>
-      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
+      >
         <div className="absolute inset-0 bg-[radial-gradient(1200px_550px_at_12%_-10%,rgba(24,76,82,0.4),transparent_65%),radial-gradient(1100px_600px_at_88%_10%,rgba(187,157,123,0.2),transparent_68%),linear-gradient(180deg,#010101_0%,#020607_55%,#010101_100%)]" />
 
         <m.div
@@ -52,7 +55,9 @@ export default function CrystalBackground() {
         <m.div
           className="absolute -left-[22%] top-[16%] h-[52%] w-[78%] rounded-[50%] bg-[radial-gradient(closest-side,rgba(174,208,216,0.17),rgba(174,208,216,0)_70%)] blur-[65px] mix-blend-screen"
           style={shouldReduceMotion ? undefined : { y: mistNearY, x: mistX }}
-          animate={shouldReduceMotion ? undefined : { x: ["-6%", "10%", "-4%"] }}
+          animate={
+            shouldReduceMotion ? undefined : { x: ["-6%", "10%", "-4%"] }
+          }
           transition={{
             duration: 30,
             repeat: Number.POSITIVE_INFINITY,

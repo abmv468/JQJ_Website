@@ -3,7 +3,11 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { fetchInventoryBySlugs } from "@/lib/inventory";
 import { createCheckoutDb, MemoryDb } from "../helpers/memory-db";
-import { checkoutCodeCalls, loadStoreSchema, migrationsDir } from "../helpers/schema";
+import {
+  checkoutCodeCalls,
+  loadStoreSchema,
+  migrationsDir,
+} from "../helpers/schema";
 
 const CHECKOUT_WRITES = ["pending", "failed", "paid"] as const;
 
@@ -60,7 +64,14 @@ const REQUIRED_COLUMNS: Record<string, string[]> = {
     "payment_id",
   ],
   products: ["id", "slug", "name", "price", "stock_count", "in_stock", "sku"],
-  product_variants: ["id", "product_id", "size", "material", "sku", "stock_count"],
+  product_variants: [
+    "id",
+    "product_id",
+    "size",
+    "material",
+    "sku",
+    "stock_count",
+  ],
 };
 
 describe("checkout schema contract", () => {
@@ -78,19 +89,26 @@ describe("checkout schema contract", () => {
 
   it("defines the columns checkout reads and writes", () => {
     for (const [table, columns] of Object.entries(REQUIRED_COLUMNS)) {
-      expect(schema.tables[table], table).toEqual(expect.arrayContaining(columns));
+      expect(schema.tables[table], table).toEqual(
+        expect.arrayContaining(columns),
+      );
     }
   });
 
   it("keeps the storefront products shape and rejects the 28 Oct agentic shape", () => {
     const products = schema.tables.products;
-    expect(products).toEqual(expect.arrayContaining(["slug", "price", "stock_count", "in_stock"]));
+    expect(products).toEqual(
+      expect.arrayContaining(["slug", "price", "stock_count", "in_stock"]),
+    );
     expect(products).not.toContain("price_usd");
     expect(products).not.toContain("margin_pct");
 
     const dropMigration = readFileSync(
-      path.join(migrationsDir(), "20261021000000_remove_agentic_system_tables.sql"),
-      "utf8"
+      path.join(
+        migrationsDir(),
+        "20261021000000_remove_agentic_system_tables.sql",
+      ),
+      "utf8",
     );
     expect(dropMigration).toContain("column_name = 'price_usd'");
     expect(dropMigration).toContain("drop table public.products");
@@ -101,14 +119,24 @@ describe("checkout schema contract", () => {
       expect(schema.orderStatuses).toContain(status);
     }
 
-    const brokenOn28Oct = ["paid", "packed", "shipped", "delivered", "refunded"];
+    const brokenOn28Oct = [
+      "paid",
+      "packed",
+      "shipped",
+      "delivered",
+      "refunded",
+    ];
     const broken = new MemoryDb({ ...schema, orderStatuses: brokenOn28Oct });
-    expect(() => broken.seed("orders", [{ id: "broken", status: "pending", total_amount: 1 }])).toThrow(
-      /orders_status_check/
-    );
-    expect(() => broken.seed("orders", [{ id: "broken", status: "failed", total_amount: 1 }])).toThrow(
-      /orders_status_check/
-    );
+    expect(() =>
+      broken.seed("orders", [
+        { id: "broken", status: "pending", total_amount: 1 },
+      ]),
+    ).toThrow(/orders_status_check/);
+    expect(() =>
+      broken.seed("orders", [
+        { id: "broken", status: "failed", total_amount: 1 },
+      ]),
+    ).toThrow(/orders_status_check/);
   });
 
   it("does not declare orders.status twice, which rolled back the old seed", () => {
@@ -117,7 +145,9 @@ describe("checkout schema contract", () => {
 
   it("drops policies before creating them so a re-run does not abort", () => {
     const events = [
-      ...schema.sql.matchAll(/drop policy if exists "([^"]+)"|create policy "([^"]+)"/g),
+      ...schema.sql.matchAll(
+        /drop policy if exists "([^"]+)"|create policy "([^"]+)"/g,
+      ),
     ];
     const droppedSinceCreate = new Set<string>();
     for (const event of events) {
@@ -137,21 +167,35 @@ describe("checkout schema contract", () => {
     expect(schema.sql).toContain("if not is_reserved then");
     expect(schema.sql).toContain("Inventory already restored");
     expect(schema.functions).toEqual(
-      expect.arrayContaining(["reserve_order_inventory", "restore_order_inventory"])
+      expect.arrayContaining([
+        "reserve_order_inventory",
+        "restore_order_inventory",
+      ]),
     );
   });
 
   it("lets checkout read a store catalog and fail closed on the agentic catalog", async () => {
     const store = createCheckoutDb();
-    const found = await fetchInventoryBySlugs(store as never, ["amethyst-bracelet-xv"]);
+    const found = await fetchInventoryBySlugs(store as never, [
+      "amethyst-bracelet-xv",
+    ]);
     expect(found.get("amethyst-bracelet-xv")?.price).toBe(100);
-    expect(found.get("amethyst-bracelet-xv")?.slug).toBe("amethyst-bracelet-xv");
+    expect(found.get("amethyst-bracelet-xv")?.slug).toBe(
+      "amethyst-bracelet-xv",
+    );
 
     const agentic = new MemoryDb({
       ...schema,
       tables: {
         ...schema.tables,
-        products: ["id", "sku", "category", "status", "price_usd", "margin_pct"],
+        products: [
+          "id",
+          "sku",
+          "category",
+          "status",
+          "price_usd",
+          "margin_pct",
+        ],
       },
     });
     agentic.seed("products", [
@@ -165,8 +209,8 @@ describe("checkout schema contract", () => {
       },
     ]);
 
-    await expect(fetchInventoryBySlugs(agentic as never, ["amethyst-bracelet-xv"])).rejects.toThrow(
-      /products\.slug/
-    );
+    await expect(
+      fetchInventoryBySlugs(agentic as never, ["amethyst-bracelet-xv"]),
+    ).rejects.toThrow(/products\.slug/);
   });
 });

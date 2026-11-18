@@ -4,7 +4,10 @@ import { POST as checkout } from "@/app/api/checkout/airwallex/route";
 import { POST as verify } from "@/app/api/checkout/airwallex/verify/route";
 import { POST as webhook } from "@/app/api/webhooks/airwallex/route";
 import { sendOrderEmails } from "@/lib/email";
-import { createAirwallexPaymentIntent, retrieveAirwallexPaymentIntent } from "@/lib/payments/airwallex";
+import {
+  createAirwallexPaymentIntent,
+  retrieveAirwallexPaymentIntent,
+} from "@/lib/payments/airwallex";
 import { applyAirwallexPaymentIntentStatus } from "@/lib/payments/airwallex-orders";
 import {
   checkoutCustomer,
@@ -20,9 +23,9 @@ vi.mock("@/lib/email", () => ({
 }));
 
 vi.mock("@/lib/payments/airwallex", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/payments/airwallex")>(
-    "@/lib/payments/airwallex"
-  );
+  const actual = await vi.importActual<
+    typeof import("@/lib/payments/airwallex")
+  >("@/lib/payments/airwallex");
   return {
     ...actual,
     createAirwallexPaymentIntent: vi.fn(),
@@ -56,7 +59,9 @@ function verifyRequest(body: Record<string, unknown>) {
 }
 
 function sign(timestamp: string, body: string) {
-  return createHmac("sha256", SECRET).update(`${timestamp}${body}`).digest("hex");
+  return createHmac("sha256", SECRET)
+    .update(`${timestamp}${body}`)
+    .digest("hex");
 }
 
 function signedWebhook(body: unknown) {
@@ -81,7 +86,7 @@ function paidOrderWrites(db: MemoryDb) {
       write.matched === 1 &&
       write.payload != null &&
       !Array.isArray(write.payload) &&
-      write.payload.payment_status === "succeeded"
+      write.payload.payment_status === "succeeded",
   );
 }
 
@@ -93,7 +98,7 @@ function paidPaymentWrites(db: MemoryDb) {
       write.matched === 1 &&
       write.payload != null &&
       !Array.isArray(write.payload) &&
-      write.payload.status === "succeeded"
+      write.payload.status === "succeeded",
   );
 }
 
@@ -114,19 +119,21 @@ describe("Airwallex checkout idempotency", () => {
       "fetch",
       vi.fn(async () => {
         throw new Error("unexpected network call");
-      })
+      }),
     );
     vi.mocked(createAirwallexPaymentIntent).mockReset();
     vi.mocked(retrieveAirwallexPaymentIntent).mockReset();
-    vi.mocked(createAirwallexPaymentIntent).mockImplementation(async (input) => ({
-      id: "int_same",
-      request_id: input.requestId,
-      status: "REQUIRES_PAYMENT_METHOD",
-      amount: input.amount,
-      currency: input.currency,
-      client_secret: "secret_test",
-      merchant_order_id: input.merchantOrderId,
-    }));
+    vi.mocked(createAirwallexPaymentIntent).mockImplementation(
+      async (input) => ({
+        id: "int_same",
+        request_id: input.requestId,
+        status: "REQUIRES_PAYMENT_METHOD",
+        amount: input.amount,
+        currency: input.currency,
+        client_secret: "secret_test",
+        merchant_order_id: input.merchantOrderId,
+      }),
+    );
   });
 
   it("confirms the same intent once across two returns and a webhook", async () => {
@@ -148,14 +155,14 @@ describe("Airwallex checkout idempotency", () => {
         orderId: startedBody.orderId,
         paymentIntentId: "int_same",
         refresh: true,
-      })
+      }),
     );
     const secondReturn = await verify(
       verifyRequest({
         orderId: startedBody.orderId,
         paymentIntentId: "int_same",
         refresh: true,
-      })
+      }),
     );
     expect(firstReturn.status).toBe(200);
     expect(secondReturn.status).toBe(200);
@@ -175,7 +182,7 @@ describe("Airwallex checkout idempotency", () => {
             merchant_order_id: startedBody.orderId,
           },
         },
-      })
+      }),
     );
     expect(delivered.status).toBe(200);
 
@@ -215,7 +222,12 @@ describe("Airwallex checkout idempotency", () => {
       amount: 115,
       currency: "USD",
     });
-    const pending = await verify(verifyRequest({ orderId: startedBody.orderId, paymentIntentId: "int_same" }));
+    const pending = await verify(
+      verifyRequest({
+        orderId: startedBody.orderId,
+        paymentIntentId: "int_same",
+      }),
+    );
     expect(pending.status).toBe(202);
 
     const retried = await checkout(
@@ -223,12 +235,14 @@ describe("Airwallex checkout idempotency", () => {
         idempotencyKey: KEY_A,
         paymentIntentId: "int_same",
         customer: { ...checkoutCustomer, address: "9 Other Street" },
-      })
+      }),
     );
     expect(retried.status).toBe(200);
     expect(db.rowsOf("orders")).toHaveLength(1);
     expect(db.rowsOf("payments")).toHaveLength(1);
-    expect(db.rowsOf("orders")[0].shipping_address).toMatchObject(originalAddress);
+    expect(db.rowsOf("orders")[0].shipping_address).toMatchObject(
+      originalAddress,
+    );
     expect(db.rowsOf("orders")[0].total_amount).toBe(originalTotal);
 
     vi.mocked(retrieveAirwallexPaymentIntent).mockResolvedValueOnce({
@@ -237,15 +251,24 @@ describe("Airwallex checkout idempotency", () => {
       amount: 115,
       currency: "USD",
     });
-    const failed = await verify(verifyRequest({ orderId: startedBody.orderId, paymentIntentId: "int_same" }));
+    const failed = await verify(
+      verifyRequest({
+        orderId: startedBody.orderId,
+        paymentIntentId: "int_same",
+      }),
+    );
     expect(failed.status).toBe(402);
 
     const retriedAfterFailure = await checkout(
       checkoutRequest({
         idempotencyKey: KEY_A,
         paymentIntentId: "int_same",
-        customer: { ...checkoutCustomer, address: "9 Other Street", city: "Dallas" },
-      })
+        customer: {
+          ...checkoutCustomer,
+          address: "9 Other Street",
+          city: "Dallas",
+        },
+      }),
     );
     expect(retriedAfterFailure.status).toBe(200);
     expect(db.rowsOf("orders")).toHaveLength(1);
@@ -270,7 +293,7 @@ describe("Airwallex checkout idempotency", () => {
             merchant_order_id: startedBody.orderId,
           },
         },
-      })
+      }),
     );
     expect(late.status).toBe(200);
     expect(db.rowsOf("orders")).toHaveLength(1);
@@ -300,7 +323,7 @@ describe("Airwallex checkout idempotency", () => {
         idempotencyKey: KEY_B,
         paymentIntentId: firstBody.intentId,
         customer: { ...checkoutCustomer, address: "9 Other Street" },
-      })
+      }),
     );
     expect(second.status).toBe(200);
     const secondBody = await second.json();
@@ -312,21 +335,27 @@ describe("Airwallex checkout idempotency", () => {
       order_id: firstBody.orderId,
       provider_payment_intent_id: "int_same",
     });
-    expect((db.rowsOf("orders")[0].shipping_address as { address?: string }).address).toBe(
-      "1 Atelier Lane"
-    );
+    expect(
+      (db.rowsOf("orders")[0].shipping_address as { address?: string }).address,
+    ).toBe("1 Atelier Lane");
     expect(reserves(db)).toHaveLength(1);
 
-    vi.mocked(createAirwallexPaymentIntent).mockImplementation(async (input) => ({
-      id: "int_same",
-      request_id: input.requestId,
-      status: "REQUIRES_PAYMENT_METHOD",
-      amount: input.amount,
-      currency: input.currency,
-      client_secret: "secret_test",
-      merchant_order_id: input.merchantOrderId,
-    }));
-    const third = await checkout(checkoutRequest({ idempotencyKey: "33333333-3333-4333-8333-333333333333" }));
+    vi.mocked(createAirwallexPaymentIntent).mockImplementation(
+      async (input) => ({
+        id: "int_same",
+        request_id: input.requestId,
+        status: "REQUIRES_PAYMENT_METHOD",
+        amount: input.amount,
+        currency: input.currency,
+        client_secret: "secret_test",
+        merchant_order_id: input.merchantOrderId,
+      }),
+    );
+    const third = await checkout(
+      checkoutRequest({
+        idempotencyKey: "33333333-3333-4333-8333-333333333333",
+      }),
+    );
     expect(third.status).toBe(200);
     const thirdBody = await third.json();
     expect(thirdBody.orderId).toBe(firstBody.orderId);
@@ -352,7 +381,11 @@ describe("Airwallex checkout idempotency", () => {
     });
 
     const returned = await verify(
-      verifyRequest({ orderId: startedBody.orderId, paymentIntentId: "int_same", refresh: true })
+      verifyRequest({
+        orderId: startedBody.orderId,
+        paymentIntentId: "int_same",
+        refresh: true,
+      }),
     );
     expect(returned.status).toBe(200);
 
@@ -371,7 +404,7 @@ describe("Airwallex checkout idempotency", () => {
             merchant_order_id: startedBody.orderId,
           },
         },
-      })
+      }),
     );
     expect(delivered.status).toBe(200);
     await expect(delivered.json()).resolves.toEqual({ received: true });
@@ -413,7 +446,7 @@ describe("Airwallex checkout idempotency", () => {
             merchant_order_id: startedBody.orderId,
           },
         },
-      })
+      }),
     );
     expect(delivered.status).toBe(200);
     await expect(delivered.json()).resolves.toEqual({ received: true });
@@ -439,7 +472,7 @@ describe("Airwallex checkout idempotency", () => {
             merchant_order_id: startedBody.orderId,
           },
         },
-      })
+      }),
     );
     expect(repeat.status).toBe(200);
     expect(sendOrderEmails).toHaveBeenCalledTimes(1);
@@ -469,7 +502,10 @@ describe("Airwallex checkout idempotency", () => {
     };
 
     const first = await verify(
-      verifyRequest({ orderId: startedBody.orderId, paymentIntentId: "int_same" })
+      verifyRequest({
+        orderId: startedBody.orderId,
+        paymentIntentId: "int_same",
+      }),
     );
     expect(first.status).toBe(500);
     expect(db.rowsOf("orders")[0].payment_status).toBe("succeeded");
@@ -479,7 +515,10 @@ describe("Airwallex checkout idempotency", () => {
 
     db.failWhen = null;
     const retry = await verify(
-      verifyRequest({ orderId: startedBody.orderId, paymentIntentId: "int_same" })
+      verifyRequest({
+        orderId: startedBody.orderId,
+        paymentIntentId: "int_same",
+      }),
     );
     expect(retry.status).toBe(200);
     expect(db.rowsOf("orders")[0]).toMatchObject({
@@ -516,7 +555,10 @@ describe("Airwallex checkout idempotency", () => {
       return null;
     };
     const claimed = await verify(
-      verifyRequest({ orderId: startedBody.orderId, paymentIntentId: "int_same" })
+      verifyRequest({
+        orderId: startedBody.orderId,
+        paymentIntentId: "int_same",
+      }),
     );
     expect(claimed.status).toBe(500);
     expect(db.rowsOf("orders")[0].payment_status).toBe("succeeded");
@@ -538,7 +580,7 @@ describe("Airwallex checkout idempotency", () => {
             merchant_order_id: startedBody.orderId,
           },
         },
-      })
+      }),
     );
     expect(late.status).toBe(200);
     await expect(late.json()).resolves.toEqual({ received: true });
@@ -551,19 +593,23 @@ describe("Airwallex checkout idempotency", () => {
     expect(db.rowsOf("payments")[0].status).toBe("succeeded");
     expect(db.rowsOf("products")[0].stock_count).toBe(4);
     expect(reserves(db)).toHaveLength(1);
-    expect(db.rpcCalls.filter((call) => call.fn === "restore_order_inventory")).toHaveLength(0);
+    expect(
+      db.rpcCalls.filter((call) => call.fn === "restore_order_inventory"),
+    ).toHaveLength(0);
   });
 
   it("does not reuse another customer's payment intent or idempotency key", async () => {
-    vi.mocked(createAirwallexPaymentIntent).mockImplementation(async (input) => ({
-      id: `int_${input.requestId}`,
-      request_id: input.requestId,
-      status: "REQUIRES_PAYMENT_METHOD",
-      amount: input.amount,
-      currency: input.currency,
-      client_secret: `secret_${input.requestId}`,
-      merchant_order_id: input.merchantOrderId,
-    }));
+    vi.mocked(createAirwallexPaymentIntent).mockImplementation(
+      async (input) => ({
+        id: `int_${input.requestId}`,
+        request_id: input.requestId,
+        status: "REQUIRES_PAYMENT_METHOD",
+        amount: input.amount,
+        currency: input.currency,
+        client_secret: `secret_${input.requestId}`,
+        merchant_order_id: input.merchantOrderId,
+      }),
+    );
 
     const first = await checkout(checkoutRequest({ idempotencyKey: KEY_A }));
     expect(first.status).toBe(200);
@@ -574,7 +620,7 @@ describe("Airwallex checkout idempotency", () => {
         idempotencyKey: KEY_A,
         paymentIntentId: firstBody.intentId,
         customer: { ...checkoutCustomer, email: "other@example.com" },
-      })
+      }),
     );
     expect(other.status).toBe(200);
     const otherBody = await other.json();
@@ -584,15 +630,18 @@ describe("Airwallex checkout idempotency", () => {
     expect(JSON.stringify(otherBody)).not.toContain(firstBody.clientSecret);
     expect(JSON.stringify(otherBody)).not.toContain(firstBody.orderId);
     expect(db.rowsOf("orders")).toHaveLength(2);
-    expect(db.rowsOf("payments").map((row) => row.order_id).sort()).toEqual(
-      [firstBody.orderId, otherBody.orderId].sort()
-    );
+    expect(
+      db
+        .rowsOf("payments")
+        .map((row) => row.order_id)
+        .sort(),
+    ).toEqual([firstBody.orderId, otherBody.orderId].sort());
 
     const same = await checkout(
       checkoutRequest({
         idempotencyKey: KEY_A,
         paymentIntentId: firstBody.intentId,
-      })
+      }),
     );
     expect(same.status).toBe(200);
     const sameBody = await same.json();
@@ -603,15 +652,17 @@ describe("Airwallex checkout idempotency", () => {
   });
 
   it("does not mark an already paid order failed when a later checkout update throws", async () => {
-    vi.mocked(createAirwallexPaymentIntent).mockImplementation(async (input) => ({
-      id: "int_paid",
-      request_id: input.requestId,
-      status: "REQUIRES_PAYMENT_METHOD",
-      amount: input.amount,
-      currency: input.currency,
-      client_secret: "secret_paid",
-      merchant_order_id: input.merchantOrderId,
-    }));
+    vi.mocked(createAirwallexPaymentIntent).mockImplementation(
+      async (input) => ({
+        id: "int_paid",
+        request_id: input.requestId,
+        status: "REQUIRES_PAYMENT_METHOD",
+        amount: input.amount,
+        currency: input.currency,
+        client_secret: "secret_paid",
+        merchant_order_id: input.merchantOrderId,
+      }),
+    );
 
     const first = await checkout(checkoutRequest({ idempotencyKey: KEY_A }));
     expect(first.status).toBe(200);
@@ -632,7 +683,9 @@ describe("Airwallex checkout idempotency", () => {
 
     const second = await checkout(checkoutRequest({ idempotencyKey: KEY_B }));
     expect(second.status).toBe(500);
-    expect(db.rowsOf("orders").find((row) => row.id === firstBody.orderId)).toMatchObject({
+    expect(
+      db.rowsOf("orders").find((row) => row.id === firstBody.orderId),
+    ).toMatchObject({
       payment_status: "succeeded",
       status: "paid",
       fulfillment_status: "paid",
@@ -678,7 +731,9 @@ describe("Airwallex checkout idempotency", () => {
     ]);
     db.failWhen = (table, op) => {
       if (table === "orders" && op === "select") {
-        const payment = db.rowsOf("payments").find((row) => row.id === "pay-paid");
+        const payment = db
+          .rowsOf("payments")
+          .find((row) => row.id === "pay-paid");
         if (payment) payment.status = "succeeded";
       }
       return null;
@@ -694,11 +749,15 @@ describe("Airwallex checkout idempotency", () => {
       status: "succeeded",
       paid_at: "2026-01-01T00:00:00.000Z",
     });
-    expect(db.rowsOf("orders").find((row) => row.id === "order-paid")).toMatchObject({
+    expect(
+      db.rowsOf("orders").find((row) => row.id === "order-paid"),
+    ).toMatchObject({
       payment_status: "succeeded",
       status: "paid",
     });
-    expect(db.rpcCalls.filter((call) => call.fn === "restore_order_inventory")).toHaveLength(0);
+    expect(
+      db.rpcCalls.filter((call) => call.fn === "restore_order_inventory"),
+    ).toHaveLength(0);
     expect(
       db.writes.filter(
         (write) =>
@@ -707,8 +766,8 @@ describe("Airwallex checkout idempotency", () => {
           write.matched === 1 &&
           write.payload != null &&
           !Array.isArray(write.payload) &&
-          write.payload.paid_at === null
-      )
+          write.payload.paid_at === null,
+      ),
     ).toHaveLength(0);
   });
 });

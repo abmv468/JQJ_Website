@@ -61,9 +61,24 @@ const catalog: Product[] = [
     stockCount: 12,
     lowStockThreshold: 5,
     variants: [
-      { size: "Small", material: "Sterling Silver", sku: "JQJ-RLSJ-III-S-SS", stockCount: 4 },
-      { size: "Medium", material: "Sterling Silver", sku: "JQJ-RLSJ-III-M-SS", stockCount: 5 },
-      { size: "Large", material: "Sterling Silver", sku: "JQJ-RLSJ-III-L-SS", stockCount: 3 },
+      {
+        size: "Small",
+        material: "Sterling Silver",
+        sku: "JQJ-RLSJ-III-S-SS",
+        stockCount: 4,
+      },
+      {
+        size: "Medium",
+        material: "Sterling Silver",
+        sku: "JQJ-RLSJ-III-M-SS",
+        stockCount: 5,
+      },
+      {
+        size: "Large",
+        material: "Sterling Silver",
+        sku: "JQJ-RLSJ-III-L-SS",
+        stockCount: 3,
+      },
     ],
     tags: ["sale"],
     stone: "Jasper",
@@ -113,7 +128,10 @@ const catalog: Product[] = [
     compareAtPrice: null,
     sku: "JQJ-SOD-VIII",
     category: "bracelets",
-    images: ["/products/sodalite-bracelet-viii-1.jpg", "/products/sodalite-bracelet.webp"],
+    images: [
+      "/products/sodalite-bracelet-viii-1.jpg",
+      "/products/sodalite-bracelet.webp",
+    ],
     inStock: true,
     stockCount: 15,
     lowStockThreshold: 5,
@@ -139,7 +157,10 @@ const catalog: Product[] = [
     compareAtPrice: null,
     sku: "JQJ-AMETH-XV",
     category: "bracelets",
-    images: ["/products/amethyst-bracelet-xv-1.jpg", "/products/amethyst-bracelet.webp"],
+    images: [
+      "/products/amethyst-bracelet-xv-1.jpg",
+      "/products/amethyst-bracelet.webp",
+    ],
     inStock: true,
     stockCount: 20,
     lowStockThreshold: 5,
@@ -165,7 +186,10 @@ const catalog: Product[] = [
     compareAtPrice: 499.99,
     sku: "JQJ-SIL-IV",
     category: "bracelets",
-    images: ["/products/silver-bracelet-iv-2.jpg", "/products/silver-bracelet.webp"],
+    images: [
+      "/products/silver-bracelet-iv-2.jpg",
+      "/products/silver-bracelet.webp",
+    ],
     inStock: true,
     stockCount: 9,
     lowStockThreshold: 5,
@@ -222,9 +246,24 @@ const catalog: Product[] = [
     stockCount: 18,
     lowStockThreshold: 5,
     variants: [
-      { size: "45cm", material: "Sterling Silver", sku: "JQJ-BLAPEN-45-SS", stockCount: 7 },
-      { size: "55cm", material: "Sterling Silver", sku: "JQJ-BLAPEN-55-SS", stockCount: 8 },
-      { size: "55cm", material: "Gold Vermeil", sku: "JQJ-BLAPEN-55-GV", stockCount: 3 },
+      {
+        size: "45cm",
+        material: "Sterling Silver",
+        sku: "JQJ-BLAPEN-45-SS",
+        stockCount: 7,
+      },
+      {
+        size: "55cm",
+        material: "Sterling Silver",
+        sku: "JQJ-BLAPEN-55-SS",
+        stockCount: 8,
+      },
+      {
+        size: "55cm",
+        material: "Gold Vermeil",
+        sku: "JQJ-BLAPEN-55-GV",
+        stockCount: 3,
+      },
     ],
     tags: ["new"],
     stone: "Agate",
@@ -329,7 +368,8 @@ export function getProductBySlug(
   slug: string,
   visibility?: { paymentTestListingHidden?: boolean },
 ): Product | undefined {
-  const hidden = visibility?.paymentTestListingHidden ?? paymentTestListingHidden;
+  const hidden =
+    visibility?.paymentTestListingHidden ?? paymentTestListingHidden;
   return (
     products.find((p) => p.slug === slug) ??
     unlistedProducts.find((product) => {
@@ -389,7 +429,10 @@ export function getCatalogStones(): string[] {
   const sold = new Set(products.map((product) => product.stone));
   const ordered = STONE_TILE_ORDER.filter((stone) => sold.has(stone));
   const extras = [...sold]
-    .filter((stone) => !STONE_TILE_ORDER.includes(stone as (typeof STONE_TILE_ORDER)[number]))
+    .filter(
+      (stone) =>
+        !STONE_TILE_ORDER.includes(stone as (typeof STONE_TILE_ORDER)[number]),
+    )
     .sort((a, b) => a.localeCompare(b));
   return [...ordered, ...extras];
 }

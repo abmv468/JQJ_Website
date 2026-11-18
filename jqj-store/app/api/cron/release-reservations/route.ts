@@ -9,9 +9,15 @@ export const maxDuration = 60;
 const noStore = { headers: { "Cache-Control": "no-store" } };
 
 export async function GET(req: Request) {
-  const decision = authorizeCronRequest(req.headers.get("authorization"), process.env.CRON_SECRET);
+  const decision = authorizeCronRequest(
+    req.headers.get("authorization"),
+    process.env.CRON_SECRET,
+  );
   if (!decision.ok) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401, ...noStore });
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401, ...noStore },
+    );
   }
 
   try {
@@ -19,6 +25,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: true }, noStore);
   } catch {
     console.error("[cron-release-reservations] release failed");
-    return NextResponse.json({ error: "Reservation release failed" }, { status: 500, ...noStore });
+    return NextResponse.json(
+      { error: "Reservation release failed" },
+      { status: 500, ...noStore },
+    );
   }
 }

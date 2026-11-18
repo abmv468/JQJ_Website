@@ -105,7 +105,9 @@ export default function ProductCard({
                     {formatFromUsd(product.compareAtPrice)}
                   </span>
                 )}
-                <span className="text-base text-brand-gold">{formatFromUsd(product.price)}</span>
+                <span className="text-base text-brand-gold">
+                  {formatFromUsd(product.price)}
+                </span>
               </div>
               <span
                 className="text-[10px] uppercase text-white/58"

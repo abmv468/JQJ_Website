@@ -11,12 +11,20 @@ import {
   rememberCheckoutIntent,
   resolveCheckoutAttempt,
 } from "@/lib/checkout-attempt";
-import { buildCheckoutSummary, formatCheckoutCharge } from "@/lib/checkout-currency";
+import {
+  buildCheckoutSummary,
+  formatCheckoutCharge,
+} from "@/lib/checkout-currency";
 import { createClient } from "@/lib/supabase/client";
-import { CARD_CURRENCY_NOTICE, COD_FEE, codPaymentLabel } from "@/lib/checkout-fees";
+import {
+  CARD_CURRENCY_NOTICE,
+  COD_FEE,
+  codPaymentLabel,
+} from "@/lib/checkout-fees";
 import { computeShippingUsd } from "@/lib/shipping";
 
-const AIRWALLEX_SDK_SRC = "https://static.airwallex.com/components/sdk/v1/index.js";
+const AIRWALLEX_SDK_SRC =
+  "https://static.airwallex.com/components/sdk/v1/index.js";
 
 declare global {
   interface Window {
@@ -47,7 +55,7 @@ async function loadAirwallexSdk() {
   }
 
   const existing = document.querySelector<HTMLScriptElement>(
-    'script[data-airwallex-sdk="true"]'
+    'script[data-airwallex-sdk="true"]',
   );
   if (existing) {
     await new Promise<void>((resolve, reject) => {
@@ -59,7 +67,7 @@ async function loadAirwallexSdk() {
       existing.addEventListener(
         "error",
         () => reject(new Error("Failed to load Airwallex checkout SDK")),
-        { once: true }
+        { once: true },
       );
     });
     if (window.AirwallexComponentsSDK) return window.AirwallexComponentsSDK;
@@ -72,7 +80,8 @@ async function loadAirwallexSdk() {
     script.async = true;
     script.setAttribute("data-airwallex-sdk", "true");
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Failed to load Airwallex checkout SDK"));
+    script.onerror = () =>
+      reject(new Error("Failed to load Airwallex checkout SDK"));
     document.head.appendChild(script);
   });
 
@@ -136,7 +145,9 @@ export default function CheckoutPage() {
           .maybeSingle(),
         supabase
           .from("customer_addresses")
-          .select("first_name, last_name, address_line1, address_line2, city, region, country, phone")
+          .select(
+            "first_name, last_name, address_line1, address_line2, city, region, country, phone",
+          )
           .eq("user_id", data.user.id)
           .order("is_default", { ascending: false })
           .order("created_at", { ascending: false })
@@ -151,8 +162,10 @@ export default function CheckoutPage() {
       setForm((prev) => ({
         ...prev,
         email: prev.email || data.user?.email || "",
-        firstName: prev.firstName || profile?.first_name || address?.first_name || "",
-        lastName: prev.lastName || profile?.last_name || address?.last_name || "",
+        firstName:
+          prev.firstName || profile?.first_name || address?.first_name || "",
+        lastName:
+          prev.lastName || profile?.last_name || address?.last_name || "",
         address: prev.address || address?.address_line1 || "",
         apartment: prev.apartment || address?.address_line2 || "",
         city: prev.city || address?.city || "",
@@ -171,7 +184,10 @@ export default function CheckoutPage() {
   const codFee = method === "cod" ? COD_FEE : 0;
   const shipping = items.length
     ? computeShippingUsd(
-        items.map((item) => ({ unitPriceUsd: item.price, quantity: item.quantity }))
+        items.map((item) => ({
+          unitPriceUsd: item.price,
+          quantity: item.quantity,
+        })),
       )
     : 0;
   const summary = buildCheckoutSummary({
@@ -197,7 +213,7 @@ export default function CheckoutPage() {
         material: item.material,
         sku: item.sku,
       })),
-    [items]
+    [items],
   );
 
   useEffect(() => {
@@ -236,7 +252,9 @@ export default function CheckoutPage() {
 
     const attempt =
       method === "airwallex"
-        ? resolveCheckoutAttempt(payloadItems, window.sessionStorage, () => crypto.randomUUID())
+        ? resolveCheckoutAttempt(payloadItems, window.sessionStorage, () =>
+            crypto.randomUUID(),
+          )
         : null;
     const payload = {
       items: payloadItems,
@@ -244,11 +262,14 @@ export default function CheckoutPage() {
       shipping,
       currency: method === "airwallex" ? "USD" : currency,
       idempotencyKey: attempt?.idempotencyKey ?? codAttemptIdRef.current,
-      ...(attempt?.paymentIntentId ? { paymentIntentId: attempt.paymentIntentId } : {}),
+      ...(attempt?.paymentIntentId
+        ? { paymentIntentId: attempt.paymentIntentId }
+        : {}),
     };
 
     try {
-      const endpoint = method === "cod" ? "/api/checkout/cod" : "/api/checkout/airwallex";
+      const endpoint =
+        method === "cod" ? "/api/checkout/cod" : "/api/checkout/airwallex";
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -268,7 +289,13 @@ export default function CheckoutPage() {
           return;
         }
 
-        if (!data.intentId || !data.clientSecret || !data.orderId || !data.currency || !data.sdkEnv) {
+        if (
+          !data.intentId ||
+          !data.clientSecret ||
+          !data.orderId ||
+          !data.currency ||
+          !data.sdkEnv
+        ) {
           throw new Error("Airwallex checkout payload is incomplete");
         }
 
@@ -284,10 +311,10 @@ export default function CheckoutPage() {
           enabledElements: ["payments"],
         });
         const successUrl = `${window.location.origin}/order-confirmation?provider=airwallex&order_id=${encodeURIComponent(
-          data.orderId
+          data.orderId,
         )}&intent_id=${encodeURIComponent(data.intentId)}`;
         const failUrl = `${window.location.origin}/order-confirmation?provider=airwallex&order_id=${encodeURIComponent(
-          data.orderId
+          data.orderId,
         )}&intent_id=${encodeURIComponent(data.intentId)}&state=failed`;
 
         await payments.redirectToCheckout({
@@ -314,7 +341,9 @@ export default function CheckoutPage() {
   if (items.length === 0) {
     return (
       <div className="container-site flex flex-col items-center py-28 text-center">
-        <h1 className="font-heading text-2xl uppercase tracking-wider2">Your cart is empty</h1>
+        <h1 className="font-heading text-2xl uppercase tracking-wider2">
+          Your cart is empty
+        </h1>
         <Link href="/new" className="btn-gold mt-8">
           Continue Shopping
         </Link>
@@ -329,7 +358,8 @@ export default function CheckoutPage() {
         <form onSubmit={handleSubmit} className="order-2 lg:order-1">
           <div className="mb-8 flex flex-wrap items-center gap-4 border border-brand-border p-4 sm:gap-6 sm:p-5">
             <div className="flex items-center gap-2 text-xs text-brand-muted">
-              <Truck className="h-4 w-4 text-brand-gold" /> UPS Express — Tracked delivery
+              <Truck className="h-4 w-4 text-brand-gold" /> UPS Express —
+              Tracked delivery
             </div>
             <div className="flex items-center gap-2 text-xs text-brand-muted">
               <CreditCard className="h-4 w-4 text-brand-gold" /> Secure payment
@@ -339,13 +369,21 @@ export default function CheckoutPage() {
           {/* Contact */}
           <section className="mb-8">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-heading text-sm uppercase tracking-wider2">Contact</h2>
+              <h2 className="font-heading text-sm uppercase tracking-wider2">
+                Contact
+              </h2>
               {signedInEmail ? (
-                <Link href="/account" className="text-xs text-brand-gold underline">
+                <Link
+                  href="/account"
+                  className="text-xs text-brand-gold underline"
+                >
                   Account
                 </Link>
               ) : (
-                <Link href="/auth/login" className="text-xs text-brand-gold underline">
+                <Link
+                  href="/auth/login"
+                  className="text-xs text-brand-gold underline"
+                >
                   Sign in
                 </Link>
               )}
@@ -367,7 +405,9 @@ export default function CheckoutPage() {
 
           {/* Shipping address */}
           <section className="mb-8">
-            <h2 className="mb-4 font-heading text-sm uppercase tracking-wider2">Shipping address</h2>
+            <h2 className="mb-4 font-heading text-sm uppercase tracking-wider2">
+              Shipping address
+            </h2>
             <div className="space-y-3">
               <select
                 value={form.country}
@@ -381,31 +421,91 @@ export default function CheckoutPage() {
                 ))}
               </select>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <input required placeholder="First name" value={form.firstName} onChange={(e) => update("firstName", e.target.value)} className="input-field" />
-                <input placeholder="Last name" value={form.lastName} onChange={(e) => update("lastName", e.target.value)} className="input-field" />
+                <input
+                  required
+                  placeholder="First name"
+                  value={form.firstName}
+                  onChange={(e) => update("firstName", e.target.value)}
+                  className="input-field"
+                />
+                <input
+                  placeholder="Last name"
+                  value={form.lastName}
+                  onChange={(e) => update("lastName", e.target.value)}
+                  className="input-field"
+                />
               </div>
-              <input required placeholder="Address" value={form.address} onChange={(e) => update("address", e.target.value)} className="input-field" />
-              <input placeholder="Apartment, suite, etc. (optional)" value={form.apartment} onChange={(e) => update("apartment", e.target.value)} className="input-field" />
+              <input
+                required
+                placeholder="Address"
+                value={form.address}
+                onChange={(e) => update("address", e.target.value)}
+                className="input-field"
+              />
+              <input
+                placeholder="Apartment, suite, etc. (optional)"
+                value={form.apartment}
+                onChange={(e) => update("apartment", e.target.value)}
+                className="input-field"
+              />
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <input required placeholder="City" value={form.city} onChange={(e) => update("city", e.target.value)} className="input-field" />
-                <input placeholder="Region / State" value={form.region} onChange={(e) => update("region", e.target.value)} className="input-field" />
+                <input
+                  required
+                  placeholder="City"
+                  value={form.city}
+                  onChange={(e) => update("city", e.target.value)}
+                  className="input-field"
+                />
+                <input
+                  placeholder="Region / State"
+                  value={form.region}
+                  onChange={(e) => update("region", e.target.value)}
+                  className="input-field"
+                />
               </div>
-              <input placeholder="Phone (optional)" value={form.phone} onChange={(e) => update("phone", e.target.value)} className="input-field" />
+              <input
+                placeholder="Phone (optional)"
+                value={form.phone}
+                onChange={(e) => update("phone", e.target.value)}
+                className="input-field"
+              />
             </div>
           </section>
 
           {/* Payment method */}
           <section className="mb-8">
-            <h2 className="mb-4 font-heading text-sm uppercase tracking-wider2">Payment</h2>
+            <h2 className="mb-4 font-heading text-sm uppercase tracking-wider2">
+              Payment
+            </h2>
             <div className="space-y-3">
-              <label className={`flex cursor-pointer items-center gap-3 border p-4 ${method === "airwallex" ? "border-brand-gold" : "border-brand-border"}`}>
-                <input type="radio" name="method" checked={method === "airwallex"} onChange={() => setMethod("airwallex")} className="accent-brand-gold" />
-                <span className="text-sm">Credit / Debit Card (Airwallex Hosted Checkout)</span>
+              <label
+                className={`flex cursor-pointer items-center gap-3 border p-4 ${method === "airwallex" ? "border-brand-gold" : "border-brand-border"}`}
+              >
+                <input
+                  type="radio"
+                  name="method"
+                  checked={method === "airwallex"}
+                  onChange={() => setMethod("airwallex")}
+                  className="accent-brand-gold"
+                />
+                <span className="text-sm">
+                  Credit / Debit Card (Airwallex Hosted Checkout)
+                </span>
               </label>
               <p className="text-xs text-brand-muted">{CARD_CURRENCY_NOTICE}</p>
-              <label className={`flex cursor-pointer items-center gap-3 border p-4 ${method === "cod" ? "border-brand-gold" : "border-brand-border"}`}>
-                <input type="radio" name="method" checked={method === "cod"} onChange={() => setMethod("cod")} className="accent-brand-gold" />
-                <span className="text-sm">{codPaymentLabel(COD_FEE, formatCheckoutCharge(COD_FEE))}</span>
+              <label
+                className={`flex cursor-pointer items-center gap-3 border p-4 ${method === "cod" ? "border-brand-gold" : "border-brand-border"}`}
+              >
+                <input
+                  type="radio"
+                  name="method"
+                  checked={method === "cod"}
+                  onChange={() => setMethod("cod")}
+                  className="accent-brand-gold"
+                />
+                <span className="text-sm">
+                  {codPaymentLabel(COD_FEE, formatCheckoutCharge(COD_FEE))}
+                </span>
               </label>
             </div>
           </section>
@@ -415,14 +515,21 @@ export default function CheckoutPage() {
             <p className="mb-4 text-sm text-red-400">{stockErrors[0]}</p>
           )}
           {!error && paymentStage === "creating_payment" && (
-            <p className="mb-4 text-sm text-brand-muted">Creating secure payment session…</p>
+            <p className="mb-4 text-sm text-brand-muted">
+              Creating secure payment session…
+            </p>
           )}
           {!error && paymentStage === "redirecting_to_airwallex" && (
-            <p className="mb-4 text-sm text-brand-muted">Redirecting to Airwallex secure checkout…</p>
+            <p className="mb-4 text-sm text-brand-muted">
+              Redirecting to Airwallex secure checkout…
+            </p>
           )}
 
           <div className="flex flex-col-reverse items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <Link href="/cart" className="flex items-center gap-1 text-xs text-brand-muted hover:text-white">
+            <Link
+              href="/cart"
+              className="flex items-center gap-1 text-xs text-brand-muted hover:text-white"
+            >
               <ChevronLeft className="h-4 w-4" /> Return to cart
             </Link>
             <button
@@ -430,7 +537,11 @@ export default function CheckoutPage() {
               disabled={loading || checkingStock || stockErrors.length > 0}
               className="btn-gold disabled:opacity-60"
             >
-              {loading ? "Processing…" : method === "cod" ? "Place Order" : "Continue to Secure Payment"}
+              {loading
+                ? "Processing…"
+                : method === "cod"
+                  ? "Place Order"
+                  : "Continue to Secure Payment"}
             </button>
           </div>
         </form>
@@ -439,26 +550,50 @@ export default function CheckoutPage() {
         <aside className="order-1 h-fit border border-brand-border p-6 lg:order-2">
           <ul className="space-y-4">
             {items.map((item, index) => (
-              <li key={`${item.id}-${item.sku ?? ""}-${item.size ?? ""}-${item.material ?? ""}`} className="flex items-center gap-4">
+              <li
+                key={`${item.id}-${item.sku ?? ""}-${item.size ?? ""}-${item.material ?? ""}`}
+                className="flex items-center gap-4"
+              >
                 <div className="relative h-16 w-16 shrink-0 overflow-hidden bg-brand-card">
-                  <Image src={item.image} alt={item.name} fill sizes="64px" className="object-cover" />
+                  <Image
+                    src={item.image}
+                    alt={item.name}
+                    fill
+                    sizes="64px"
+                    className="object-cover"
+                  />
                   <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-brand-gold text-[10px] font-semibold text-black">
                     {item.quantity}
                   </span>
                 </div>
                 <div className="flex-1">
                   <p className="text-xs leading-snug">{item.name}</p>
-                  {item.size && <p className="text-[11px] text-brand-muted">Size: {item.size}</p>}
-                  {item.material && <p className="text-[11px] text-brand-muted">Material: {item.material}</p>}
+                  {item.size && (
+                    <p className="text-[11px] text-brand-muted">
+                      Size: {item.size}
+                    </p>
+                  )}
+                  {item.material && (
+                    <p className="text-[11px] text-brand-muted">
+                      Material: {item.material}
+                    </p>
+                  )}
                 </div>
-                <span className="text-sm">{summary.lines[index]?.formatted}</span>
+                <span className="text-sm">
+                  {summary.lines[index]?.formatted}
+                </span>
               </li>
             ))}
           </ul>
 
           <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-            <input placeholder="Discount code or gift card" className="input-field" />
-            <button type="button" className="btn-secondary px-5">Apply</button>
+            <input
+              placeholder="Discount code or gift card"
+              className="input-field"
+            />
+            <button type="button" className="btn-secondary px-5">
+              Apply
+            </button>
           </div>
 
           <div className="mt-6 space-y-3 border-t border-brand-border pt-6 text-sm">
@@ -479,14 +614,18 @@ export default function CheckoutPage() {
           </div>
 
           <div className="mt-4 flex items-end justify-between border-t border-brand-border pt-4">
-            <span className="font-heading uppercase tracking-wider2">Total</span>
+            <span className="font-heading uppercase tracking-wider2">
+              Total
+            </span>
             <span className="flex items-baseline gap-3">
               {summary.chargeNote ? (
                 <span className="text-xs font-body normal-case tracking-normal text-brand-muted">
                   {summary.chargeNote}
                 </span>
               ) : null}
-              <span className="font-heading text-2xl text-brand-gold">{summary.total}</span>
+              <span className="font-heading text-2xl text-brand-gold">
+                {summary.total}
+              </span>
             </span>
           </div>
         </aside>

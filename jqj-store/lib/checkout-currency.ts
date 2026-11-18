@@ -2,7 +2,8 @@ import { normalizeCurrency, type SupportedCurrency } from "@/lib/currency";
 import { formatPrice } from "@/lib/utils";
 
 /** Currency checkout actually charges. Display FX is not applied to the summary. */
-export const CHECKOUT_CHARGE_CURRENCY = "USD" as const satisfies SupportedCurrency;
+export const CHECKOUT_CHARGE_CURRENCY =
+  "USD" as const satisfies SupportedCurrency;
 
 export interface CheckoutSummaryItem {
   name: string;
@@ -37,8 +38,11 @@ export function formatCheckoutCharge(amountUsd: number): string {
   return formatPrice(amountUsd, { currency: CHECKOUT_CHARGE_CURRENCY });
 }
 
-export function checkoutChargeNote(displayCurrency: string | null | undefined): string | null {
-  if (normalizeCurrency(displayCurrency) === CHECKOUT_CHARGE_CURRENCY) return null;
+export function checkoutChargeNote(
+  displayCurrency: string | null | undefined,
+): string | null {
+  if (normalizeCurrency(displayCurrency) === CHECKOUT_CHARGE_CURRENCY)
+    return null;
   return "Charged in USD";
 }
 

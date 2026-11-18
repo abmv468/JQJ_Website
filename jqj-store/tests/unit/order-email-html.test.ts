@@ -72,7 +72,7 @@ describe("order email HTML", () => {
       "fetch",
       vi.fn(async () => {
         throw new Error("unexpected network call");
-      })
+      }),
     );
   });
 
@@ -120,7 +120,7 @@ describe("order email HTML", () => {
           region: `"region"`,
           country: "Cote d'Ivoire",
         },
-      })
+      }),
     );
 
     for (const mail of [customer, admin]) {
@@ -180,7 +180,7 @@ describe("order email HTML", () => {
           region: "TX",
           country: "US",
         },
-      })
+      }),
     );
 
     for (const mail of [customer, admin]) {
