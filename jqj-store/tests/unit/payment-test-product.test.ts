@@ -4,13 +4,14 @@ import {
   getProductBySlug,
   getProductsByCategory,
   getRelatedProducts,
+  PAYMENT_TEST_SLUG,
   paymentTestListingHidden,
   products,
   unlistedProducts,
   type CategorySlug,
 } from "@/data/products";
 
-const SLUG = "payment-test-do-not-ship";
+const SLUG = PAYMENT_TEST_SLUG;
 const SKU = "JQJ-PAYTEST-001";
 
 const SUPPORTED_CATEGORIES: CategorySlug[] = [
@@ -44,6 +45,7 @@ describe("payment test listing", () => {
     });
     expect(product?.price.toFixed(2)).toBe("1.00");
     expect(getProductBySlug(SLUG)).toBeUndefined();
+    expect(getProductBySlug(`  ${SLUG}  `)).toBeUndefined();
   });
 
   it("resolves the slug again when paymentTestListingHidden is false", () => {
@@ -59,6 +61,10 @@ describe("payment test listing", () => {
       stockCount: 1,
     });
     expect(product?.price.toFixed(2)).toBe("1.00");
+    expect(
+      getProductBySlug(`  ${SLUG}  `, { paymentTestListingHidden: false })
+        ?.slug,
+    ).toBe(SLUG);
   });
 
   it("keeps the payment-test SKU out of the public products export", () => {

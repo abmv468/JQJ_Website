@@ -8,6 +8,7 @@ import {
   getLimitedEditionProducts,
   getNewArrivals,
   getProductBySlug,
+  PAYMENT_TEST_SLUG,
   paymentTestListingHidden,
   products,
   stoneRawImage,
@@ -212,7 +213,8 @@ describe("merchandising preview", () => {
       expect(defaults.some((image) => image.endsWith(file))).toBe(false);
     }
     expect(paymentTestListingHidden).toBe(true);
-    expect(getProductBySlug("payment-test-do-not-ship")).toBeUndefined();
+    expect(getProductBySlug(PAYMENT_TEST_SLUG)).toBeUndefined();
+    expect(getProductBySlug(`  ${PAYMENT_TEST_SLUG}  `)).toBeUndefined();
   });
 
   it("points Latest Collections tiles at filtered destinations", () => {

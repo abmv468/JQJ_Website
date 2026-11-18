@@ -5,13 +5,12 @@ import ProductPage, {
 import { productPageMetadata } from "@/lib/product-page-metadata";
 import {
   getProductBySlug,
+  PAYMENT_TEST_SLUG,
   paymentTestListingHidden,
   products,
   unlistedProducts,
 } from "@/data/products";
 import type { Metadata } from "next";
-
-const PAYMENT_TEST_SLUG = "payment-test-do-not-ship";
 
 function robotsDirectives(metadata: Metadata) {
   const robots = metadata.robots;
