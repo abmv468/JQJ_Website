@@ -11,6 +11,7 @@ import { generateMetadata as journalArticleMetadata } from "@/app/(store)/journa
 import { metadata as cartMetadata } from "@/app/(store)/cart/layout";
 import { metadata as checkoutMetadata } from "@/app/(store)/checkout/layout";
 import {
+  AUTH_DESCRIPTION,
   AUTH_TITLE,
   LOGIN_DESCRIPTION,
   LOGIN_TITLE,
@@ -26,6 +27,7 @@ import { NOT_FOUND_DESCRIPTION, NOT_FOUND_TITLE } from "@/lib/page-social";
 import { JOURNAL_INTRO, getJournalPost } from "@/data/journal";
 import {
   getProductBySlug,
+  PAYMENT_TEST_SLUG,
   paymentTestListingHidden,
   products,
 } from "@/data/products";
@@ -70,7 +72,11 @@ const NOINDEX = {
   googleBot: { index: false, follow: false },
 };
 
-const NOINDEX_FOLLOW = { index: false, follow: true };
+const NOINDEX_FOLLOW = {
+  index: false,
+  follow: true,
+  googleBot: { index: false, follow: true },
+};
 
 const HOMEPAGE_TITLE =
   "Jewellery Quintessential · 極氣 | Natural Stone Jewellery with Cultural Craft";
@@ -81,6 +87,7 @@ describe("technical SEO preview", () => {
     const rule = Array.isArray(rules) ? rules[0] : rules;
     const disallow = rule?.disallow;
     const paths = Array.isArray(disallow) ? disallow : [disallow];
+    expect(PAYMENT_TEST_SLUG).toBe("payment-test-do-not-ship");
     expect(paths).toEqual(
       expect.arrayContaining([
         "/api",
@@ -89,7 +96,7 @@ describe("technical SEO preview", () => {
         "/auth",
         "/account",
         "/admin",
-        "/products/payment-test-do-not-ship",
+        `/products/${PAYMENT_TEST_SLUG}`,
       ]),
     );
     expect(paymentTestListingHidden).toBe(true);
@@ -104,7 +111,7 @@ describe("technical SEO preview", () => {
     expect(entries.every((entry) => entry.lastModified instanceof Date)).toBe(
       true,
     );
-    expect(entries.some((entry) => entry.url.includes("payment-test"))).toBe(
+    expect(entries.some((entry) => entry.url.includes(PAYMENT_TEST_SLUG))).toBe(
       false,
     );
     const shipping = entries.find((entry) => entry.url.endsWith("/shipping"));
@@ -187,7 +194,8 @@ describe("technical SEO preview", () => {
 
   it("keeps unresolved product metadata noindex, nofollow, with no product canonical", () => {
     expect(paymentTestListingHidden).toBe(true);
-    const slugs = ["payment-test-do-not-ship", "not-a-catalog-piece"];
+    const slugs = [PAYMENT_TEST_SLUG, "not-a-catalog-piece"];
+    expect(getProductBySlug(`  ${PAYMENT_TEST_SLUG}  `)).toBeUndefined();
 
     for (const slug of slugs) {
       expect(getProductBySlug(slug)).toBeUndefined();
@@ -280,6 +288,10 @@ describe("technical SEO preview", () => {
     expect(checkoutMetadata.robots).toEqual(NOINDEX_FOLLOW);
     expect(checkoutMetadata.alternates?.canonical).not.toBe("/");
 
+    expect(cartMetadata.description).toBe(
+      "Discover bracelets and necklaces selected for everyday wear.",
+    );
+    expect(cartMetadata.description).not.toBe("Your cart is empty.");
     expect(cartMetadata.openGraph).toMatchObject({
       title: "Cart — Jewellery Quintessential",
       description:
@@ -294,26 +306,46 @@ describe("technical SEO preview", () => {
     expect(cartMetadata.openGraph?.title).not.toBe(HOMEPAGE_TITLE);
     expect(cartMetadata.twitter?.title).not.toBe(HOMEPAGE_TITLE);
     expect(cartMetadata.description).not.toBe(HOMEPAGE_DESCRIPTION);
+    expect(
+      readFileSync(path.join(root, "app/(store)/cart/page.tsx"), "utf8"),
+    ).toContain("Discover bracelets and necklaces selected for everyday wear.");
 
+    expect(checkoutMetadata.description).toBe("Secure payment.");
     expect(checkoutMetadata.openGraph).toMatchObject({
       title: "Checkout — Jewellery Quintessential",
-      description: "Secure payment",
+      description: "Secure payment.",
       url: "/checkout",
     });
     expect(checkoutMetadata.twitter).toMatchObject({
       title: "Checkout — Jewellery Quintessential",
-      description: "Secure payment",
+      description: "Secure payment.",
     });
     expect(checkoutMetadata.openGraph?.title).not.toBe(HOMEPAGE_TITLE);
     expect(checkoutMetadata.twitter?.title).not.toBe(HOMEPAGE_TITLE);
     expect(checkoutMetadata.description).not.toBe(HOMEPAGE_DESCRIPTION);
+    const checkoutPage = readFileSync(
+      path.join(root, "app/(store)/checkout/page.tsx"),
+      "utf8",
+    );
+    expect(checkoutPage).toContain("Secure payment");
+    expect(checkoutPage).not.toContain("Secure payment.");
   });
 
   it("gives auth and login their own social titles, and login its own canonical", () => {
     expect(authMetadata.title).toEqual({ absolute: AUTH_TITLE });
+    expect(authMetadata.robots).toEqual(NOINDEX_FOLLOW);
+    expect(authMetadata.description).toBe(AUTH_DESCRIPTION);
+    expect(authMetadata.description).not.toBe(AUTH_TITLE);
+    expect(AUTH_DESCRIPTION).toBe(
+      "Create your account to save pieces and follow your orders.",
+    );
     expect(authMetadata.openGraph).toMatchObject({
       title: AUTH_TITLE,
-      description: AUTH_TITLE,
+      description: AUTH_DESCRIPTION,
+    });
+    expect(authMetadata.twitter).toMatchObject({
+      title: AUTH_TITLE,
+      description: AUTH_DESCRIPTION,
     });
     expect(authMetadata.twitter?.title).toBe(AUTH_TITLE);
     expect(authMetadata.openGraph?.title).not.toBe(HOMEPAGE_TITLE);
@@ -339,12 +371,12 @@ describe("technical SEO preview", () => {
     expect(
       readFileSync(path.join(root, "app/(auth)/auth/login/page.tsx"), "utf8"),
     ).toContain("export const metadata = loginMetadata");
-    expect(
-      readFileSync(
-        path.join(root, "app/(auth)/auth/login/login-form.tsx"),
-        "utf8",
-      ),
-    ).toContain(LOGIN_DESCRIPTION);
+    const loginForm = readFileSync(
+      path.join(root, "app/(auth)/auth/login/login-form.tsx"),
+      "utf8",
+    );
+    expect(loginForm).toContain(LOGIN_DESCRIPTION);
+    expect(loginForm).toContain(AUTH_DESCRIPTION);
   });
 
   it("redirects bare /auth to /auth/login", async () => {

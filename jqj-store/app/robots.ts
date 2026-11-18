@@ -1,9 +1,9 @@
 import type { MetadataRoute } from "next";
-import { unlistedProducts } from "@/data/products";
+import { PAYMENT_TEST_SLUG, unlistedProducts } from "@/data/products";
 import { absoluteUrl } from "@/lib/seo";
 
 const paymentTest = unlistedProducts.find(
-  (product) => product.slug === "payment-test-do-not-ship",
+  (product) => product.slug === PAYMENT_TEST_SLUG,
 );
 
 export default function robots(): MetadataRoute.Robots {
@@ -20,7 +20,7 @@ export default function robots(): MetadataRoute.Robots {
         "/admin",
         paymentTest
           ? `/products/${paymentTest.slug}`
-          : "/products/payment-test-do-not-ship",
+          : `/products/${PAYMENT_TEST_SLUG}`,
       ],
     },
     sitemap: absoluteUrl("/sitemap.xml"),

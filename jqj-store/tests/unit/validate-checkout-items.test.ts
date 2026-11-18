@@ -122,6 +122,10 @@ describe("validateCheckoutItems", () => {
       PAYMENT_TEST_SLUG,
     );
     expect(getProductBySlug(PAYMENT_TEST_SLUG)).toBeUndefined();
+    expect(getProductBySlug(`  ${PAYMENT_TEST_SLUG}  `)).toBeUndefined();
+    expect(getProductBySlug(`  ${PAYMENT_TEST_SLUG}  `)).toBe(
+      getProductBySlug(PAYMENT_TEST_SLUG),
+    );
     expect(isHiddenPaymentTestListing(PAYMENT_TEST_SLUG)).toBe(true);
     expect(isHiddenPaymentTestListing(`  ${PAYMENT_TEST_SLUG}  `)).toBe(true);
     expect(isHiddenPaymentTestListing("amethyst-bracelet-xv")).toBe(false);

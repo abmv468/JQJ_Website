@@ -330,8 +330,8 @@ export const products: Product[] = catalog;
 // Reachable by direct URL only. Kept out of `products` so home, collections,
 // related products, static params, and catalog seed generation omit it.
 //
-// Set `paymentTestListingHidden` to false to serve
-// /products/payment-test-do-not-ship again. The entry below stays either way.
+// Set `paymentTestListingHidden` to false to serve the unlisted
+// payment-test listing again. The entry below stays either way.
 export const PAYMENT_TEST_SLUG = "payment-test-do-not-ship";
 export const paymentTestListingHidden = true;
 
@@ -371,10 +371,11 @@ export function getProductBySlug(
 ): Product | undefined {
   const hidden =
     visibility?.paymentTestListingHidden ?? paymentTestListingHidden;
+  const normalized = slug.trim();
   return (
-    products.find((p) => p.slug === slug) ??
+    products.find((p) => p.slug === normalized) ??
     unlistedProducts.find((product) => {
-      if (product.slug !== slug) return false;
+      if (product.slug !== normalized) return false;
       if (hidden && product.slug === PAYMENT_TEST_SLUG) return false;
       return true;
     })
