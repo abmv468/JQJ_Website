@@ -332,20 +332,21 @@ export const products: Product[] = catalog;
 //
 // Set `paymentTestListingHidden` to false to serve
 // /products/payment-test-do-not-ship again. The entry below stays either way.
+export const PAYMENT_TEST_SLUG = "payment-test-do-not-ship";
 export const paymentTestListingHidden = true;
 
 export const unlistedProducts: Product[] = [
   {
-    id: "payment-test-do-not-ship",
+    id: PAYMENT_TEST_SLUG,
     name: "Payment test — do not ship",
-    slug: "payment-test-do-not-ship",
+    slug: PAYMENT_TEST_SLUG,
     description:
       "Temporary card-payment test. This is not a real jewellery item, and it will not be shipped.",
     price: 1,
     compareAtPrice: null,
     sku: "JQJ-PAYTEST-001",
     category: "necklaces",
-    images: ["/products/payment-test-do-not-ship.webp"],
+    images: [`/products/${PAYMENT_TEST_SLUG}.webp`],
     inStock: true,
     stockCount: 1,
     lowStockThreshold: 1,
@@ -374,7 +375,7 @@ export function getProductBySlug(
     products.find((p) => p.slug === slug) ??
     unlistedProducts.find((product) => {
       if (product.slug !== slug) return false;
-      if (hidden && product.slug === "payment-test-do-not-ship") return false;
+      if (hidden && product.slug === PAYMENT_TEST_SLUG) return false;
       return true;
     })
   );
