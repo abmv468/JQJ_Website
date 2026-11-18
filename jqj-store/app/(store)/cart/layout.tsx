@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { pageSocial } from "@/lib/page-social";
 
 const TITLE = "Cart — Jewellery Quintessential";
-const DESCRIPTION = "Your cart is empty.";
+const DESCRIPTION =
+  "Discover bracelets and necklaces selected for everyday wear.";
 
 export const metadata: Metadata = {
   title: { absolute: TITLE },

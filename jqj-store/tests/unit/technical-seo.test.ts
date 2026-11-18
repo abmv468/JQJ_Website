@@ -288,18 +288,20 @@ describe("technical SEO preview", () => {
     expect(checkoutMetadata.robots).toEqual(NOINDEX_FOLLOW);
     expect(checkoutMetadata.alternates?.canonical).not.toBe("/");
 
-    expect(cartMetadata.description).toBe("Your cart is empty.");
-    expect(cartMetadata.description).not.toBe(
+    expect(cartMetadata.description).toBe(
       "Discover bracelets and necklaces selected for everyday wear.",
     );
+    expect(cartMetadata.description).not.toBe("Your cart is empty.");
     expect(cartMetadata.openGraph).toMatchObject({
       title: "Cart — Jewellery Quintessential",
-      description: "Your cart is empty.",
+      description:
+        "Discover bracelets and necklaces selected for everyday wear.",
       url: "/cart",
     });
     expect(cartMetadata.twitter).toMatchObject({
       title: "Cart — Jewellery Quintessential",
-      description: "Your cart is empty.",
+      description:
+        "Discover bracelets and necklaces selected for everyday wear.",
     });
     expect(cartMetadata.openGraph?.title).not.toBe(HOMEPAGE_TITLE);
     expect(cartMetadata.twitter?.title).not.toBe(HOMEPAGE_TITLE);
