@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
 import { getProductBySlug, unlistedProducts } from "@/data/products";
+import {
+  NOT_FOUND_DESCRIPTION,
+  NOT_FOUND_TITLE,
+  pageSocial,
+} from "@/lib/page-social";
 
 // Served unlisted PDPs stay reachable by direct URL. Override robots and
 // googleBot together so neither meta is left at the root layout's index, follow.
@@ -15,10 +20,17 @@ const unlistedProductRobots: Metadata["robots"] = {
 };
 
 const unresolvedProductMetadata: Metadata = {
-  title: { absolute: "Page not found — Jewellery Quintessential" },
-  robots: unlistedProductRobots,
+  title: { absolute: NOT_FOUND_TITLE },
+  // Same as app/not-found.tsx: do not add a second robots tag. The 404
+  // response already carries one noindex, nofollow meta.
+  robots: null,
   // An unresolved slug must not canonicalize to /products/{slug} or the homepage.
   alternates: { canonical: null },
+  ...pageSocial({
+    title: NOT_FOUND_TITLE,
+    description: NOT_FOUND_DESCRIPTION,
+    unresolved: true,
+  }),
 };
 
 export function productPageMetadata(

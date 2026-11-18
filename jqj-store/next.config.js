@@ -3,6 +3,15 @@ const nextConfig = {
   // Every next/image src is a site-local path. Do not add remotePatterns
   // or domains unless a real host is passed to next/image; a wildcard
   // hostname lets the optimizer fetch and decode arbitrary remote images.
+  async redirects() {
+    return [
+      {
+        source: "/auth",
+        destination: "/auth/login",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

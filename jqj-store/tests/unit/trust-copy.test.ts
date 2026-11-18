@@ -115,9 +115,15 @@ describe("trust copy", () => {
 
   it("uses the v4 loyalty line and does not promise collector benefits", () => {
     const text = source("app/(store)/loyalty/page.tsx");
-    expect(text).toContain("Join our list for new pieces and updates.");
+    const meta = source("lib/loyalty-metadata.ts");
+    expect(text).toContain("LOYALTY_DESCRIPTION");
+    expect(meta).toContain("Join our list for new pieces and updates.");
+    expect(meta).toContain(
+      'export const LOYALTY_TITLE = "Collector Updates — Jewellery Quintessential"',
+    );
     expect(text).not.toMatch(/collector benefits/i);
-    expect(text).toContain('title: "JQD Group Updates — JQD Group"');
+    expect(meta).not.toMatch(/collector benefits/i);
+    expect(text).toContain("loyaltyMetadata");
     expect(text).toContain('title="Collector Updates"');
     expect(text).not.toContain("LOYALTY_INTRO");
   });

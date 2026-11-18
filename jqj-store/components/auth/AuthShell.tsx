@@ -23,7 +23,7 @@ export default function AuthShell({ children }: { children: React.ReactNode }) {
           Back to shop
         </Link>
       </header>
-      {children}
+      <div id="main-content">{children}</div>
     </div>
   );
 }

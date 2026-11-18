@@ -1,12 +1,14 @@
 /**
  * Per-URL lastmod for the XML sitemap.
  * Dates are content revisions, not one build-time stamp shared by every URL.
- * Pages edited in this preview share 2026-11-15. Shipping, returns, and privacy
- * were not edited here and keep the commit date of their current source.
+ * Pages edited in the 15 Nov 2026 preview share that date. Shipping, returns,
+ * and privacy were not edited there and keep the commit date of their source.
+ * Loyalty's canonical revision is 18 Nov 2026.
  */
 const PREVIEW_REVISION = "2026-11-15T07:09:00.000Z";
 /** Journal index and the four published notes. */
 const JOURNAL_REVISION = "2026-11-15T12:03:00.000Z";
+const LOYALTY_REVISION = "2026-11-18T01:07:00.000Z";
 
 const LAST_MODIFIED: Record<string, string> = {
   "/": PREVIEW_REVISION,
@@ -23,6 +25,7 @@ const LAST_MODIFIED: Record<string, string> = {
   "/shipping": "2026-11-10T06:35:58.000Z",
   "/returns": "2026-11-10T06:35:58.000Z",
   "/privacy": "2026-07-29T00:16:07.000Z",
+  "/loyalty": LOYALTY_REVISION,
   "/journal": JOURNAL_REVISION,
   "/journal/how-to-clean-a-crystal": JOURNAL_REVISION,
   "/journal/moonstones-blue-sheen-and-labradorite": JOURNAL_REVISION,

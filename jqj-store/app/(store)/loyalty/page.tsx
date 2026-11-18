@@ -1,14 +1,13 @@
 import PolicyPage from "@/components/trust/PolicyPage";
+import { LOYALTY_DESCRIPTION, loyaltyMetadata } from "@/lib/loyalty-metadata";
 
-export const metadata = {
-  title: "JQD Group Updates — JQD Group",
-};
+export const metadata = loyaltyMetadata;
 
 export default function LoyaltyPage() {
   return (
     <PolicyPage
       title="Collector Updates"
-      intro="Join our list for new pieces and updates."
+      intro={LOYALTY_DESCRIPTION}
       effectiveDate="July 28, 2026"
       contactDetails={[
         {

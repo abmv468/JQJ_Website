@@ -1,11 +1,8 @@
-import type { Metadata } from "next";
 import AuthShell from "@/components/auth/AuthShell";
+import { authMetadata } from "@/lib/auth/page-metadata";
 import "./auth.css";
 
-export const metadata: Metadata = {
-  robots: { index: false, follow: true },
-  title: { absolute: "Account — Jewellery Quintessential" },
-};
+export const metadata = authMetadata;
 
 export default function AuthLayout({
   children,

@@ -44,8 +44,16 @@ describe("product page robots", () => {
       (product) => product.slug === PAYMENT_TEST_SLUG,
     );
     expect(metadata.title).not.toBe(listing?.name);
-    expect(metadata.openGraph).toBeUndefined();
-    expect(metadata.twitter).toBeUndefined();
+    expect(metadata.robots).toBeNull();
+    expect(metadata.openGraph).toMatchObject({
+      title: "Page not found — Jewellery Quintessential",
+    });
+    expect(metadata.twitter).toMatchObject({
+      title: "Page not found — Jewellery Quintessential",
+    });
+    expect(JSON.stringify(metadata)).not.toContain(
+      `/products/${PAYMENT_TEST_SLUG}`,
+    );
 
     expect(() => ProductPage({ params: { slug: PAYMENT_TEST_SLUG } })).toThrow(
       expect.objectContaining({ digest: "NEXT_NOT_FOUND" }),

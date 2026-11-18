@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { loyaltyMetadata } from "@/lib/loyalty-metadata";
 import { JOURNAL_POSTS } from "@/data/journal";
 import { products } from "@/data/products";
 import { routeLastModified } from "@/lib/sitemap-lastmod";
@@ -21,6 +22,18 @@ const publicPaths = [
   "/terms",
 ];
 
+function loyaltyEntry(): MetadataRoute.Sitemap {
+  if (loyaltyMetadata.alternates?.canonical !== "/loyalty") return [];
+  return [
+    {
+      url: absoluteUrl("/loyalty"),
+      lastModified: routeLastModified("/loyalty"),
+      changeFrequency: "monthly",
+      priority: 0.6,
+    },
+  ];
+}
+
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     ...publicPaths.map((path): MetadataRoute.Sitemap[number] => ({
@@ -40,6 +53,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.6,
     },
+    ...loyaltyEntry(),
     ...JOURNAL_POSTS.map((post): MetadataRoute.Sitemap[number] => ({
       url: absoluteUrl(`/journal/${post.slug}`),
       lastModified: routeLastModified(`/journal/${post.slug}`),

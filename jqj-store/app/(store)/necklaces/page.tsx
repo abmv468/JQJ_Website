@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import CollectionView from "@/components/product/CollectionView";
 import { getProductsByCategory } from "@/data/products";
+import { pageTwitter } from "@/lib/page-social";
+
+const TITLE = "Gemstone Necklaces — Jewellery Quintessential";
+const DESCRIPTION =
+  "Discover gemstone necklaces and pendants with natural character, refined metalwork, and a considered everyday profile.";
 
 export function generateMetadata({
   searchParams,
@@ -13,16 +18,15 @@ export function generateMetadata({
 
   return {
     title: "Gemstone Necklaces",
-    description:
-      "Discover gemstone necklaces and pendants with natural character, refined metalwork, and a considered everyday profile.",
+    description: DESCRIPTION,
     alternates: { canonical: "/necklaces" },
     robots: isFiltered ? { index: false, follow: true } : undefined,
     openGraph: {
-      title: "Gemstone Necklaces — Jewellery Quintessential",
-      description:
-        "Discover gemstone necklaces and pendants with natural character, refined metalwork, and a considered everyday profile.",
+      title: TITLE,
+      description: DESCRIPTION,
       url: "/necklaces",
     },
+    twitter: pageTwitter(TITLE, DESCRIPTION),
   };
 }
 

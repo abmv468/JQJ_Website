@@ -111,5 +111,7 @@ test("the loyalty page no longer promises collector benefits", async ({
   await expect(
     page.getByRole("heading", { name: "Collector Updates" }),
   ).toBeVisible();
-  expect(await page.title()).toContain("JQD Group Updates — JQD Group");
+  expect(await page.title()).toBe(
+    "Collector Updates — Jewellery Quintessential",
+  );
 });
