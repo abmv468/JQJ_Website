@@ -23,7 +23,9 @@ export default function StoreShell({
       <div className="relative z-10 flex min-h-screen flex-col">
         <AnnouncementBar />
         <Header />
-        <main className="relative flex-1 pb-12">{children}</main>
+        <main id="main-content" className="relative flex-1 pb-12">
+          {children}
+        </main>
         <Footer />
         <CartDrawer />
       </div>

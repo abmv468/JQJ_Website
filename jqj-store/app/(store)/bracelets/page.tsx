@@ -4,6 +4,11 @@ import {
   getLimitedEditionProducts,
   getProductsByCategory,
 } from "@/data/products";
+import { pageTwitter } from "@/lib/page-social";
+
+const TITLE = "Natural Stone Bracelets — Jewellery Quintessential";
+const DESCRIPTION =
+  "Explore natural stone bracelets designed for everyday wear, thoughtful gifting, and a personal fit.";
 
 export function generateMetadata({
   searchParams,
@@ -16,16 +21,15 @@ export function generateMetadata({
 
   return {
     title: "Natural Stone Bracelets",
-    description:
-      "Explore natural stone bracelets designed for everyday wear, thoughtful gifting, and a personal fit.",
+    description: DESCRIPTION,
     alternates: { canonical: "/bracelets" },
     robots: isFiltered ? { index: false, follow: true } : undefined,
     openGraph: {
-      title: "Natural Stone Bracelets — Jewellery Quintessential",
-      description:
-        "Explore natural stone bracelets designed for everyday wear, thoughtful gifting, and a personal fit.",
+      title: TITLE,
+      description: DESCRIPTION,
       url: "/bracelets",
     },
+    twitter: pageTwitter(TITLE, DESCRIPTION),
   };
 }
 

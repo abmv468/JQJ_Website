@@ -14,5 +14,9 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <div className={`jq-admin ${typesetFontVariables}`}>{children}</div>;
+  return (
+    <div id="main-content" className={`jq-admin ${typesetFontVariables}`}>
+      {children}
+    </div>
+  );
 }

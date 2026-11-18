@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import CollectionView from "@/components/product/CollectionView";
 import { getNewArrivals } from "@/data/products";
+import { pageTwitter } from "@/lib/page-social";
+
+const TITLE = "New Natural Stone Jewellery — Jewellery Quintessential";
+const DESCRIPTION =
+  "Shop new natural stone jewellery, recent releases from Jewellery Quintessential.";
 
 export function generateMetadata({
   searchParams,
@@ -13,16 +18,15 @@ export function generateMetadata({
 
   return {
     title: "New Natural Stone Jewellery",
-    description:
-      "Shop new natural stone jewellery, recent releases, and limited pieces from Jewellery Quintessential.",
+    description: DESCRIPTION,
     alternates: { canonical: "/new" },
     robots: isFiltered ? { index: false, follow: true } : undefined,
     openGraph: {
-      title: "New Natural Stone Jewellery — Jewellery Quintessential",
-      description:
-        "Shop new natural stone jewellery, recent releases, and limited pieces from Jewellery Quintessential.",
+      title: TITLE,
+      description: DESCRIPTION,
       url: "/new",
     },
+    twitter: pageTwitter(TITLE, DESCRIPTION),
   };
 }
 

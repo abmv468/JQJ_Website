@@ -123,6 +123,9 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-brand-bg font-body text-white antialiased">
+        <a className="skip-to-content" href="#main-content">
+          Skip to content
+        </a>
         <CurrencyProvider>{children}</CurrencyProvider>
       </body>
     </html>
