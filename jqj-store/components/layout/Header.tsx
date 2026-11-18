@@ -17,6 +17,7 @@ import {
 import {
   AnimatePresence,
   LazyMotion,
+  MotionConfig,
   domAnimation,
   m,
   useReducedMotion,
@@ -515,136 +516,147 @@ export default function Header() {
             />
           </Link>
 
-          <m.div
-            layout
-            className="flex flex-1 items-center justify-end gap-2 sm:gap-3"
-          >
-            <m.div layout className="hidden items-center gap-2 sm:flex">
-              <button
-                type="button"
-                aria-label={searchOpen ? "Close search" : "Open search"}
-                title={searchOpen ? "Close search" : "Open search"}
-                className="icon-button"
-                onClick={() => setSearchOpen((open) => !open)}
-              >
-                <Search className="h-5 w-5" />
-              </button>
-              <AnimatePresence initial={false}>
-                {searchOpen && (
-                  <m.form
-                    key="header-search"
-                    initial={
-                      shouldReduceMotion
-                        ? { opacity: 1 }
-                        : { opacity: 0, x: -10, scale: 0.98 }
-                    }
-                    animate={{ opacity: 1, x: 0, scale: 1 }}
-                    exit={
-                      shouldReduceMotion
-                        ? { opacity: 0 }
-                        : { opacity: 0, x: -8, scale: 0.98 }
-                    }
-                    transition={{
-                      duration: shouldReduceMotion ? 0 : 0.2,
-                      ease: [0.22, 1, 0.36, 1],
-                    }}
-                    onSubmit={handleSearchSubmit}
-                    className="flex h-10 w-[17rem] items-center rounded-brand border border-white/20 bg-black/55 px-2 shadow-[0_10px_24px_rgba(0,0,0,0.24)] backdrop-blur"
-                  >
-                    <label htmlFor="header-search-input" className="sr-only">
-                      Search products
-                    </label>
-                    <input
-                      ref={searchInputRef}
-                      id="header-search-input"
-                      type="search"
-                      value={searchQuery}
-                      onChange={(event) => setSearchQuery(event.target.value)}
-                      placeholder="Search products"
-                      className="h-full w-full bg-transparent px-2 text-sm text-white placeholder:text-white/45 outline-none"
-                    />
-                    <button
-                      type="submit"
-                      aria-label="Search"
-                      className="inline-flex h-8 min-w-8 items-center justify-center rounded-[4px] border border-white/18 px-2 text-[11px] font-medium uppercase tracking-[0.14em] text-white/82 transition-colors hover:border-white/40 hover:text-white"
-                    >
-                      Go
-                    </button>
-                  </m.form>
-                )}
-              </AnimatePresence>
-            </m.div>
-
-            <m.div layout className="hidden items-center sm:flex">
-              <label htmlFor="header-currency" className="sr-only">
-                Select currency
-              </label>
-              <select
-                id="header-currency"
-                value={currency}
-                onChange={(event) =>
-                  setCurrency(event.target.value as typeof currency)
-                }
-                className="h-11 rounded-full border border-white/10 bg-white/[0.02] px-3 font-heading text-[10px] uppercase tracking-[0.14em] text-white/72 outline-none transition-[border-color,background-color,color] duration-200 hover:border-white/20 hover:bg-white/[0.05] hover:text-white"
-                aria-label="Currency"
-              >
-                {supportedCurrencies.map((code) => (
-                  <option
-                    key={code}
-                    value={code}
-                    className="bg-brand-surface text-white"
-                  >
-                    {code}
-                  </option>
-                ))}
-              </select>
-            </m.div>
-
-            <m.div layout>
-              {signedIn ? (
-                <Link
-                  href="/account"
-                  aria-label="Account"
-                  className="icon-button hidden sm:inline-flex"
-                >
-                  <User className="h-5 w-5" />
-                </Link>
-              ) : (
-                <Link
-                  href="/auth/login"
-                  className="hidden px-2 font-heading text-[11px] uppercase text-white/70 transition-colors hover:text-white sm:block"
-                  style={{ letterSpacing: "0.18em" }}
-                >
-                  Sign In
-                </Link>
-              )}
-            </m.div>
-
-            <m.button
+          {/*
+            layoutRoot measures this cluster against itself, not the page.
+            The header is sticky, so a plain layout prop records the scroll
+            offset in the box. Client navigation then resets scroll and Framer
+            replays that distance as translateY — the controls drop out of the
+            bar and fly back up. Search open/close still uses the child layout
+            props and the form's own x/scale/opacity transition.
+          */}
+          <MotionConfig reducedMotion="user">
+            <m.div
               layout
-              type="button"
-              aria-label="Cart"
-              className="relative inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.02] px-3 text-white/72 transition-[transform,border-color,background-color,color,box-shadow] duration-200 hover:border-white/20 hover:bg-white/[0.05] hover:text-white active:scale-[0.97] sm:pl-4 sm:pr-5"
-              onClick={() => setOpen(true)}
+              layoutRoot
+              className="flex flex-1 items-center justify-end gap-2 sm:gap-3"
             >
-              <ShoppingBag className="h-5 w-5" />
-              <span
-                aria-hidden="true"
-                className="hidden font-heading text-[10px] uppercase tracking-[0.18em] text-white/78 sm:inline"
+              <m.div layout className="hidden items-center gap-2 sm:flex">
+                <button
+                  type="button"
+                  aria-label={searchOpen ? "Close search" : "Open search"}
+                  title={searchOpen ? "Close search" : "Open search"}
+                  className="icon-button"
+                  onClick={() => setSearchOpen((open) => !open)}
+                >
+                  <Search className="h-5 w-5" />
+                </button>
+                <AnimatePresence initial={false}>
+                  {searchOpen && (
+                    <m.form
+                      key="header-search"
+                      initial={
+                        shouldReduceMotion
+                          ? { opacity: 1 }
+                          : { opacity: 0, x: -10, scale: 0.98 }
+                      }
+                      animate={{ opacity: 1, x: 0, scale: 1 }}
+                      exit={
+                        shouldReduceMotion
+                          ? { opacity: 0 }
+                          : { opacity: 0, x: -8, scale: 0.98 }
+                      }
+                      transition={{
+                        duration: shouldReduceMotion ? 0 : 0.2,
+                        ease: [0.22, 1, 0.36, 1],
+                      }}
+                      onSubmit={handleSearchSubmit}
+                      className="flex h-10 w-[17rem] items-center rounded-brand border border-white/20 bg-black/55 px-2 shadow-[0_10px_24px_rgba(0,0,0,0.24)] backdrop-blur"
+                    >
+                      <label htmlFor="header-search-input" className="sr-only">
+                        Search products
+                      </label>
+                      <input
+                        ref={searchInputRef}
+                        id="header-search-input"
+                        type="search"
+                        value={searchQuery}
+                        onChange={(event) => setSearchQuery(event.target.value)}
+                        placeholder="Search products"
+                        className="h-full w-full bg-transparent px-2 text-sm text-white placeholder:text-white/45 outline-none"
+                      />
+                      <button
+                        type="submit"
+                        aria-label="Search"
+                        className="inline-flex h-8 min-w-8 items-center justify-center rounded-[4px] border border-white/18 px-2 text-[11px] font-medium uppercase tracking-[0.14em] text-white/82 transition-colors hover:border-white/40 hover:text-white"
+                      >
+                        Go
+                      </button>
+                    </m.form>
+                  )}
+                </AnimatePresence>
+              </m.div>
+
+              <m.div layout className="hidden items-center sm:flex">
+                <label htmlFor="header-currency" className="sr-only">
+                  Select currency
+                </label>
+                <select
+                  id="header-currency"
+                  value={currency}
+                  onChange={(event) =>
+                    setCurrency(event.target.value as typeof currency)
+                  }
+                  className="h-11 rounded-full border border-white/10 bg-white/[0.02] px-3 font-heading text-[10px] uppercase tracking-[0.14em] text-white/72 outline-none transition-[border-color,background-color,color] duration-200 hover:border-white/20 hover:bg-white/[0.05] hover:text-white"
+                  aria-label="Currency"
+                >
+                  {supportedCurrencies.map((code) => (
+                    <option
+                      key={code}
+                      value={code}
+                      className="bg-brand-surface text-white"
+                    >
+                      {code}
+                    </option>
+                  ))}
+                </select>
+              </m.div>
+
+              <m.div layout>
+                {signedIn ? (
+                  <Link
+                    href="/account"
+                    aria-label="Account"
+                    className="icon-button hidden sm:inline-flex"
+                  >
+                    <User className="h-5 w-5" />
+                  </Link>
+                ) : (
+                  <Link
+                    href="/auth/login"
+                    className="hidden px-2 font-heading text-[11px] uppercase text-white/70 transition-colors hover:text-white sm:block"
+                    style={{ letterSpacing: "0.18em" }}
+                  >
+                    Sign In
+                  </Link>
+                )}
+              </m.div>
+
+              <m.button
+                layout
+                type="button"
+                aria-label="Cart"
+                className="relative inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.02] px-3 text-white/72 transition-[transform,border-color,background-color,color,box-shadow] duration-200 hover:border-white/20 hover:bg-white/[0.05] hover:text-white active:scale-[0.97] sm:pl-4 sm:pr-5"
+                onClick={() => setOpen(true)}
               >
-                {currency}
-              </span>
-              <span
-                className={`absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border border-black/10 bg-brand-gold px-1 text-[10px] font-semibold text-black transition-[opacity,transform] ${
-                  badgeHidden
-                    ? "translate-y-1 opacity-0"
-                    : "translate-y-0 opacity-100"
-                }`}
-              >
-                {hydrated ? itemCount : ""}
-              </span>
-            </m.button>
-          </m.div>
+                <ShoppingBag className="h-5 w-5" />
+                <span
+                  aria-hidden="true"
+                  className="hidden font-heading text-[10px] uppercase tracking-[0.18em] text-white/78 sm:inline"
+                >
+                  {currency}
+                </span>
+                <span
+                  className={`absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border border-black/10 bg-brand-gold px-1 text-[10px] font-semibold text-black transition-[opacity,transform] ${
+                    badgeHidden
+                      ? "translate-y-1 opacity-0"
+                      : "translate-y-0 opacity-100"
+                  }`}
+                >
+                  {hydrated ? itemCount : ""}
+                </span>
+              </m.button>
+            </m.div>
+          </MotionConfig>
         </div>
 
         <AnimatePresence>
