@@ -457,9 +457,9 @@ export async function assertUnpaidReuseStayedOnCheckout(
   await expect(
     page.getByText("Your Airwallex payment was successful."),
   ).toHaveCount(0);
-  await expect(
-    page.getByText("Redirecting to Airwallex secure checkout…"),
-  ).toHaveCount(0);
+  await expect(page.getByText("Redirecting to secure checkout…")).toHaveCount(
+    0,
+  );
   await expect(page.getByText("Creating secure payment session…")).toHaveCount(
     0,
   );
