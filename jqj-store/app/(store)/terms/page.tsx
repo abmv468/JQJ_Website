@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
+import { pageSocial } from "@/lib/page-social";
+
+const TITLE = "Terms & Conditions — Jewellery Quintessential";
+const DESCRIPTION =
+  "Review the JQD Group terms and conditions for using the website and purchasing natural stone jewellery.";
 
 export const metadata: Metadata = {
   title: "Terms & Conditions",
-  description:
-    "Review the JQD Group terms and conditions for using the website and purchasing natural stone jewellery.",
   alternates: { canonical: "/terms" },
+  ...pageSocial({
+    title: TITLE,
+    description: DESCRIPTION,
+    path: "/terms",
+  }),
 };
 
 export default function TermsPage() {

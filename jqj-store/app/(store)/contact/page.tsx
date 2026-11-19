@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
+import { pageSocial } from "@/lib/page-social";
+
+const TITLE = "Contact Us — Jewellery Quintessential";
+const DESCRIPTION =
+  "Contact Jewellery Quintessential for help with natural stone jewellery orders, sizing, shipping, returns, repairs, and product questions.";
 
 export const metadata: Metadata = {
   title: "Contact Us",
-  description:
-    "Contact Jewellery Quintessential for help with natural stone jewellery orders, sizing, shipping, returns, repairs, and product questions.",
   alternates: { canonical: "/contact" },
+  ...pageSocial({
+    title: TITLE,
+    description: DESCRIPTION,
+    path: "/contact",
+  }),
 };
 
 export default function ContactPage() {

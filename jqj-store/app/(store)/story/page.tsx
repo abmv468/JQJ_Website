@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
+import { pageSocial } from "@/lib/page-social";
+
+const TITLE = "Our Story — Jewellery Quintessential";
+const DESCRIPTION =
+  "Discover how Jewellery Quintessential approaches natural stone jewellery, thoughtful gifting, and everyday ritual.";
 
 export const metadata: Metadata = {
   title: "Our Story",
-  description:
-    "Discover how Jewellery Quintessential approaches natural stone jewellery, thoughtful gifting, and everyday ritual.",
   alternates: { canonical: "/story" },
+  ...pageSocial({
+    title: TITLE,
+    description: DESCRIPTION,
+    path: "/story",
+  }),
 };
 
 export default function StoryPage() {

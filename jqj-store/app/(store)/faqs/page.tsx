@@ -1,13 +1,21 @@
 import PolicyPage from "@/components/trust/PolicyPage";
 import type { Metadata } from "next";
+import { pageSocial } from "@/lib/page-social";
 import { RETURNS_DAYS } from "@/lib/policy";
 import { jsonLd } from "@/lib/seo";
 
+const TITLE = "Jewellery FAQs — Jewellery Quintessential";
+const DESCRIPTION =
+  "Answers about Jewellery Quintessential orders, payment, shipping, returns, resizing, natural stone jewellery care, and repairs.";
+
 export const metadata: Metadata = {
   title: "Jewellery FAQs",
-  description:
-    "Answers about Jewellery Quintessential orders, payment, shipping, returns, resizing, natural stone jewellery care, and repairs.",
   alternates: { canonical: "/faqs" },
+  ...pageSocial({
+    title: TITLE,
+    description: DESCRIPTION,
+    path: "/faqs",
+  }),
 };
 
 const faqSections = [

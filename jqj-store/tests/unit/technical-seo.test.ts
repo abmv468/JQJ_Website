@@ -22,6 +22,16 @@ import { LOYALTY_TITLE, loyaltyMetadata } from "@/lib/loyalty-metadata";
 import { generateMetadata as newMetadata } from "@/app/(store)/new/page";
 import { generateMetadata as braceletsMetadata } from "@/app/(store)/bracelets/page";
 import { generateMetadata as necklacesMetadata } from "@/app/(store)/necklaces/page";
+import { metadata as storyMetadata } from "@/app/(store)/story/page";
+import { metadata as contactMetadata } from "@/app/(store)/contact/page";
+import { metadata as faqsMetadata } from "@/app/(store)/faqs/page";
+import { metadata as careMetadata } from "@/app/(store)/care/page";
+import { metadata as shippingMetadata } from "@/app/(store)/shipping/page";
+import { metadata as measureMetadata } from "@/app/(store)/measure/page";
+import { metadata as repairMetadata } from "@/app/(store)/repair/page";
+import { metadata as privacyMetadata } from "@/app/(store)/privacy/page";
+import { metadata as termsMetadata } from "@/app/(store)/terms/page";
+import { metadata as returnsMetadata } from "@/app/(store)/returns/page";
 import { productPageMetadata } from "@/lib/product-page-metadata";
 import { NOT_FOUND_DESCRIPTION, NOT_FOUND_TITLE } from "@/lib/page-social";
 import { JOURNAL_INTRO, getJournalPost } from "@/data/journal";
@@ -445,6 +455,104 @@ describe("technical SEO preview", () => {
       expect(metadata.openGraph).toMatchObject({ title, description });
       expect(metadata.twitter).toMatchObject({ title, description });
       expect(metadata.twitter?.title).not.toBe(HOMEPAGE_TITLE);
+    }
+  });
+
+  it("gives remaining indexed content pages their own social title, description, and url", () => {
+    const layout = readFileSync(path.join(root, "app/layout.tsx"), "utf8");
+    expect(layout).toContain('template: "%s — Jewellery Quintessential"');
+
+    const cases = [
+      {
+        metadata: storyMetadata,
+        segment: "Our Story",
+        path: "/story",
+        description:
+          "Discover how Jewellery Quintessential approaches natural stone jewellery, thoughtful gifting, and everyday ritual.",
+      },
+      {
+        metadata: contactMetadata,
+        segment: "Contact Us",
+        path: "/contact",
+        description:
+          "Contact Jewellery Quintessential for help with natural stone jewellery orders, sizing, shipping, returns, repairs, and product questions.",
+      },
+      {
+        metadata: faqsMetadata,
+        segment: "Jewellery FAQs",
+        path: "/faqs",
+        description:
+          "Answers about Jewellery Quintessential orders, payment, shipping, returns, resizing, natural stone jewellery care, and repairs.",
+      },
+      {
+        metadata: careMetadata,
+        segment: "Natural Stone Jewellery Care",
+        path: "/care",
+        description:
+          "Learn how to clean, store, and care for natural stone jewellery from Jewellery Quintessential.",
+      },
+      {
+        metadata: shippingMetadata,
+        segment: "Shipping Policy",
+        path: "/shipping",
+        description:
+          "Review JQD Group order processing, delivery timing, tracking, international duties, and shipping support.",
+      },
+      {
+        metadata: measureMetadata,
+        segment: "Bracelet Wrist Size Guide",
+        path: "/measure",
+        description:
+          "Measure your wrist and choose a close, everyday, or relaxed bracelet fit before ordering natural stone jewellery from Jewellery Quintessential.",
+      },
+      {
+        metadata: repairMetadata,
+        segment: "Jewellery Repairs",
+        path: "/repair",
+        description:
+          "Request support for a Jewellery Quintessential jewellery repair, including how to share photos, order details, and available service options.",
+      },
+      {
+        metadata: privacyMetadata,
+        segment: "Privacy Policy",
+        path: "/privacy",
+        description:
+          "Read the JQD Group privacy policy for information about the data we collect, how we use it, and your privacy choices.",
+      },
+      {
+        metadata: termsMetadata,
+        segment: "Terms & Conditions",
+        path: "/terms",
+        description:
+          "Review the JQD Group terms and conditions for using the website and purchasing natural stone jewellery.",
+      },
+      {
+        metadata: returnsMetadata,
+        segment: "Returns, Resizes & Exchanges",
+        path: "/returns",
+        description:
+          "Understand JQD Group eligibility windows, return instructions, exchanges, resizing, and refund timing.",
+      },
+    ];
+
+    for (const { metadata, segment, path: pagePath, description } of cases) {
+      const title = `${segment} — Jewellery Quintessential`;
+      expect(metadata.title).toBe(segment);
+      expect(metadata.description).toBe(description);
+      expect(metadata.alternates).toEqual({ canonical: pagePath });
+      expect(metadata).not.toHaveProperty("robots");
+      expect(metadata.openGraph).toMatchObject({
+        title,
+        description,
+        url: pagePath,
+      });
+      expect(metadata.twitter).toMatchObject({ title, description });
+      expect(metadata.openGraph?.title).not.toBe(HOMEPAGE_TITLE);
+      expect(metadata.twitter?.title).not.toBe(HOMEPAGE_TITLE);
+      expect(metadata.openGraph?.description).not.toBe(HOMEPAGE_DESCRIPTION);
+      expect(metadata.twitter?.description).not.toBe(HOMEPAGE_DESCRIPTION);
+      expect(metadata.openGraph?.url).not.toBe("/");
+      expect(metadata.openGraph?.url).not.toBe("https://jqd.app");
     }
   });
 

@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
+import { pageSocial } from "@/lib/page-social";
+
+const TITLE = "Bracelet Wrist Size Guide — Jewellery Quintessential";
+const DESCRIPTION =
+  "Measure your wrist and choose a close, everyday, or relaxed bracelet fit before ordering natural stone jewellery from Jewellery Quintessential.";
 
 export const metadata: Metadata = {
   title: "Bracelet Wrist Size Guide",
-  description:
-    "Measure your wrist and choose a close, everyday, or relaxed bracelet fit before ordering natural stone jewellery from Jewellery Quintessential.",
   alternates: { canonical: "/measure" },
+  ...pageSocial({
+    title: TITLE,
+    description: DESCRIPTION,
+    path: "/measure",
+  }),
 };
 
 export default function MeasurePage() {

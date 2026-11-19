@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
+import { pageSocial } from "@/lib/page-social";
+
+const TITLE = "Jewellery Repairs — Jewellery Quintessential";
+const DESCRIPTION =
+  "Request support for a Jewellery Quintessential jewellery repair, including how to share photos, order details, and available service options.";
 
 export const metadata: Metadata = {
   title: "Jewellery Repairs",
-  description:
-    "Request support for a Jewellery Quintessential jewellery repair, including how to share photos, order details, and available service options.",
   alternates: { canonical: "/repair" },
+  ...pageSocial({
+    title: TITLE,
+    description: DESCRIPTION,
+    path: "/repair",
+  }),
 };
 
 export default function RepairPage() {

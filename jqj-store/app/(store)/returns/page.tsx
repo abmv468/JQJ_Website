@@ -1,12 +1,20 @@
 import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
+import { pageSocial } from "@/lib/page-social";
 import { RETURNS_DAYS } from "@/lib/policy";
+
+const TITLE = "Returns, Resizes & Exchanges — Jewellery Quintessential";
+const DESCRIPTION =
+  "Understand JQD Group eligibility windows, return instructions, exchanges, resizing, and refund timing.";
 
 export const metadata: Metadata = {
   title: "Returns, Resizes & Exchanges",
-  description:
-    "Understand JQD Group eligibility windows, return instructions, exchanges, resizing, and refund timing.",
   alternates: { canonical: "/returns" },
+  ...pageSocial({
+    title: TITLE,
+    description: DESCRIPTION,
+    path: "/returns",
+  }),
 };
 
 export default function ReturnsPage() {

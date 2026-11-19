@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
+import { pageSocial } from "@/lib/page-social";
+
+const TITLE = "Natural Stone Jewellery Care — Jewellery Quintessential";
+const DESCRIPTION =
+  "Learn how to clean, store, and care for natural stone jewellery from Jewellery Quintessential.";
 
 export const metadata: Metadata = {
   title: "Natural Stone Jewellery Care",
-  description:
-    "Learn how to clean, store, and care for natural stone jewellery from Jewellery Quintessential.",
   alternates: { canonical: "/care" },
+  ...pageSocial({
+    title: TITLE,
+    description: DESCRIPTION,
+    path: "/care",
+  }),
 };
 
 export default function CarePage() {
