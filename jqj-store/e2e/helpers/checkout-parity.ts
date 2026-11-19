@@ -31,6 +31,16 @@ export const UNPAID_REUSE_IDEMPOTENCY_KEY =
   "40940940-9409-4409-8409-409409409409";
 export const UNPAID_REUSE_ORDER_ID = "order-e2e-unpaid";
 
+type AirwallexCreateBody = {
+  orderId: string;
+  intentId: string;
+  alreadyPaid?: true;
+  clientSecret?: string;
+  currency: string;
+  sdkEnv: string;
+  countryCode: string;
+};
+
 type Quote = ReturnType<typeof quoteCheckout>;
 
 type ServerPricing = {
@@ -241,6 +251,129 @@ export async function stubAirwallexVerify(page: Page, orderId: string) {
       }),
     }),
   );
+}
+
+function cartLineForFingerprint(item: unknown): CheckoutAttemptItem {
+  if (!item || typeof item !== "object") {
+    throw new Error("Cart line is not an object");
+  }
+  const line = item as {
+    id?: string;
+    slug?: string;
+    sku?: string;
+    size?: string | null;
+    material?: string | null;
+    quantity?: number;
+  };
+  return {
+    id: line.id,
+    slug: line.slug,
+    sku: line.sku,
+    size: line.size,
+    material: line.material,
+    quantity: Number(line.quantity),
+  };
+}
+
+/**
+ * Store the attempt the shopper sends when it retries the same cart.
+ * The payment intent is what distinguishes that retry from a first create.
+ */
+export async function seedReusedAirwallexAttempt(
+  page: Page,
+  input: {
+    idempotencyKey: string;
+    paymentIntentId: string;
+    orderId: string;
+  },
+) {
+  const items: unknown = await page.evaluate((key) => {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : [];
+  }, CART_KEY);
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new Error("Cannot seed an Airwallex reuse without a cart line");
+  }
+  const fingerprint = cartFingerprint(items.map(cartLineForFingerprint));
+  await page.evaluate(
+    ({ storageKey, record }) => {
+      sessionStorage.setItem(storageKey, JSON.stringify(record));
+    },
+    {
+      storageKey: CHECKOUT_ATTEMPT_STORAGE_KEY,
+      record: {
+        fingerprint,
+        idempotencyKey: input.idempotencyKey,
+        paymentIntentId: input.paymentIntentId,
+        orderId: input.orderId,
+      },
+    },
+  );
+}
+
+const FIRST_TIME_AIRWALLEX_ORDER_ID = "order-e2e-first";
+const FIRST_TIME_AIRWALLEX_INTENT_ID = "int_e2e_first";
+
+/**
+ * Stub POST /api/checkout/airwallex.
+ * alreadyPaid is returned only when the body repeats the stored payment
+ * intent and idempotency key. A first-time create has neither, so it is
+ * fulfilled as a new unpaid payment and is not reported as already paid.
+ */
+export async function stubAirwallexAlreadyPaidReuse(
+  page: Page,
+  reuse: {
+    orderId: string;
+    intentId: string;
+    idempotencyKey: string;
+  },
+) {
+  const captured: {
+    request: CheckoutRequest | null;
+    body: AirwallexCreateBody | null;
+    alreadyPaid: boolean;
+  } = {
+    request: null,
+    body: null,
+    alreadyPaid: false,
+  };
+
+  await page.route(
+    new RegExp(`${checkoutPath("airwallex")}$`),
+    async (route) => {
+      const request = route.request().postDataJSON() as CheckoutRequest;
+      captured.request = request;
+      const isReuse =
+        request.paymentIntentId === reuse.intentId &&
+        request.idempotencyKey === reuse.idempotencyKey;
+      const body: AirwallexCreateBody = isReuse
+        ? {
+            orderId: reuse.orderId,
+            intentId: reuse.intentId,
+            alreadyPaid: true,
+            currency: "USD",
+            sdkEnv: "demo",
+            countryCode: "US",
+          }
+        : {
+            orderId: FIRST_TIME_AIRWALLEX_ORDER_ID,
+            intentId: FIRST_TIME_AIRWALLEX_INTENT_ID,
+            clientSecret: "secret_e2e_first",
+            currency: "USD",
+            sdkEnv: "demo",
+            countryCode: "US",
+          };
+      captured.body = body;
+      captured.alreadyPaid = isReuse;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(body),
+      });
+    },
+  );
+
+  return captured;
 }
 
 /**
