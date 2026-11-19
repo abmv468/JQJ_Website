@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import {
   CART_STORAGE_KEY,
   LEGACY_CART_STORAGE_KEY,
   cartPayloadToPersist,
   isCartBadgeHidden,
+  persistClearedCart,
   readStoredCart,
   shouldShowEmptyCart,
   type StoredCartItem,
@@ -28,7 +31,21 @@ function memoryStorage(seed: Record<string, string> = {}) {
     setItem: (key: string, value: string) => {
       data.set(key, value);
     },
+    removeItem: (key: string) => {
+      data.delete(key);
+    },
   };
+}
+
+/** The confirmation load effect: read the saved cart, then copy a legacy key. */
+function confirmationHydratedLines(storage: ReturnType<typeof memoryStorage>) {
+  const loaded = readStoredCart(storage);
+  const current = storage.getItem(CART_STORAGE_KEY);
+  const legacy = storage.getItem(LEGACY_CART_STORAGE_KEY);
+  if (!current && legacy) {
+    storage.setItem(CART_STORAGE_KEY, legacy);
+  }
+  return loaded;
 }
 
 describe("cart hydration regression", () => {
@@ -92,5 +109,30 @@ describe("cart hydration regression", () => {
       storedRaw: JSON.stringify([line]),
     });
     expect(cleared).toBe("[]");
+  });
+
+  it("commits a clear before unload so confirmation hydrates no leftover line", () => {
+    const storage = memoryStorage({
+      [CART_STORAGE_KEY]: JSON.stringify([line]),
+      [LEGACY_CART_STORAGE_KEY]: JSON.stringify([line]),
+    });
+
+    persistClearedCart(storage);
+
+    expect(confirmationHydratedLines(storage)).toEqual([]);
+    expect(storage.getItem(CART_STORAGE_KEY)).toBe("[]");
+    expect(storage.getItem(LEGACY_CART_STORAGE_KEY)).toBeNull();
+    expect(shouldShowEmptyCart(true, 0)).toBe(true);
+    expect(isCartBadgeHidden(true, 0)).toBe(true);
+  });
+
+  it("clearCart writes that empty cart before it returns", () => {
+    const source = readFileSync(
+      path.join(process.cwd(), "context/CartContext.tsx"),
+      "utf8",
+    );
+    const fn = source.match(/function clearCart\(\) \{[\s\S]*?\n  \}/);
+    expect(fn?.[0]).toContain("persistClearedCart(localStorage)");
+    expect(fn?.[0]).not.toContain("useEffect");
   });
 });

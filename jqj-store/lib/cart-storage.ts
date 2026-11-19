@@ -62,6 +62,29 @@ export function cartPayloadToPersist(options: {
   return JSON.stringify(options.items);
 }
 
+type CartStorageWriter = CartStorage & {
+  setItem: (key: string, value: string) => void;
+  removeItem: (key: string) => void;
+};
+
+/**
+ * Store an intentional empty cart immediately.
+ * clearCart() also schedules a React update whose persist effect can lose
+ * to window.location on cash on delivery. Confirmation then hydrates whatever
+ * is still in storage, so the empty payload has to be written before return.
+ */
+export function persistClearedCart(storage: CartStorageWriter): void {
+  const payload = cartPayloadToPersist({
+    items: [],
+    hydrated: true,
+    emptyWriteAllowed: true,
+    storedRaw: storage.getItem(CART_STORAGE_KEY),
+  });
+  if (payload === null) return;
+  storage.setItem(CART_STORAGE_KEY, payload);
+  storage.removeItem(LEGACY_CART_STORAGE_KEY);
+}
+
 /** Hide the header badge only after hydration knows the cart is empty. */
 export function isCartBadgeHidden(
   hydrated: boolean,

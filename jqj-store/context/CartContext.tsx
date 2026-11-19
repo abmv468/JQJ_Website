@@ -13,6 +13,7 @@ import {
   CART_STORAGE_KEY,
   LEGACY_CART_STORAGE_KEY,
   cartPayloadToPersist,
+  persistClearedCart,
   readStoredCart,
   type StoredCartItem,
 } from "@/lib/cart-storage";
@@ -145,6 +146,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
   function clearCart() {
     emptyWriteAllowed.current = true;
     setItems([]);
+    // Cash on delivery assigns window.location in this same turn. The effect
+    // below may never run, and the confirmation page hydrates this storage.
+    try {
+      persistClearedCart(localStorage);
+    } catch {
+      // ignore storage failures
+    }
   }
 
   const itemCount = useMemo(
