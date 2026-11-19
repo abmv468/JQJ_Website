@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
+import { pageSocial } from "@/lib/page-social";
+
+const TITLE = "Privacy Policy — Jewellery Quintessential";
+const DESCRIPTION =
+  "Read the JQD Group privacy policy for information about the data we collect, how we use it, and your privacy choices.";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
-  description:
-    "Read the JQD Group privacy policy for information about the data we collect, how we use it, and your privacy choices.",
   alternates: { canonical: "/privacy" },
+  ...pageSocial({
+    title: TITLE,
+    description: DESCRIPTION,
+    path: "/privacy",
+  }),
 };
 
 export default function PrivacyPage() {

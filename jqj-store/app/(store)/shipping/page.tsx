@@ -1,12 +1,20 @@
 import type { Metadata } from "next";
 import PolicyPage from "@/components/trust/PolicyPage";
+import { pageSocial } from "@/lib/page-social";
 import { RETURNS_DAYS } from "@/lib/policy";
+
+const TITLE = "Shipping Policy — Jewellery Quintessential";
+const DESCRIPTION =
+  "Review JQD Group order processing, delivery timing, tracking, international duties, and shipping support.";
 
 export const metadata: Metadata = {
   title: "Shipping Policy",
-  description:
-    "Review JQD Group order processing, delivery timing, tracking, international duties, and shipping support.",
   alternates: { canonical: "/shipping" },
+  ...pageSocial({
+    title: TITLE,
+    description: DESCRIPTION,
+    path: "/shipping",
+  }),
 };
 
 export default function ShippingPage() {
