@@ -742,3 +742,115 @@ input[type="number"]::-webkit-outer-spin-button {
     animation: none;
   }
 }
+
+/* Announcement ticker. Two equal copies; one pass is translateX(-50%) in 40s. */
+.announcement-viewport {
+  overflow: hidden;
+  width: 100%;
+  height: 2.65rem;
+}
+
+.announcement-track {
+  display: flex;
+  width: max-content;
+  height: 100%;
+  align-items: center;
+  animation: announcement-ticker 40s linear infinite;
+}
+
+.announcement-half,
+.announcement-set,
+.announcement-message {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: 100%;
+}
+
+.announcement-set p {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.announcement-bar:hover .announcement-track,
+.announcement-bar:focus-within .announcement-track {
+  animation-play-state: paused;
+}
+
+.announcement-bar:focus-visible {
+  outline: 2px solid #e1c19d;
+  outline-offset: 3px;
+}
+
+@keyframes announcement-ticker {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .announcement-viewport {
+    overflow: visible;
+    height: auto;
+    min-height: 2.65rem;
+    max-width: 1440px;
+    margin-inline: auto;
+    padding: 0.5rem 1rem;
+  }
+
+  .announcement-track,
+  .announcement-half,
+  .announcement-set,
+  .announcement-message {
+    height: auto;
+  }
+
+  .announcement-track {
+    animation: none;
+    transform: none;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .announcement-half {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .announcement-half + .announcement-half,
+  .announcement-set + .announcement-set,
+  .announcement-seam {
+    display: none;
+  }
+
+  .announcement-set {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 0.25rem;
+    text-align: center;
+  }
+
+  .announcement-message {
+    justify-content: center;
+  }
+
+  .announcement-set p {
+    white-space: normal;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) and (min-width: 640px) {
+  .announcement-viewport {
+    padding-inline: 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) and (min-width: 1024px) {
+  .announcement-viewport {
+    padding-inline: 3rem;
+  }
+}
