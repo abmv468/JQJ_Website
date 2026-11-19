@@ -488,9 +488,7 @@ export default function CheckoutPage() {
                   onChange={() => setMethod("airwallex")}
                   className="accent-brand-gold"
                 />
-                <span className="text-sm">
-                  Credit / Debit Card (Airwallex Hosted Checkout)
-                </span>
+                <span className="text-sm">Credit / Debit Card</span>
               </label>
               <p className="text-xs text-brand-muted">{CARD_CURRENCY_NOTICE}</p>
               <label
@@ -521,7 +519,7 @@ export default function CheckoutPage() {
           )}
           {!error && paymentStage === "redirecting_to_airwallex" && (
             <p className="mb-4 text-sm text-brand-muted">
-              Redirecting to Airwallex secure checkout…
+              Redirecting to secure checkout…
             </p>
           )}
 

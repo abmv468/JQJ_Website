@@ -56,6 +56,7 @@ describe("COD radio label", () => {
     expect(html).not.toContain("Cash on Delivery (+");
     expect(html).not.toContain("Cash on Delivery fee");
     expect(html).not.toContain("DISPLAY:EUR:");
-    expect(html).toContain("Credit / Debit Card (Airwallex Hosted Checkout)");
+    expect(html).toContain("Credit / Debit Card");
+    expect(html).not.toContain("Airwallex Hosted Checkout");
   });
 });
