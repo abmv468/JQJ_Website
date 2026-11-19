@@ -21,6 +21,9 @@ import {
   fillCheckout,
   installCheckoutIsolation,
   rememberUnpaidReuseAttempt,
+  seedReusedAirwallexAttempt,
+  stubAirwallexAlreadyPaidReuse,
+  stubAirwallexVerify,
   stubUnpaidReuseConflict,
   submitAndAssertParity,
   waitForCheckoutResponse,
@@ -28,6 +31,9 @@ import {
 
 const UNDER_THRESHOLD_SLUG = "blue-lace-agate-silver-pendant";
 const OVER_THRESHOLD_SLUG = "amethyst-bracelet-xv";
+const REUSED_PAID_ORDER_ID = "order-e2e-paid";
+const REUSED_PAID_INTENT_ID = "int_e2e_paid";
+const REUSED_PAID_IDEMPOTENCY_KEY = "11111111-1111-4111-8111-111111111111";
 
 test.beforeEach(async ({ page, baseURL }) => {
   await installCheckoutIsolation(page, baseURL);
@@ -213,6 +219,80 @@ test("a reused unpaid order that fails current validation stays on checkout", as
   expect(captured.request?.items?.[0]?.slug).toBe(OVER_THRESHOLD_SLUG);
 
   await assertUnpaidReuseStayedOnCheckout(page, conflict, OVER_THRESHOLD_SLUG);
+});
+
+test("reused already-paid Airwallex checkout opens confirmation without starting the SDK", async ({
+  page,
+}, testInfo) => {
+  const sdkRequests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("airwallex.com")) {
+      sdkRequests.push(request.url());
+    }
+  });
+
+  await addProductToCart(page, OVER_THRESHOLD_SLUG);
+  await page.goto("/checkout");
+  await fillCheckout(page);
+  await seedReusedAirwallexAttempt(page, {
+    idempotencyKey: REUSED_PAID_IDEMPOTENCY_KEY,
+    paymentIntentId: REUSED_PAID_INTENT_ID,
+    orderId: REUSED_PAID_ORDER_ID,
+  });
+  const captured = await stubAirwallexAlreadyPaidReuse(page, {
+    orderId: REUSED_PAID_ORDER_ID,
+    intentId: REUSED_PAID_INTENT_ID,
+    idempotencyKey: REUSED_PAID_IDEMPOTENCY_KEY,
+  });
+  await stubAirwallexVerify(page, REUSED_PAID_ORDER_ID);
+
+  const buttonName = "Continue to Secure Payment";
+  if (testInfo.project.name === MOBILE_PROJECT) {
+    await assertPayControlInView(page, buttonName);
+  }
+
+  const responsePromise = waitForCheckoutResponse(page, "airwallex");
+  await page.getByRole("button", { name: buttonName, exact: true }).click();
+  const response = await responsePromise;
+  expect(response.ok()).toBeTruthy();
+  expect(new URL(response.url()).pathname).toBe("/api/checkout/airwallex");
+
+  if (!captured.request || !captured.body) {
+    throw new Error("Checkout route did not capture the create call");
+  }
+  expect(
+    captured.request.paymentIntentId,
+    "a first-time create has no payment intent and must not be reported as already paid",
+  ).toBe(REUSED_PAID_INTENT_ID);
+  expect(captured.request.idempotencyKey).toBe(REUSED_PAID_IDEMPOTENCY_KEY);
+  expect(captured.request.items?.[0]?.slug).toBe(OVER_THRESHOLD_SLUG);
+  expect(captured.alreadyPaid).toBe(true);
+  expect(captured.body).toEqual({
+    orderId: REUSED_PAID_ORDER_ID,
+    intentId: REUSED_PAID_INTENT_ID,
+    alreadyPaid: true,
+    currency: "USD",
+    sdkEnv: "demo",
+    countryCode: "US",
+  });
+
+  await expect(page).toHaveURL(/\/order-confirmation\?/);
+  const url = new URL(page.url());
+  expect(url.pathname).toBe("/order-confirmation");
+  expect(url.searchParams.get("provider")).toBe("airwallex");
+  expect(url.searchParams.get("order_id")).toBe(REUSED_PAID_ORDER_ID);
+  expect(url.searchParams.get("intent_id")).toBe(REUSED_PAID_INTENT_ID);
+  await assertCurrentConfirmation(page, REUSED_PAID_ORDER_ID, "airwallex");
+  await expectCartCleared(page);
+
+  const calls = await page.evaluate(() =>
+    JSON.parse(sessionStorage.getItem("aw-calls") ?? "[]"),
+  );
+  expect(calls).toEqual([]);
+  expect(sdkRequests).toEqual([]);
+  await expect(page.locator('script[data-airwallex-sdk="true"]')).toHaveCount(
+    0,
+  );
 });
 
 test("a failed Airwallex return keeps the cart and shows support copy", async ({
