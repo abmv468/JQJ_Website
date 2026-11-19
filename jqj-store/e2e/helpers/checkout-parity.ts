@@ -1,6 +1,11 @@
 import { expect, type Page, type TestInfo } from "@playwright/test";
 import { products } from "../../data/products";
 import {
+  CHECKOUT_ATTEMPT_STORAGE_KEY,
+  cartFingerprint,
+  type CheckoutAttemptItem,
+} from "../../lib/checkout-attempt";
+import {
   COD_FEE,
   codFeeDisplay,
   formatUsd,
@@ -15,9 +20,16 @@ export const MOBILE_PROJECT = "mobile-chromium";
 type CheckoutRequest = {
   currency?: string;
   idempotencyKey?: string;
+  paymentIntentId?: string;
   shipping?: number;
   items?: { slug?: string; quantity?: number; price?: number }[];
 };
+
+/** Prior unpaid card attempt the browser sends again on the next submit. */
+export const UNPAID_REUSE_INTENT_ID = "int_e2e_unpaid";
+export const UNPAID_REUSE_IDEMPOTENCY_KEY =
+  "40940940-9409-4409-8409-409409409409";
+export const UNPAID_REUSE_ORDER_ID = "order-e2e-unpaid";
 
 type Quote = ReturnType<typeof quoteCheckout>;
 
@@ -229,6 +241,128 @@ export async function stubAirwallexVerify(page: Page, orderId: string) {
       }),
     }),
   );
+}
+
+/**
+ * Store the cart's current fingerprint as an unpaid card attempt.
+ * The next submit on this origin reuses the key and payment intent.
+ */
+export async function rememberUnpaidReuseAttempt(page: Page) {
+  const items = await page.evaluate((cartKey) => {
+    const raw = localStorage.getItem(cartKey);
+    return raw ? (JSON.parse(raw) as CheckoutAttemptItem[]) : [];
+  }, CART_KEY);
+  if (items.length === 0) {
+    throw new Error("Cannot remember an unpaid reuse without a cart");
+  }
+  const record = {
+    fingerprint: cartFingerprint(items),
+    idempotencyKey: UNPAID_REUSE_IDEMPOTENCY_KEY,
+    paymentIntentId: UNPAID_REUSE_INTENT_ID,
+    orderId: UNPAID_REUSE_ORDER_ID,
+  };
+  await page.evaluate(
+    ({ key, value }) => {
+      sessionStorage.setItem(key, value);
+    },
+    {
+      key: CHECKOUT_ATTEMPT_STORAGE_KEY,
+      value: JSON.stringify(record),
+    },
+  );
+  return record;
+}
+
+/**
+ * Fulfill POST /api/checkout/airwallex with the unpaid-reuse 409 body.
+ * A submit that does not reuse the stored attempt is a 500, so the test
+ * cannot pass by treating a fresh checkout as the conflict.
+ */
+export async function stubUnpaidReuseConflict(page: Page, error: string) {
+  const captured: { request: CheckoutRequest | null } = { request: null };
+
+  await page.route(
+    new RegExp(`${checkoutPath("airwallex")}$`),
+    async (route) => {
+      if (route.request().method() !== "POST") {
+        await route.fallback();
+        return;
+      }
+      const request = route.request().postDataJSON() as CheckoutRequest;
+      captured.request = request;
+      const reused =
+        request.idempotencyKey === UNPAID_REUSE_IDEMPOTENCY_KEY &&
+        request.paymentIntentId === UNPAID_REUSE_INTENT_ID;
+      await route.fulfill({
+        status: reused ? 409 : 500,
+        contentType: "application/json",
+        body: JSON.stringify(
+          reused
+            ? { error }
+            : { error: "Checkout did not reuse the unpaid attempt" },
+        ),
+      });
+    },
+  );
+
+  return captured;
+}
+
+export async function assertUnpaidReuseStayedOnCheckout(
+  page: Page,
+  error: string,
+  slug: string,
+) {
+  await expect(page.getByText(error, { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/checkout\/?$/);
+  await expect(
+    page.getByRole("heading", { name: "Thank you for your order" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: "Payment was not completed" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByText("Your Airwallex payment was successful."),
+  ).toHaveCount(0);
+  await expect(
+    page.getByText("Redirecting to Airwallex secure checkout…"),
+  ).toHaveCount(0);
+  await expect(page.getByText("Creating secure payment session…")).toHaveCount(
+    0,
+  );
+  await expect(
+    page.getByRole("button", {
+      name: "Continue to Secure Payment",
+      exact: true,
+    }),
+  ).toBeEnabled();
+
+  const calls = await page.evaluate(() =>
+    JSON.parse(sessionStorage.getItem("aw-calls") ?? "[]"),
+  );
+  expect(calls).toEqual([]);
+
+  await expect
+    .poll(async () =>
+      page.evaluate((key) => localStorage.getItem(key), CART_KEY),
+    )
+    .toContain(slug);
+
+  const attempt = await page.evaluate((key) => {
+    const raw = sessionStorage.getItem(key);
+    return raw
+      ? (JSON.parse(raw) as {
+          outcome?: string;
+          idempotencyKey?: string;
+          paymentIntentId?: string;
+        })
+      : null;
+  }, CHECKOUT_ATTEMPT_STORAGE_KEY);
+  expect(attempt).toMatchObject({
+    idempotencyKey: UNPAID_REUSE_IDEMPOTENCY_KEY,
+    paymentIntentId: UNPAID_REUSE_INTENT_ID,
+  });
+  expect(attempt?.outcome).toBeUndefined();
 }
 
 /**

@@ -9,13 +9,21 @@ import {
 } from "./helpers/checkout-expectations";
 import {
   CART_KEY,
+  MOBILE_PROJECT,
+  UNPAID_REUSE_IDEMPOTENCY_KEY,
+  UNPAID_REUSE_INTENT_ID,
   addProductToCart,
   assertCurrentConfirmation,
+  assertPayControlInView,
+  assertUnpaidReuseStayedOnCheckout,
   catalogUnitPrice,
   expectCartCleared,
   fillCheckout,
   installCheckoutIsolation,
+  rememberUnpaidReuseAttempt,
+  stubUnpaidReuseConflict,
   submitAndAssertParity,
+  waitForCheckoutResponse,
 } from "./helpers/checkout-parity";
 
 const UNDER_THRESHOLD_SLUG = "blue-lace-agate-silver-pendant";
@@ -174,6 +182,37 @@ test("card checkout at or over the free-shipping announcement redirects through 
       { type: "redirect", intent_id: "int_e2e" },
     ]),
   );
+});
+
+test("a reused unpaid order that fails current validation stays on checkout", async ({
+  page,
+}, testInfo) => {
+  const conflict = '"Amethyst Bracelet XV (5mm)" is out of stock.';
+
+  await addProductToCart(page, OVER_THRESHOLD_SLUG);
+  await rememberUnpaidReuseAttempt(page);
+  const captured = await stubUnpaidReuseConflict(page, conflict);
+  await page.goto("/checkout");
+  await fillCheckout(page);
+
+  if (testInfo.project.name === MOBILE_PROJECT) {
+    await assertPayControlInView(page, "Continue to Secure Payment");
+  }
+
+  const responsePromise = waitForCheckoutResponse(page, "airwallex");
+  await page
+    .getByRole("button", { name: "Continue to Secure Payment", exact: true })
+    .click();
+  const response = await responsePromise;
+
+  expect(response.status()).toBe(409);
+  expect(await response.json()).toEqual({ error: conflict });
+  expect(captured.request?.idempotencyKey).toBe(UNPAID_REUSE_IDEMPOTENCY_KEY);
+  expect(captured.request?.paymentIntentId).toBe(UNPAID_REUSE_INTENT_ID);
+  expect(captured.request?.currency).toBe("USD");
+  expect(captured.request?.items?.[0]?.slug).toBe(OVER_THRESHOLD_SLUG);
+
+  await assertUnpaidReuseStayedOnCheckout(page, conflict, OVER_THRESHOLD_SLUG);
 });
 
 test("a failed Airwallex return keeps the cart and shows support copy", async ({
