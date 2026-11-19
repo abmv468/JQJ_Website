@@ -10,6 +10,7 @@ import { metadata as journalMetadata } from "@/app/(store)/journal/page";
 import { generateMetadata as journalArticleMetadata } from "@/app/(store)/journal/[slug]/page";
 import { metadata as cartMetadata } from "@/app/(store)/cart/layout";
 import { metadata as checkoutMetadata } from "@/app/(store)/checkout/layout";
+import { metadata as orderConfirmationMetadata } from "@/app/(store)/order-confirmation/layout";
 import {
   AUTH_DESCRIPTION,
   AUTH_TITLE,
@@ -103,6 +104,7 @@ describe("technical SEO preview", () => {
         "/api",
         "/cart",
         "/checkout",
+        "/order-confirmation",
         "/auth",
         "/account",
         "/admin",
@@ -339,6 +341,49 @@ describe("technical SEO preview", () => {
     );
     expect(checkoutPage).toContain("Secure payment");
     expect(checkoutPage).not.toContain("Secure payment.");
+  });
+
+  it("gives order confirmation its own noindex title and no homepage canonical", () => {
+    expect(orderConfirmationMetadata.title).toEqual({
+      absolute: "Order confirmation — Jewellery Quintessential",
+    });
+    expect(orderConfirmationMetadata.alternates).toEqual({ canonical: null });
+    expect(orderConfirmationMetadata.alternates?.canonical).not.toBe("/");
+    expect(orderConfirmationMetadata.robots).toEqual(NOINDEX_FOLLOW);
+    expect(orderConfirmationMetadata.description).toBe(
+      "Thank you for your order.",
+    );
+    expect(orderConfirmationMetadata.description).not.toBe(
+      HOMEPAGE_DESCRIPTION,
+    );
+    expect(orderConfirmationMetadata.openGraph).toMatchObject({
+      title: "Order confirmation — Jewellery Quintessential",
+      description: "Thank you for your order.",
+      url: "/order-confirmation",
+    });
+    expect(orderConfirmationMetadata.openGraph?.url).not.toBe("/");
+    expect(orderConfirmationMetadata.twitter).toMatchObject({
+      title: "Order confirmation — Jewellery Quintessential",
+      description: "Thank you for your order.",
+    });
+    expect(orderConfirmationMetadata.openGraph?.title).not.toBe(HOMEPAGE_TITLE);
+    expect(orderConfirmationMetadata.twitter?.title).not.toBe(HOMEPAGE_TITLE);
+
+    expect(
+      readFileSync(
+        path.join(root, "app/(store)/order-confirmation/page.tsx"),
+        "utf8",
+      ),
+    ).toContain("Thank you for your order");
+
+    const rules = robots().rules;
+    const rule = Array.isArray(rules) ? rules[0] : rules;
+    const disallow = rule?.disallow;
+    const paths = Array.isArray(disallow) ? disallow : [disallow];
+    expect(paths).toContain("/order-confirmation");
+    expect(
+      sitemap().some((entry) => entry.url.includes("/order-confirmation")),
+    ).toBe(false);
   });
 
   it("gives auth and login their own social titles, and login its own canonical", () => {
