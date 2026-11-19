@@ -58,6 +58,22 @@ select {
   outline-offset: 3px;
 }
 
+/*
+  Header search is one row: the field sits flush against GO.
+  The offset above would leave the input and cross GO, and GO's own
+  offset would cross the input. Leave that global treatment in place.
+  This form draws the same champagne ring around the whole control.
+*/
+#header-search-form:has(:focus-visible) {
+  outline: 2px solid #e1c19d;
+  outline-offset: 3px;
+}
+
+#header-search-form :where(input, button):focus-visible {
+  outline: none;
+  outline-offset: 0;
+}
+
 /* Hidden until keyboard focus. Does not change the resting page. */
 .skip-to-content {
   position: absolute;

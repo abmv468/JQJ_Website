@@ -543,6 +543,7 @@ export default function Header() {
                 <AnimatePresence initial={false}>
                   {searchOpen && (
                     <m.form
+                      id="header-search-form"
                       key="header-search"
                       initial={
                         shouldReduceMotion
