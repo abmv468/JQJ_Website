@@ -385,6 +385,10 @@ export async function assertCurrentConfirmation(
 }
 
 export async function expectCartCleared(page: Page) {
+  // The badge stays blank until hydration. "0" means this document loaded an
+  // empty cart. A leftover line becomes "1" and fails here.
+  const badge = page.locator('button[aria-label="Cart"] span.absolute');
+  await expect(badge).toHaveText("0");
   await page.waitForFunction((key) => {
     const raw = localStorage.getItem(key);
     return !raw || JSON.parse(raw).length === 0;
