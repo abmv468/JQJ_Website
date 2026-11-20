@@ -137,10 +137,24 @@ export async function fillCheckout(page: Page) {
 export async function addProductToCart(page: Page, slug: string) {
   await page.goto(`/products/${slug}`);
   await page.getByRole("button", { name: "Add to Cart", exact: true }).click();
-  await page.waitForFunction((key) => {
+  // A throw inside waitForFunction is retried until the test timeout.
+  // Invalid storage must resolve so the assertion below fails immediately.
+  const result = await page.waitForFunction((key) => {
     const raw = localStorage.getItem(key);
-    return Boolean(raw && JSON.parse(raw).length > 0);
+    if (!raw) return false;
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        return { ready: true, filled: false, reason: "not-array" };
+      }
+      if (parsed.length > 0) return { ready: true, filled: true };
+      return false;
+    } catch {
+      return { ready: true, filled: false, reason: "invalid-json" };
+    }
   }, CART_KEY);
+  const value = await result.jsonValue();
+  expect(value).toMatchObject({ ready: true, filled: true });
 }
 
 function summaryRow(page: Page, label: string) {
@@ -656,8 +670,23 @@ export async function expectCartCleared(page: Page) {
   // empty cart. A leftover line becomes "1" and fails here.
   const badge = page.locator('button[aria-label="Cart"] span.absolute');
   await expect(badge).toHaveText("0");
-  await page.waitForFunction((key) => {
+  // A JSON.parse throw is retried until the 60s test timeout. A truthy probe
+  // ends the wait so corrupt storage fails the assertion below at once.
+  // Only a parseable non-empty array keeps polling.
+  const result = await page.waitForFunction((key) => {
     const raw = localStorage.getItem(key);
-    return !raw || JSON.parse(raw).length === 0;
+    if (!raw) return { ready: true, empty: true };
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        return { ready: true, empty: false, reason: "not-array" };
+      }
+      if (parsed.length === 0) return { ready: true, empty: true };
+      return false; // still has lines; keep polling
+    } catch {
+      return { ready: true, empty: false, reason: "invalid-json" };
+    }
   }, CART_KEY);
+  const value = await result.jsonValue();
+  expect(value).toMatchObject({ ready: true, empty: true });
 }
