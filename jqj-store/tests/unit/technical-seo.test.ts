@@ -60,6 +60,7 @@ const PUBLISHED_JOURNAL_SLUGS = [
   "how-to-clean-a-crystal",
   "moonstones-blue-sheen-and-labradorite",
   "jewellery-for-a-long-day-at-your-desk",
+  "moonstone-and-the-folklore-of-the-moon",
   "victorian-fascination-with-crystal-jewellery",
 ] as const;
 
@@ -135,7 +136,7 @@ describe("technical SEO preview", () => {
     expect(home?.lastModified).not.toEqual(privacy?.lastModified);
   });
 
-  it("indexes the journal index and the four published notes", () => {
+  it("indexes the journal index and the published notes", () => {
     expect(journalMetadata.robots).toMatchObject(INDEX_FOLLOW);
 
     const entries = sitemap();
@@ -158,6 +159,11 @@ describe("technical SEO preview", () => {
         entry.url.endsWith("/journal/how-to-clean-a-crystal"),
       )?.lastModified,
     );
+    expect(
+      entries.find((entry) =>
+        entry.url.endsWith("/journal/moonstone-and-the-folklore-of-the-moon"),
+      )?.lastModified,
+    ).toEqual(new Date("2026-11-27T06:13:00.000Z"));
 
     for (const slug of RETIRED_JOURNAL_SLUGS) {
       expect(urls.some((url) => url.includes(slug))).toBe(false);

@@ -434,6 +434,106 @@ export const JOURNAL_POSTS: readonly JournalPost[] = [
     ],
   },
   {
+    slug: "moonstone-and-the-folklore-of-the-moon",
+    title: "Moonstone and the folklore of the moon",
+    displayDate: "27 November 2026",
+    dateTime: "2026-11-27",
+    category: "meaning",
+    dek: "Across the wider West, moonstone has been associated with lunar imagery, mystery and changing light. Its folklore belongs to cultural imagination rather than medical fact.",
+    still: {
+      src: "/journal/moonstone-and-the-folklore-of-the-moon.png",
+      alt: "A single moonstone cabochon with a soft blue-white glow on a warm cream surface, with the Jewellery Quintessential mark at the bottom centre.",
+    },
+    metaTitle:
+      "Moonstone and the folklore of the moon | Jewellery Quintessential",
+    metaDescription:
+      "Moonstone has long been associated with lunar imagery and changing light. Its folklore belongs to cultural imagination rather than medical fact.",
+    related: [
+      { label: "Our story", href: "https://jqd.app/story" },
+      { label: "Necklaces", href: "https://jqd.app/necklaces" },
+    ],
+    body: [
+      {
+        type: "paragraph",
+        text: "Few gemstones have a name as closely connected to an image in the natural world as moonstone.",
+      },
+      {
+        type: "paragraph",
+        text: "Its soft glow, often appearing to float beneath the surface, has made it an enduring subject of symbolism and folklore. As the stone moves, a blue or silvery sheen seems to shift across it, recalling moonlight. Over time, this visual quality helped shape associations with cycles, reflection and the night sky.",
+      },
+      { type: "heading", text: "The optical character of moonstone" },
+      {
+        type: "paragraph",
+        text: "Moonstone is a feldspar mineral known for an optical effect called adularescence. Light interacts with microscopic internal structures in the stone, producing a soft glow that appears to come from within. Depending on the particular stone, the sheen may be white, silvery or blue.",
+      },
+      {
+        type: "paragraph",
+        text: "The effect is often most noticeable in polished cabochons, where the smooth rounded surface allows the glow to be observed as the stone moves. The stone's character seems to change with the angle of observation, which is one reason it has inspired so many symbolic interpretations.",
+      },
+      { type: "heading", text: "The moon in Western symbolism" },
+      {
+        type: "paragraph",
+        text: "Across European cultural traditions, the moon has long been associated with cycles, timekeeping and the changing natural world. Its phases provide a visible measure of time, while its presence in the night sky has inspired poetry, art, folklore and religious imagery. It has also appeared in stories connected with dreams, mystery, intuition and transformation.",
+      },
+      {
+        type: "paragraph",
+        text: "These associations are diverse and should not be treated as one unified belief system. Moonstone's name and appearance made it a natural material through which some of these ideas could be expressed.",
+      },
+      {
+        type: "heading",
+        text: "British Isles folklore and later interpretations",
+      },
+      {
+        type: "paragraph",
+        text: "In the British Isles, lunar imagery appears in a wide range of folk beliefs, seasonal customs, literature and popular traditions. The moon has been associated with changing fortunes, natural rhythms and the mysterious aspects of night. Gemstones, meanwhile, have frequently been incorporated into folklore as objects carrying symbolic or protective significance.",
+      },
+      {
+        type: "paragraph",
+        text: "Moonstone became part of this wider Western imaginative landscape, although its specific associations have varied between sources and periods. This is not to suggest that every British community shared the same understanding of the stone, or that one continuous ancient moonstone tradition existed across the islands. Much of the symbolism encountered in contemporary gemstone writing reflects a mixture of historical references and later spiritual interpretation.",
+      },
+      { type: "heading", text: "The wider Western fascination" },
+      {
+        type: "paragraph",
+        text: "Beyond the British Isles, moonstone has also been connected with lunar symbolism in European and North American jewellery traditions. Its changing sheen made it attractive to designers interested in unusual optical effects and natural forms.",
+      },
+      {
+        type: "paragraph",
+        text: "In the late nineteenth and early twentieth centuries, gemstones with distinctive visual qualities became part of a broader artistic interest in organic shapes, natural imagery and decorative materials. Moonstone suited this aesthetic particularly well. Its quiet appearance could feel mysterious without requiring elaborate ornament.",
+      },
+      { type: "heading", text: "The language of cycles and reflection" },
+      {
+        type: "paragraph",
+        text: "Modern interpretations often associate moonstone with intuition, new beginnings, inner reflection and the changing phases of life. These associations draw on the moon's symbolic role as an image of cycles and renewal. They are traditions and personal interpretations, not scientific findings or promises about the body.",
+      },
+      {
+        type: "paragraph",
+        text: "The idea of change suits the stone's appearance: its sheen becomes more pronounced or subdued as the angle and light change.",
+      },
+      { type: "heading", text: "Choosing moonstone today" },
+      {
+        type: "paragraph",
+        text: "Moonstone can be appreciated in several ways: for its geological and optical properties, for the lunar symbolism attached to its name, or simply for the soft blue sheen against silver-coloured or gold-plated findings.",
+      },
+      {
+        type: "paragraph",
+        text: "When selecting a piece, look at the strength and position of the sheen, the body colour and the overall finish. Natural stones can vary, so no two examples should be assumed to look exactly alike.",
+      },
+      { type: "heading", text: "A stone shaped by light and imagination" },
+      {
+        type: "paragraph",
+        text: "Moonstone occupies a space between material science and cultural symbolism. Its optical effect is a physical property that can be observed and explained. Its connection with lunar folklore belongs to the stories people have developed around its appearance. Both can be appreciated without confusing one for the other.",
+      },
+      {
+        type: "quote",
+        text: "A mineral whose light seems to move even when the stone itself remains still.",
+      },
+      {
+        type: "paragraph",
+        text: "The moon has long offered a language for thinking about change and reflection. Moonstone gives that language a tangible form: a mineral whose light seems to move even when the stone itself remains still.",
+      },
+    ],
+  },
+  {
     slug: "victorian-fascination-with-crystal-jewellery",
     title: "The Victorian fascination with crystal jewellery",
     displayDate: "12 November 2026",
