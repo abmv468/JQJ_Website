@@ -6,8 +6,10 @@
  * Loyalty's canonical revision is 18 Nov 2026.
  */
 const PREVIEW_REVISION = "2026-11-15T07:09:00.000Z";
-/** Journal index and the four published notes. */
+/** Journal index and the four notes published on 15 Nov 2026. */
 const JOURNAL_REVISION = "2026-11-15T12:03:00.000Z";
+/** ENG-025 ready stamp, 27 Nov 2026 14:13 Asia/Shanghai. */
+const JOURNAL_ENG_025_REVISION = "2026-11-27T06:13:00.000Z";
 const LOYALTY_REVISION = "2026-11-18T01:07:00.000Z";
 
 const LAST_MODIFIED: Record<string, string> = {
@@ -31,6 +33,7 @@ const LAST_MODIFIED: Record<string, string> = {
   "/journal/moonstones-blue-sheen-and-labradorite": JOURNAL_REVISION,
   "/journal/jewellery-for-a-long-day-at-your-desk": JOURNAL_REVISION,
   "/journal/victorian-fascination-with-crystal-jewellery": JOURNAL_REVISION,
+  "/journal/moonstone-and-the-folklore-of-the-moon": JOURNAL_ENG_025_REVISION,
 };
 
 export function routeLastModified(path: string): Date {

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -165,7 +166,7 @@ describe("journal catalogue", () => {
     expect(index).not.toContain("minutes");
   });
 
-  it("lists the four notes and filters Care without hiding search", () => {
+  it("lists the published notes and filters Care without hiding search", () => {
     expect(JOURNAL_INTRO.dek).toBe(
       "Notes on natural stone, care, and dressing pieces for everyday ritual.",
     );
@@ -217,6 +218,12 @@ describe("journal catalogue", () => {
         "dressing",
       ],
       [
+        "Moonstone and the folklore of the moon",
+        "27 November 2026",
+        "2026-11-27",
+        "meaning",
+      ],
+      [
         "The Victorian fascination with crystal jewellery",
         "12 November 2026",
         "2026-11-12",
@@ -227,7 +234,7 @@ describe("journal catalogue", () => {
 
     expect(
       filterJournalPosts(JOURNAL_POSTS, { category: "all", query: "" }),
-    ).toHaveLength(4);
+    ).toHaveLength(5);
     const care = filterJournalPosts(JOURNAL_POSTS, {
       category: "care",
       query: "",
@@ -240,8 +247,10 @@ describe("journal catalogue", () => {
       filterJournalPosts(JOURNAL_POSTS, { category: "gifting", query: "" }),
     ).toEqual([]);
     expect(
-      filterJournalPosts(JOURNAL_POSTS, { category: "meaning", query: "" }),
-    ).toEqual([]);
+      filterJournalPosts(JOURNAL_POSTS, { category: "meaning", query: "" }).map(
+        (post) => post.slug,
+      ),
+    ).toEqual(["moonstone-and-the-folklore-of-the-moon"]);
     expect(parseJournalCategory("care")).toBe("care");
     expect(parseJournalCategory(undefined)).toBe("all");
   });
@@ -383,6 +392,17 @@ describe("journal catalogue", () => {
         ],
       },
       {
+        slug: "moonstone-and-the-folklore-of-the-moon",
+        metaTitle:
+          "Moonstone and the folklore of the moon | Jewellery Quintessential",
+        metaDescription:
+          "Moonstone has long been associated with lunar imagery and changing light. Its folklore belongs to cultural imagination rather than medical fact.",
+        related: [
+          { label: "Our story", href: "https://jqd.app/story" },
+          { label: "Necklaces", href: "https://jqd.app/necklaces" },
+        ],
+      },
+      {
         slug: "victorian-fascination-with-crystal-jewellery",
         metaTitle:
           "Victorian fascination with crystals | Jewellery Quintessential",
@@ -473,6 +493,48 @@ describe("journal catalogue", () => {
       ),
     ).toHaveLength(1);
     expect(history?.body?.at(-1)?.type).toBe("paragraph");
+
+    const folklore = getJournalPost("moonstone-and-the-folklore-of-the-moon");
+    const folkloreProse =
+      (folklore?.body
+        ?.filter((block) => block.type !== "quote")
+        .map(blockText)
+        .join("\n\n") ?? "") + "\n";
+    expect(createHash("sha256").update(folkloreProse).digest("hex")).toBe(
+      "d630ba6310697d32e07a484d60e01f0c84025b88bbc1c4a3a4a55ee6febb399d",
+    );
+    expect(folklore?.title).toBe("Moonstone and the folklore of the moon");
+    expect(folklore?.dek).toBe(
+      "Across the wider West, moonstone has been associated with lunar imagery, mystery and changing light. Its folklore belongs to cultural imagination rather than medical fact.",
+    );
+    expect(folklore?.category).toBe("meaning");
+    expect(folklore?.slug).not.toBe(stones?.slug);
+    expect(folklore?.title).not.toBe(stones?.title);
+    expect(folklore?.body?.filter((block) => block.type === "quote")).toEqual([
+      {
+        type: "quote",
+        text: "A mineral whose light seems to move even when the stone itself remains still.",
+      },
+    ]);
+    expect(
+      folklore?.body?.filter(
+        (block) =>
+          block.type === "paragraph" &&
+          block.text.includes(
+            "a mineral whose light seems to move even when the stone itself remains still.",
+          ),
+      ),
+    ).toHaveLength(1);
+    expect(folklore?.body?.at(-1)?.type).toBe("paragraph");
+    const folkloreText = `${folklore?.title}\n${folklore?.dek}\n${folklore?.body?.map(blockText).join("\n")}`;
+    expect(folkloreText.toLowerCase()).not.toContain("labradorite");
+    expect(folkloreText).not.toMatch(/Quintessence/);
+    expect(stones?.body?.map(blockText).join("\n").toLowerCase()).toContain(
+      "labradorite",
+    );
+    expect(folklore?.related.map((link) => link.href).join("\n")).not.toMatch(
+      /moonstone/i,
+    );
   });
 
   it("places one lead still after the dek and keeps the index typographic", () => {
@@ -509,6 +571,26 @@ describe("journal catalogue", () => {
       expect(file.subarray(8, 12).toString("ascii")).toBe("WEBP");
       expect(webpSize(file)).toEqual({ width: 2048, height: 1360 });
     }
+
+    const folkloreStill = getJournalPost(
+      "moonstone-and-the-folklore-of-the-moon",
+    )?.still;
+    expect(folkloreStill).toEqual({
+      src: "/journal/moonstone-and-the-folklore-of-the-moon.png",
+      alt: "A single moonstone cabochon with a soft blue-white glow on a warm cream surface, with the Jewellery Quintessential mark at the bottom centre.",
+    });
+    const png = readFileSync(
+      path.join(root, "public", folkloreStill?.src ?? ""),
+    );
+    expect(png.subarray(0, 8)).toEqual(
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    );
+    expect(png.readUInt32BE(16)).toBe(2048);
+    expect(png.readUInt32BE(20)).toBe(1360);
+    expect(createHash("sha256").update(png).digest("hex")).toBe(
+      "e63066ddf0a38403c60c6763266e88700800667d12f6c646ca784a221b5905da",
+    );
+    expect(png.length).toBe(2480749);
 
     const dekAt = article.indexOf('className="journal-article-dek"');
     const stillAt = article.indexOf('className="journal-still"');
