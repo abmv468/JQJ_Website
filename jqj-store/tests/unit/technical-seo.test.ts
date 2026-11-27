@@ -509,6 +509,27 @@ describe("technical SEO preview", () => {
     }
   });
 
+  it("noindexes filtered collection URLs without clearing unfiltered root robots", () => {
+    const unfiltered = [
+      newMetadata({ searchParams: {} }),
+      braceletsMetadata({ searchParams: {} }),
+      necklacesMetadata({ searchParams: {} }),
+    ];
+    for (const metadata of unfiltered) {
+      expect(metadata).not.toHaveProperty("robots");
+    }
+
+    const filtered = [
+      newMetadata({ searchParams: { stone: "amethyst" } }),
+      braceletsMetadata({ searchParams: { tag: "limited" } }),
+      necklacesMetadata({ searchParams: { q: "pearl" } }),
+    ];
+    for (const metadata of filtered) {
+      expect(metadata.robots).toEqual({ index: false, follow: true });
+      expect(metadata.robots).not.toHaveProperty("googleBot");
+    }
+  });
+
   it("gives remaining indexed content pages their own social title, description, and url", () => {
     const layout = readFileSync(path.join(root, "app/layout.tsx"), "utf8");
     expect(layout).toContain('template: "%s — Jewellery Quintessential"');

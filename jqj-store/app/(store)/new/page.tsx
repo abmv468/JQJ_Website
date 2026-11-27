@@ -20,7 +20,9 @@ export function generateMetadata({
     title: "New Natural Stone Jewellery",
     description: DESCRIPTION,
     alternates: { canonical: "/new" },
-    robots: isFiltered ? { index: false, follow: true } : undefined,
+    // Omit robots when unfiltered. An explicit `undefined` replaces the root
+    // layout robots and drops index, follow and the googleBot preview directives.
+    ...(isFiltered ? { robots: { index: false, follow: true } } : {}),
     openGraph: {
       title: TITLE,
       description: DESCRIPTION,
